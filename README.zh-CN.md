@@ -103,6 +103,49 @@ ao worker profile litellm:qwen3-coder
 - `limited`：只允许低风险任务，并且需要 leader review
 - `blocked`：禁止进入生产工作流，并输出告警
 
+示例告警输出：
+
+```text
+Worker litellm:qwen3-coder failed onboarding evaluation.
+
+Status: limited
+
+Reasons:
+- structured-output: Output failed schema validation.
+- codegen: Generated code uses any.
+- confidence-calibration: Worker reported high confidence on an ambiguous task.
+
+Recommended action:
+- Do not assign codegen tasks.
+- Limit this worker to qualified low-risk tasks.
+- Require leader review for every accepted output.
+```
+
+如果 worker 表现更差，profile 会被标记为 `blocked`，生产路由应将其视为不可用。
+
+### 持久化 worker profile
+
+如果你希望把这次评估结果保存下来，可以使用 `--save`：
+
+```bash
+ao worker interview --provider litellm --model qwen3-coder --save
+```
+
+保存后的 profile 会写到：
+
+```text
+.ao/worker-profiles.json
+```
+
+你可以通过下面的命令查看这些已保存的 profile：
+
+```bash
+ao worker list
+ao worker profile litellm:qwen3-coder
+```
+
+当前行为仍然偏保守：如果 workflow 启动时没有显式传入 profile object，系统可以重新执行 interview，而不是盲目信任旧的能力记录。
+
 ## MCP server 用法
 
 启动 stdio server：

@@ -103,6 +103,49 @@ Interview results produce a `WorkerCapabilityProfile` that affects routing:
 - `limited`: worker is restricted to low-risk tasks and requires leader review
 - `blocked`: worker is excluded from production workflows and emits warnings
 
+Example warning output:
+
+```text
+Worker litellm:qwen3-coder failed onboarding evaluation.
+
+Status: limited
+
+Reasons:
+- structured-output: Output failed schema validation.
+- codegen: Generated code uses any.
+- confidence-calibration: Worker reported high confidence on an ambiguous task.
+
+Recommended action:
+- Do not assign codegen tasks.
+- Limit this worker to qualified low-risk tasks.
+- Require leader review for every accepted output.
+```
+
+If the worker is significantly worse, the profile becomes `blocked` and production routing should treat it as unavailable.
+
+### Persisting worker profiles
+
+Use `--save` if you want to persist the interview result:
+
+```bash
+ao worker interview --provider litellm --model qwen3-coder --save
+```
+
+Saved profiles are written to:
+
+```text
+.ao/worker-profiles.json
+```
+
+You can inspect persisted profiles with:
+
+```bash
+ao worker list
+ao worker profile litellm:qwen3-coder
+```
+
+Current behavior is conservative: if a workflow is started without an explicit profile object, the system can re-run the interview instead of blindly trusting an old capability record.
+
 ## MCP server usage
 
 Start the stdio server:
