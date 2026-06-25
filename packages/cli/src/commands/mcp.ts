@@ -29,4 +29,26 @@ export const registerMcpCommand = (program: Command, io: CliIo): void => {
         )
       );
     });
+
+  mcp
+    .command("config")
+    .description("Print a generic local MCP stdio server config snippet.")
+    .option("--command <command>", "Command to launch the server", "ao")
+    .option("--args <args...>", "Arguments passed to the command")
+    .action((options: { args?: string[]; command: string }) => {
+      io.write(
+        JSON.stringify(
+          {
+            mcpServers: {
+              "agent-orchestrator": {
+                command: options.command,
+                args: options.args ?? ["mcp", "serve"]
+              }
+            }
+          },
+          null,
+          2
+        )
+      );
+    });
 };

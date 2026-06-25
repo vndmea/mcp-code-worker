@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import {
-  createExecutionContextFromEnv,
+  resolveExecutionContext,
   runDoctor,
   writeAuditEvent
 } from "@agent-orchestrator/core";
@@ -19,7 +19,7 @@ export const aoDoctorTool: AoToolDefinition<
   description: "Inspect resolved configuration and local workflow prerequisites.",
   inputSchema,
   execute: async () => {
-    const context = createExecutionContextFromEnv();
+    const context = await resolveExecutionContext();
     const report = await runDoctor(context, {
       additionalChecks: await createWorkerProfileDoctorChecks(context)
     });

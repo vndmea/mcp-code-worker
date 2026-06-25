@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { createExecutionContextFromEnv, listAuditEvents } from "@agent-orchestrator/core";
+import { listAuditEvents, resolveExecutionContext } from "@agent-orchestrator/core";
 
 import type { AoToolDefinition } from "./tool-types.js";
 
@@ -16,7 +16,7 @@ export const aoListAuditEventsTool: AoToolDefinition<
   description: "List local audit events in reverse chronological order.",
   inputSchema,
   execute: async (args) => {
-    const context = createExecutionContextFromEnv();
+    const context = await resolveExecutionContext();
     return listAuditEvents(context.rootDir, args.limit ?? 50);
   }
 };

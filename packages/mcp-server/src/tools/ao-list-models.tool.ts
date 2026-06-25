@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { createExecutionContextFromEnv } from "@agent-orchestrator/core";
+import { resolveExecutionContext } from "@agent-orchestrator/core";
 import { ModelRouter } from "@agent-orchestrator/models";
 
 import type { AoToolDefinition } from "./tool-types.js";
@@ -14,8 +14,8 @@ export const aoListModelsTool: AoToolDefinition<
   name: "ao_list_models",
   description: "List configured leader and worker models.",
   inputSchema,
-  execute: () => {
-    const context = createExecutionContextFromEnv();
+  execute: async () => {
+    const context = await resolveExecutionContext();
     const router = new ModelRouter(context.leaderModel, context.workerModel);
     return router.listModels();
   }

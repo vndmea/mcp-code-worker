@@ -11,17 +11,22 @@ import {
   aoApplyPatchTool,
   aoDoctorTool,
   aoFixErrorTool,
+  aoGetTaskReportTool,
+  aoGetTaskStatusTool,
   aoGetWorkerRegistrationTool,
   aoInspectPatchTool,
+  aoListTasksTool,
   aoListModelsTool,
   aoListToolsTool,
   aoReviewDiffTool,
   aoReviewFilesTool,
   aoReviewRepositoryTool,
+  aoResumeTaskTool,
   aoListWorkerRegistryTool,
   aoProposePatchTool,
   aoRegisterWorkerTool,
   aoRunLeaderWorkerTool,
+  aoStartTaskTool,
   aoToolDefinitions,
   aoUnregisterWorkerTool,
   aoValidateRepositoryTool
@@ -194,6 +199,11 @@ describe("mcp tool registration", () => {
       "ao_review_files",
       "ao_validate_repository",
       "ao_fix_error",
+      "ao_start_task",
+      "ao_resume_task",
+      "ao_get_task_status",
+      "ao_list_tasks",
+      "ao_get_task_report",
       "ao_list_models",
       "ao_list_workflows",
       "ao_list_tools",
@@ -223,6 +233,7 @@ describe("mcp tool registration", () => {
     expect(tools.some((tool) => tool.name === "ao_propose_patch")).toBe(true);
     expect(tools.some((tool) => tool.name === "ao_review_repository")).toBe(true);
     expect(tools.some((tool) => tool.name === "ao_validate_repository")).toBe(true);
+    expect(tools.some((tool) => tool.name === "ao_start_task")).toBe(true);
     expect(tools.some((tool) => tool.name === "ao_doctor")).toBe(true);
   });
 
@@ -339,6 +350,37 @@ describe("mcp tool registration", () => {
       expect(inspected.files[0]?.path).toBe("packages/core/src/index.ts");
       expect(dryRunApply.mode).toBe("dry-run");
       expect(blockedApply.mode).toBe("blocked");
+    });
+  });
+
+  it("executes task session tools", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeWorkspaceFixture(rootDir);
+      const started = await aoStartTaskTool.execute({
+        goal: "Review packages/core",
+        scope: "packages/core",
+        typecheck: true,
+        allowWriteSession: true
+      });
+      const listed = await aoListTasksTool.execute({});
+      const status = await aoGetTaskStatusTool.execute({
+        taskId: started.session.taskId
+      });
+      const report = await aoGetTaskReportTool.execute({
+        taskId: started.session.taskId
+      });
+      const resumed = await aoResumeTaskTool.execute({
+        taskId: started.session.taskId,
+        proposePatch: true,
+        inspectPatch: true,
+        allowWriteSession: true
+      });
+
+      expect(started.session.taskId).toBeTruthy();
+      expect(listed[0]?.taskId).toBe(started.session.taskId);
+      expect(status.taskId).toBe(started.session.taskId);
+      expect(report.report).toContain("Task Session Report");
+      expect(resumed.patchProposal?.id).toBeTruthy();
     });
   });
 });

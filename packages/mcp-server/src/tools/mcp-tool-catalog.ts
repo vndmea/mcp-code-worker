@@ -49,6 +49,26 @@ export const mcpToolCatalog: McpToolCatalogEntry[] = [
     description: "Analyze an error log and propose a structured fix plan."
   },
   {
+    name: "ao_start_task",
+    description: "Start a local task session and persist reviewable artifacts under .ao/runs when allowed."
+  },
+  {
+    name: "ao_resume_task",
+    description: "Resume a stored local task session, skipping successful steps unless told otherwise."
+  },
+  {
+    name: "ao_get_task_status",
+    description: "Get the current persisted state for one local task session."
+  },
+  {
+    name: "ao_list_tasks",
+    description: "List stored local task sessions in reverse chronological order."
+  },
+  {
+    name: "ao_get_task_report",
+    description: "Render a readable markdown report for one local task session."
+  },
+  {
     name: "ao_list_models",
     description: "List resolved leader and worker model configurations."
   },

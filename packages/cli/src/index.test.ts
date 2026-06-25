@@ -1,5 +1,5 @@
 import { execFile as execFileCallback } from "node:child_process";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -230,6 +230,17 @@ describe("cli parsing", () => {
 
     expect(output.join("\n")).toContain("ao_plan");
     expect(output.join("\n")).toContain("ao_list_tools");
+  });
+
+  it("prints a generic mcp config snippet", async () => {
+    const { io, output } = createIo();
+    const cli = buildCli(io);
+
+    await cli.parseAsync(["node", "ao", "mcp", "config"]);
+
+    expect(output.join("\n")).toContain("\"agent-orchestrator\"");
+    expect(output.join("\n")).toContain("\"mcp\"");
+    expect(output.join("\n")).toContain("\"serve\"");
   });
 
   it("runs worker list", async () => {
@@ -515,6 +526,171 @@ describe("cli parsing", () => {
       ]);
       expect(output.at(-1)).toContain("\"rootCauseAnalysis\"");
       expect(output.at(-1)).toContain("\"repositoryContext\"");
+    });
+  });
+
+  it("initializes local ao scaffolding", async () => {
+    await withTempCwd(async () => {
+      const { io, output } = createIo();
+      const cli = buildCli(io);
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "init",
+        "--leader-provider",
+        "litellm",
+        "--leader-model",
+        "qwen3-coder",
+        "--leader-api-key-env-var",
+        "LITELLM_API_KEY"
+      ]);
+      expect(output.at(-1)).toContain("\"mode\": \"dry-run\"");
+      expect(output.at(-1)).toContain(".ao/config.json");
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "init",
+        "--leader-provider",
+        "litellm",
+        "--leader-model",
+        "qwen3-coder",
+        "--leader-api-key-env-var",
+        "LITELLM_API_KEY",
+        "--allow-write"
+      ]);
+      expect(output.at(-1)).toContain("\"mode\": \"execute\"");
+      expect(output.at(-1)).toContain(".ao/config.json");
+    });
+  });
+
+  it("runs task session lifecycle commands", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeWorkspaceFixture(rootDir);
+      const { io, output } = createIo();
+      const cli = buildCli(io);
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "task",
+        "start",
+        "--goal",
+        "Review packages/core",
+        "--scope",
+        "packages/core",
+        "--typecheck",
+        "--allow-write-session"
+      ]);
+      const started = JSON.parse(output.at(-1) ?? "{}") as {
+        session?: { taskId?: string };
+      };
+      expect(started.session?.taskId).toBeTruthy();
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "task",
+        "status",
+        started.session?.taskId ?? ""
+      ]);
+      expect(output.at(-1)).toContain("\"taskId\"");
+
+      await cli.parseAsync(["node", "ao", "task", "list"]);
+      expect(output.at(-1)).toContain(started.session?.taskId ?? "");
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "task",
+        "resume",
+        started.session?.taskId ?? "",
+        "--propose-patch",
+        "--inspect-patch",
+        "--allow-write-session"
+      ]);
+      expect(output.at(-1)).toContain("\"patchProposal\"");
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "task",
+        "report",
+        started.session?.taskId ?? ""
+      ]);
+      expect(output.at(-1)).toContain("# Task Session Report");
+    });
+  });
+
+  it("cleans up old runs and audit logs without touching registry files", async () => {
+    await withTempCwd(async (rootDir) => {
+      const oldTime = new Date(Date.now() - 40 * 86_400_000);
+      await mkdir(join(rootDir, ".ao", "runs", "task-old"), { recursive: true });
+      await mkdir(join(rootDir, ".ao", "audit"), { recursive: true });
+      await writeFile(
+        join(rootDir, ".ao", "runs", "task-old", "session.json"),
+        JSON.stringify({
+          taskId: "task-old",
+          goal: "old",
+          requireProfile: false,
+          status: "completed",
+          createdAt: "2026-05-01T10:00:00.000Z",
+          updatedAt: "2026-05-01T10:00:00.000Z",
+          steps: [],
+          artifacts: {},
+          warnings: [],
+          errors: [],
+          metadata: {}
+        }),
+        "utf8"
+      );
+      await writeFile(
+        join(rootDir, ".ao", "audit", "2026-05-01.jsonl"),
+        "",
+        "utf8"
+      );
+      await writeFile(
+        join(rootDir, ".ao", "workers.json"),
+        JSON.stringify({ version: 1, workers: [] }, null, 2),
+        "utf8"
+      );
+      await utimes(join(rootDir, ".ao", "runs", "task-old"), oldTime, oldTime);
+      await utimes(join(rootDir, ".ao", "audit", "2026-05-01.jsonl"), oldTime, oldTime);
+      const { io, output } = createIo();
+      const cli = buildCli(io);
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "cleanup",
+        "runs",
+        "--older-than-days",
+        "30"
+      ]);
+      expect(output.at(-1)).toContain("\"wouldDelete\"");
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "cleanup",
+        "runs",
+        "--older-than-days",
+        "30",
+        "--allow-write"
+      ]);
+      expect(output.at(-1)).toContain("\"deleted\"");
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "cleanup",
+        "audit",
+        "--older-than-days",
+        "30",
+        "--allow-write"
+      ]);
+      expect(output.at(-1)).toContain("\"target\": \"audit\"");
     });
   });
 

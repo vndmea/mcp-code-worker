@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 
 import {
-  createExecutionContextFromEnv,
+  resolveExecutionContext,
   runDoctor,
   writeAuditEvent
 } from "@agent-orchestrator/core";
@@ -14,7 +14,7 @@ export const registerDoctorCommand = (program: Command, io: CliIo): void => {
     .command("doctor")
     .description("Inspect resolved configuration and local workflow prerequisites.")
     .action(async () => {
-      const context = createExecutionContextFromEnv();
+      const context = await resolveExecutionContext();
       const report = await runDoctor(context, {
         additionalChecks: await createWorkerProfileDoctorChecks(context)
       });
