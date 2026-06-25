@@ -1,3 +1,4 @@
+export * from "./tools/ao-doctor.tool.js";
 export * from "./server.js";
 export * from "./tools/ao-fix-error.tool.js";
 export * from "./tools/ao-get-worker-profile.tool.js";
@@ -8,5 +9,7 @@ export * from "./tools/ao-list-workers.tool.js";
 export * from "./tools/ao-list-workflows.tool.js";
 export * from "./tools/ao-plan.tool.js";
 export * from "./tools/ao-review-diff.tool.js";
+export * from "./tools/ao-run-leader-worker.tool.js";
 export * from "./tools/ao-run-workflow.tool.js";
+export * from "./tools/mcp-tool-catalog.js";
 export * from "./tools/tool-types.js";

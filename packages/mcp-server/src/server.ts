@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { createExecutionContextFromEnv } from "@agent-orchestrator/core";
 
+import { aoDoctorTool } from "./tools/ao-doctor.tool.js";
 import { aoFixErrorTool } from "./tools/ao-fix-error.tool.js";
 import { aoGetWorkerProfileTool } from "./tools/ao-get-worker-profile.tool.js";
 import { aoInterviewWorkerTool } from "./tools/ao-interview-worker.tool.js";
@@ -12,11 +13,13 @@ import { aoListWorkersTool } from "./tools/ao-list-workers.tool.js";
 import { aoListWorkflowsTool } from "./tools/ao-list-workflows.tool.js";
 import { aoPlanTool } from "./tools/ao-plan.tool.js";
 import { aoReviewDiffTool } from "./tools/ao-review-diff.tool.js";
+import { aoRunLeaderWorkerTool } from "./tools/ao-run-leader-worker.tool.js";
 import { aoRunWorkflowTool } from "./tools/ao-run-workflow.tool.js";
 
 export const aoToolDefinitions = [
   aoPlanTool,
   aoRunWorkflowTool,
+  aoRunLeaderWorkerTool,
   aoReviewDiffTool,
   aoFixErrorTool,
   aoListModelsTool,
@@ -24,7 +27,8 @@ export const aoToolDefinitions = [
   aoListToolsTool,
   aoInterviewWorkerTool,
   aoListWorkersTool,
-  aoGetWorkerProfileTool
+  aoGetWorkerProfileTool,
+  aoDoctorTool
 ] as const;
 
 export const createAoMcpServer = () => {

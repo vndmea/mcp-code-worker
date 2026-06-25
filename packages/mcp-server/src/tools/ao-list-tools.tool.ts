@@ -1,17 +1,16 @@
 import { z } from "zod";
 
-import { registeredTools } from "@agent-orchestrator/tools";
-
 import type { AoToolDefinition } from "./tool-types.js";
+import { mcpToolCatalog } from "./mcp-tool-catalog.js";
 
 const inputSchema = z.object({});
 
 export const aoListToolsTool: AoToolDefinition<
   typeof inputSchema.shape,
-  typeof registeredTools
+  typeof mcpToolCatalog
 > = {
   name: "ao_list_tools",
-  description: "List deterministic tool abstractions available to orchestrated workflows.",
+  description: "List MCP tool definitions exposed by the server.",
   inputSchema,
-  execute: () => registeredTools
+  execute: () => mcpToolCatalog
 };
