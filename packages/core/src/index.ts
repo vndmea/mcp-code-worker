@@ -1,3 +1,4 @@
+export * from "./diagnostics/doctor.js";
 export * from "./errors/agent-error.js";
 export * from "./policies/safety-policy.js";
 export * from "./policies/write-policy.js";
