@@ -6,16 +6,26 @@ import type {
   ModelConfig,
   WorkerCapabilityProfile
 } from "@agent-orchestrator/core";
+import { WorkerCapabilityProfileSchema } from "@agent-orchestrator/core";
 
 const inMemoryProfiles = new Map<string, WorkerCapabilityProfile>();
 const PROFILE_STORE_PATH = [".ao", "worker-profiles.json"];
 
-const getStorePath = (rootDir: string) => join(rootDir, ...PROFILE_STORE_PATH);
+export interface PersistedWorkerProfilesReadResult {
+  error?: string;
+  exists: boolean;
+  path: string;
+  profiles: WorkerCapabilityProfile[];
+}
+
+export const getWorkerProfileStorePath = (rootDir: string): string =>
+  join(rootDir, ...PROFILE_STORE_PATH);
 
 const safeParseProfiles = (value: string): WorkerCapabilityProfile[] => {
   try {
     const parsed = JSON.parse(value) as unknown;
-    return Array.isArray(parsed) ? (parsed as WorkerCapabilityProfile[]) : [];
+    const schemaResult = WorkerCapabilityProfileSchema.array().safeParse(parsed);
+    return schemaResult.success ? schemaResult.data : [];
   } catch {
     return [];
   }
@@ -27,11 +37,43 @@ export const deriveWorkerProfileId = (config: ModelConfig): string =>
 export const listPersistedWorkerProfiles = async (
   rootDir: string
 ): Promise<WorkerCapabilityProfile[]> => {
+  const result = await readPersistedWorkerProfiles(rootDir);
+  return result.profiles;
+};
+
+export const readPersistedWorkerProfiles = async (
+  rootDir: string
+): Promise<PersistedWorkerProfilesReadResult> => {
+  const path = getWorkerProfileStorePath(rootDir);
+
   try {
-    const contents = await readFile(getStorePath(rootDir), "utf8");
-    return safeParseProfiles(contents);
-  } catch {
-    return [];
+    const contents = await readFile(path, "utf8");
+    const parsed = safeParseProfiles(contents);
+    const raw = JSON.parse(contents) as unknown;
+    const schemaResult = WorkerCapabilityProfileSchema.array().safeParse(raw);
+
+    return {
+      exists: true,
+      path,
+      profiles: parsed,
+      ...(schemaResult.success
+        ? {}
+        : {
+            error: schemaResult.error.issues
+              .map((issue) => issue.message)
+              .join("; ")
+          })
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const isMissing = /ENOENT/u.test(message);
+
+    return {
+      exists: !isMissing,
+      path,
+      profiles: [],
+      ...(isMissing ? {} : { error: message })
+    };
   }
 };
 
@@ -71,7 +113,7 @@ export const saveWorkerProfile = async (
 ): Promise<{ mode: "execute" | "dry-run"; path: string }> => {
   inMemoryProfiles.set(profile.workerId, profile);
 
-  const storePath = getStorePath(context.rootDir);
+  const storePath = getWorkerProfileStorePath(context.rootDir);
   const evaluation = context.writePolicy.evaluate(storePath, explicitAllowWrite);
 
   if (evaluation.mode === "dry-run") {
