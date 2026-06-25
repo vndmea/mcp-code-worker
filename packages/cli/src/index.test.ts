@@ -106,6 +106,22 @@ const writeWorkspaceFixture = async (rootDir: string): Promise<void> => {
   );
 };
 
+const writeAoConfig = async (rootDir: string, config: Record<string, unknown>): Promise<void> => {
+  await mkdir(join(rootDir, ".ao"), { recursive: true });
+  await writeFile(
+    join(rootDir, ".ao", "config.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        ...config
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+};
+
 const initGitRepo = async (rootDir: string): Promise<void> => {
   await execFile("git", ["init"], { cwd: rootDir });
   await execFile("git", ["config", "user.email", "ao@example.com"], { cwd: rootDir });
@@ -526,6 +542,69 @@ describe("cli parsing", () => {
       ]);
       expect(output.at(-1)).toContain("\"rootCauseAnalysis\"");
       expect(output.at(-1)).toContain("\"repositoryContext\"");
+    });
+  });
+
+  it("uses ao config for review, validate, and task entrypoints", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeWorkspaceFixture(rootDir);
+      await writeAoConfig(rootDir, {
+        context: {
+          maxFileBytes: 8,
+          maxTotalBytes: 64,
+          ignoredPaths: ["tmp"]
+        },
+        safety: {
+          dryRun: false,
+          allowWrite: false,
+          allowedCommands: ["git", "node", "pnpm"]
+        }
+      });
+      const { io, output } = createIo();
+      const cli = buildCli(io);
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "review",
+        "repo",
+        "--scope",
+        "packages/core"
+      ]);
+      const reviewResult = JSON.parse(output.at(-1) ?? "{}") as {
+        repositoryContext?: { selectedFiles?: Array<{ truncated?: boolean }> };
+      };
+      expect(reviewResult.repositoryContext?.selectedFiles?.[0]?.truncated).toBe(true);
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "validate",
+        "--typecheck"
+      ]);
+      const validationResult = JSON.parse(output.at(-1) ?? "{}") as {
+        checks?: Array<{ status?: string }>;
+      };
+      expect(validationResult.checks?.[0]?.status).toBe("success");
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "task",
+        "start",
+        "--goal",
+        "Review packages/core",
+        "--scope",
+        "packages/core",
+        "--typecheck",
+        "--allow-write-session"
+      ]);
+      const taskResult = JSON.parse(output.at(-1) ?? "{}") as {
+        repositoryContext?: { selectedFiles?: Array<{ truncated?: boolean }> };
+        validationReport?: { checks?: Array<{ status?: string }> };
+      };
+      expect(taskResult.repositoryContext?.selectedFiles?.[0]?.truncated).toBe(true);
+      expect(taskResult.validationReport?.checks?.[0]?.status).toBe("success");
     });
   });
 

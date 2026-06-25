@@ -53,8 +53,12 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
       }) => {
         const context = await resolveExecutionContext({
           cliOverrides: {
-            allowWrite: options.allowWrite,
-            dryRun: !options.allowWrite
+            ...(options.allowWrite
+              ? {
+                  allowWrite: true,
+                  dryRun: false
+                }
+              : {})
           }
         });
         const result = await runTaskSessionWorkflow({
@@ -96,6 +100,9 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
     .command("resume")
     .argument("<taskId>", "Task session id")
     .option("--from-step <stepId>", "Resume from a specific step")
+    .option("--error-log <text>", "Inline error log for rerunning fix planning")
+    .option("--error-log-file <path>", "Repository-local error log file for rerunning fix planning")
+    .option("--run-fix", "Run fix planning before patch proposal", false)
     .option("--propose-patch", "Generate a candidate patch proposal", false)
     .option("--inspect-patch", "Persist patch inspection details", false)
     .option("--apply-patch", "Attempt gated patch application", false)
@@ -110,23 +117,33 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
           allowWriteSession: boolean;
           applyPatch: boolean;
           confirmApply: boolean;
+          errorLog?: string;
+          errorLogFile?: string;
           fromStep?: string;
           inspectPatch: boolean;
           proposePatch: boolean;
+          runFix: boolean;
         }
       ) => {
         const context = await resolveExecutionContext({
           cliOverrides: {
-            allowWrite: options.allowWrite,
-            dryRun: !options.allowWrite
+            ...(options.allowWrite
+              ? {
+                  allowWrite: true,
+                  dryRun: false
+                }
+              : {})
           }
         });
         const result = await resumeTaskSessionWorkflow({
           context,
           taskId,
+          errorLog: options.errorLog,
+          errorLogFile: options.errorLogFile,
           fromStep: options.fromStep,
           proposePatch: options.proposePatch,
           inspectPatch: options.inspectPatch,
+          runFix: options.runFix,
           applyPatch: options.applyPatch,
           allowWrite: options.allowWrite,
           confirmApply: options.confirmApply,

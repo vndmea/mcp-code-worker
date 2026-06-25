@@ -8,6 +8,9 @@ import type { AoToolDefinition } from "./tool-types.js";
 const inputSchema = z.object({
   taskId: z.string().min(1),
   fromStep: z.string().optional(),
+  errorLog: z.string().optional(),
+  errorLogFile: z.string().optional(),
+  runFix: z.boolean().optional(),
   proposePatch: z.boolean().optional(),
   inspectPatch: z.boolean().optional(),
   applyPatch: z.boolean().optional(),
@@ -26,17 +29,24 @@ export const aoResumeTaskTool: AoToolDefinition<
   execute: async (args) => {
     const context = await resolveExecutionContext({
       cliOverrides: {
-        allowWrite: args.allowWrite,
-        dryRun: !args.allowWrite
+        ...(args.allowWrite
+          ? {
+              allowWrite: true,
+              dryRun: false
+            }
+          : {})
       }
     });
 
     return resumeTaskSessionWorkflow({
       context,
       taskId: args.taskId,
+      errorLog: args.errorLog,
+      errorLogFile: args.errorLogFile,
       fromStep: args.fromStep,
       proposePatch: args.proposePatch,
       inspectPatch: args.inspectPatch,
+      runFix: args.runFix,
       applyPatch: args.applyPatch,
       allowWrite: args.allowWrite,
       confirmApply: args.confirmApply,

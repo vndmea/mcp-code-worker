@@ -93,10 +93,10 @@ ao review diff --base main --head HEAD
 ao review files --file packages/graph/src/index.ts
 ao validate --typecheck --lint --test
 ao fix error --error-log-file ./tmp/tsc-error.log --scope packages/schema-codegen
-ao task start --goal "Fix failing typecheck" --scope packages/core --typecheck --allow-write-session
+ao task start --goal "Fix failing typecheck" --scope packages/core --typecheck --error-log-file ./tmp/tsc-error.log --run-fix --allow-write-session
 ao task report <taskId>
-ao cleanup runs --dry-run
-ao cleanup audit --dry-run
+ao cleanup runs
+ao cleanup audit
 ao models list
 ao mcp config
 ao mcp serve
@@ -326,6 +326,8 @@ ao mcp list-tools
 
 `config.json` 只记录密钥环境变量名，例如 `apiKeyEnvVar`，不会保存实际 API key。
 
+`.ao/config.json` 里的 repository context 配置也会作为 review、fix、patch 和 task workflow 的默认预算来源，包括 `maxFileBytes`、`maxTotalBytes` 和 `ignoredPaths`，除非某个命令显式覆盖。
+
 ## 内置工作流
 
 - `planning-workflow`：生成任务计划、worker 分配建议、风险列表和验证策略
@@ -377,10 +379,12 @@ pnpm example:leader-worker-basic
 - 默认模式是 dry-run。
 - 文件写入需要显式的策略授权。
 - Shell 执行通过 allowlist 控制。
+- `git diff` 这类只读 git 检查命令即使在 dry-run 下也允许执行，因此 review workflow 不需要开启写权限。
 - `ao init`、`ao cleanup`、worker registry 写入和 task session 持久化都只作用于本地。
 - 仓库读取必须留在 repo root 内，并会阻止 `.env`、私钥等 secret-like 文件进入上下文。
 - 专用 review / fix 流程只返回结构化 JSON，不会自动应用 patch。
 - patch proposal / inspection / apply 被显式拆开，保证写入动作始终可审查。
+- 如果结构化 patch 生成失败，fallback proposal 会被标记为不可应用的 `[PLACEHOLDER]` 产物。
 - validation 命令统一走安全命令路径，相关行为可通过 audit log 追踪。
 - `ao audit list` 可查看本地 workflow、文件与命令事件。
 - `ao cleanup runs` 和 `ao cleanup audit` 只删除本地 `.ao` 产物，不会碰项目源代码。
@@ -388,6 +392,15 @@ pnpm example:leader-worker-basic
 - Worker 在进入生产任务前应先通过 onboarding evaluation。
 - structured output 或可靠性不达标的 worker 会被限制或阻断。
 - 密钥应通过环境变量提供，且绝不能写入日志。
+
+## Dist smoke
+
+在发布 CLI 相关改动前，建议同时运行两层 smoke：
+
+```bash
+pnpm smoke
+pnpm smoke:dist
+```
 
 ## Roadmap
 

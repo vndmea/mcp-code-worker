@@ -93,10 +93,10 @@ ao review diff --base main --head HEAD
 ao review files --file packages/graph/src/index.ts
 ao validate --typecheck --lint --test
 ao fix error --error-log-file ./tmp/tsc-error.log --scope packages/schema-codegen
-ao task start --goal "Fix failing typecheck" --scope packages/core --typecheck --allow-write-session
+ao task start --goal "Fix failing typecheck" --scope packages/core --typecheck --error-log-file ./tmp/tsc-error.log --run-fix --allow-write-session
 ao task report <taskId>
-ao cleanup runs --dry-run
-ao cleanup audit --dry-run
+ao cleanup runs
+ao cleanup audit
 ao models list
 ao mcp config
 ao mcp serve
@@ -326,6 +326,8 @@ Runtime configuration resolves in this order:
 
 `config.json` stores only env-var names for secrets such as `apiKeyEnvVar`. Actual API keys stay in the environment.
 
+Repository context settings in `.ao/config.json` also control default `maxFileBytes`, `maxTotalBytes`, and `ignoredPaths` for review, fix, patch, and task workflows unless a command overrides them explicitly.
+
 ## Workflows
 
 - `planning-workflow`: builds a plan, worker assignment proposal, risk list, and validation strategy
@@ -377,10 +379,12 @@ If you want different endpoints for leader and worker traffic, use the model-spe
 - Default mode is dry-run.
 - File writes require explicit policy allowance.
 - Shell execution is allowlisted.
+- Read-only git inspection commands such as `git diff` can still execute inside dry-run so review workflows keep working without enabling writes.
 - `ao init`, `ao cleanup`, worker registry writes, and task session persistence remain local-only.
 - Repository reads stay inside the repo root and block secret-like files such as `.env` and private keys.
 - Dedicated review and fix flows return structured JSON and do not apply patches.
 - Patch proposal, inspection, and apply are separated to keep write actions reviewable.
+- If structured patch generation fails, the fallback proposal is marked as a blocked `[PLACEHOLDER]` artifact and cannot be applied.
 - Validation commands go through the safe command path and can be inspected through audit logs.
 - `ao audit list` exposes the local audit trail for workflow, file, and command events.
 - `ao cleanup runs` and `ao cleanup audit` only delete local `.ao` artifacts and never touch project source files.
@@ -388,6 +392,15 @@ If you want different endpoints for leader and worker traffic, use the model-spe
 - Workers must pass onboarding evaluation before they should receive production tasks.
 - Workers that fail structured output or reliability checks are limited or blocked.
 - Secrets are expected from environment variables and should never be logged.
+
+## Dist smoke
+
+Use both smoke layers before shipping CLI changes:
+
+```bash
+pnpm smoke
+pnpm smoke:dist
+```
 
 ## Roadmap
 

@@ -22,7 +22,7 @@ export const aoValidateRepositoryTool: AoToolDefinition<
   execute: async (args) => {
     const context = await resolveExecutionContext({
       cliOverrides: {
-        dryRun: !args.execute
+        ...(args.execute ? { dryRun: false } : {})
       }
     });
 

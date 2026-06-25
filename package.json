@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "smoke": "vitest run packages/cli/src/smoke.test.ts",
+    "smoke:dist": "pnpm build && vitest run packages/cli/src/smoke-dist.test.ts",
     "test:watch": "vitest",
     "lint": "eslint .",
     "format": "prettier --check .",

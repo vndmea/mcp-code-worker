@@ -22,7 +22,7 @@ export const registerValidateCommand = (program: Command, io: CliIo): void => {
       }) => {
         const context = await resolveExecutionContext({
           cliOverrides: {
-            dryRun: !options.execute
+            ...(options.execute ? { dryRun: false } : {})
           }
         });
         const result = await runRepositoryValidation(context, {

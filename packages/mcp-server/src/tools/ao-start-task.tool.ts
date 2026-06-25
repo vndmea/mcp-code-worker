@@ -34,8 +34,12 @@ export const aoStartTaskTool: AoToolDefinition<
   execute: async (args) => {
     const context = await resolveExecutionContext({
       cliOverrides: {
-        allowWrite: args.allowWrite,
-        dryRun: !args.allowWrite
+        ...(args.allowWrite
+          ? {
+              allowWrite: true,
+              dryRun: false
+            }
+          : {})
       }
     });
 

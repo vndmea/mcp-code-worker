@@ -40,3 +40,6 @@ jobs:
 
       - name: Smoke
         run: pnpm smoke
+
+      - name: Smoke Dist
+        run: pnpm smoke:dist

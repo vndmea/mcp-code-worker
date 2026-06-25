@@ -133,6 +133,22 @@ const writeWorkspaceFixture = async (rootDir: string): Promise<void> => {
   );
 };
 
+const writeAoConfig = async (rootDir: string, config: Record<string, unknown>): Promise<void> => {
+  await mkdir(join(rootDir, ".ao"), { recursive: true });
+  await writeFile(
+    join(rootDir, ".ao", "config.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        ...config
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+};
+
 const initGitRepo = async (rootDir: string): Promise<void> => {
   await execFile("git", ["init"], { cwd: rootDir });
   await execFile("git", ["config", "user.email", "ao@example.com"], { cwd: rootDir });
@@ -322,6 +338,26 @@ describe("mcp tool registration", () => {
       expect(fileReview.repositoryContext.selectedFiles[0]?.path).toBe("packages/core/src/index.ts");
       expect(validation.checks[0]?.status).toBe("dry-run");
       expect(fix.repositoryContext.scope).toBe("packages/core");
+    });
+  });
+
+  it("uses ao config for repository review entrypoints", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeWorkspaceFixture(rootDir);
+      await initGitRepo(rootDir);
+      await writeAoConfig(rootDir, {
+        context: {
+          maxFileBytes: 8,
+          maxTotalBytes: 64,
+          ignoredPaths: ["tmp"]
+        }
+      });
+
+      const repoReview = await aoReviewRepositoryTool.execute({
+        scope: "packages/core"
+      });
+
+      expect(repoReview.repositoryContext.selectedFiles[0]?.truncated).toBe(true);
     });
   });
 
