@@ -59,6 +59,7 @@ export const createExecutionContextFromEnv = (
   env: NodeJS.ProcessEnv = process.env,
   overrides: ExecutionContextOverrides = {}
 ): ExecutionContext => {
+  const rootDir = overrides.rootDir ?? process.cwd();
   const dryRun = overrides.dryRun ?? parseBoolean(env.AO_DRY_RUN, true);
   const allowWrite =
     overrides.allowWrite ?? parseBoolean(env.AO_ALLOW_WRITE, false);
@@ -96,11 +97,12 @@ export const createExecutionContextFromEnv = (
   });
   const writePolicy = new WritePolicy({
     allowWrite,
-    dryRun
+    dryRun,
+    rootDir
   });
 
   return {
-    rootDir: overrides.rootDir ?? process.cwd(),
+    rootDir,
     dryRun,
     allowWrite,
     allowedCommands,

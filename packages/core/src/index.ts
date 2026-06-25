@@ -1,5 +1,7 @@
 export * from "./diagnostics/doctor.js";
+export * from "./audit/audit-log.js";
 export * from "./errors/agent-error.js";
+export * from "./policies/path-safety.js";
 export * from "./policies/safety-policy.js";
 export * from "./policies/write-policy.js";
 export * from "./runtime/execution-context.js";
