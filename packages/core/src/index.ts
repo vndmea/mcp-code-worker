@@ -10,6 +10,7 @@ export * from "./schemas/agent-result.schema.js";
 export * from "./schemas/agent-task.schema.js";
 export * from "./schemas/leader-decision.schema.js";
 export * from "./schemas/model-config.schema.js";
+export * from "./schemas/patch.schema.js";
 export * from "./schemas/repository-context.schema.js";
 export * from "./schemas/validation.schema.js";
 export * from "./schemas/worker-registry.schema.js";

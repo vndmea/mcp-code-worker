@@ -5,6 +5,9 @@ import {
   AgentTaskSchema,
   LeaderDecisionSchema,
   ModelConfigSchema,
+  PatchApplyResultSchema,
+  PatchInspectionSchema,
+  PatchProposalSchema,
   RepositoryContextPackSchema,
   ValidationReportSchema,
   WorkerCapabilityProfileSchema,
@@ -200,5 +203,91 @@ describe("core schemas", () => {
         warnings: []
       })
     ).toThrow();
+  });
+
+  it("parses valid patch proposals and rejects invalid ones", () => {
+    const now = new Date().toISOString();
+
+    expect(() =>
+      PatchProposalSchema.parse({
+        id: "patch-1",
+        title: "Add validation guard",
+        summary: "Introduce a safe validation guard.",
+        rationale: ["Prevents unsafe patch application."],
+        unifiedDiff: [
+          "diff --git a/src/demo.ts b/src/demo.ts",
+          "--- a/src/demo.ts",
+          "+++ b/src/demo.ts",
+          "@@ -1,1 +1,2 @@",
+          "+// guard",
+          " export const demo = true;"
+        ].join("\n"),
+        files: [
+          {
+            path: "src/demo.ts",
+            changeType: "modify",
+            summary: "Add a guard comment.",
+            riskLevel: "low"
+          }
+        ],
+        risks: [],
+        validationPlan: ["pnpm typecheck"],
+        generatedAt: now,
+        source: {
+          workflow: "patch-proposal-workflow"
+        }
+      })
+    ).not.toThrow();
+
+    expect(() =>
+      PatchProposalSchema.parse({
+        id: "patch-1",
+        title: "Invalid patch",
+        summary: "Missing diff.",
+        rationale: [],
+        files: [],
+        risks: [],
+        validationPlan: [],
+        generatedAt: now,
+        source: {
+          workflow: "patch-proposal-workflow"
+        }
+      })
+    ).toThrow();
+
+    expect(() =>
+      PatchInspectionSchema.parse({
+        ok: false,
+        files: [],
+        blockedReasons: ["Patch diff was empty."],
+        warnings: [],
+        stats: {
+          filesChanged: 0,
+          additions: 0,
+          deletions: 0
+        }
+      })
+    ).not.toThrow();
+
+    expect(() =>
+      PatchApplyResultSchema.parse({
+        mode: "blocked",
+        applied: false,
+        touchedFiles: [],
+        inspection: {
+          ok: false,
+          files: [],
+          blockedReasons: ["Patch diff was empty."],
+          warnings: [],
+          stats: {
+            filesChanged: 0,
+            additions: 0,
+            deletions: 0
+          }
+        },
+        warnings: [],
+        errors: ["Patch diff was empty."]
+      })
+    ).not.toThrow();
   });
 });

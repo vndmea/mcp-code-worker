@@ -14,6 +14,7 @@ export interface SafeCommandResult extends RunCommandResult {
 export interface SafeCommandOptions {
   env?: Record<string, string>;
   maxOutputBytes?: number;
+  stdin?: string;
   timeoutMs?: number;
 }
 
@@ -79,6 +80,7 @@ export const runSafeCommand = async (
   const result = await runCommand(parsed.command, parsed.args, context.rootDir, {
     env: options.env,
     maxOutputBytes: options.maxOutputBytes,
+    stdin: options.stdin,
     timeoutMs: options.timeoutMs
   });
   await writeAuditEvent(context, {

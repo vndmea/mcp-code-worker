@@ -13,6 +13,7 @@ export interface RunCommandResult {
 export interface RunCommandOptions {
   env?: Record<string, string>;
   maxOutputBytes?: number;
+  stdin?: string;
   timeoutMs?: number;
 }
 
@@ -81,7 +82,7 @@ export const runCommand = async (
       cwd,
       env: options.env,
       shell: false,
-      stdio: ["ignore", "pipe", "pipe"]
+      stdio: ["pipe", "pipe", "pipe"]
     });
 
     let stdout = "";
@@ -108,6 +109,10 @@ export const runCommand = async (
       clearTimeout(timeout);
       reject(error);
     });
+    if (options.stdin !== undefined) {
+      child.stdin.write(options.stdin, "utf8");
+    }
+    child.stdin.end();
     child.on("close", (code) => {
       clearTimeout(timeout);
       resolve({
