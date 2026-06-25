@@ -84,6 +84,7 @@ describe("mcp tool registration", () => {
       "ao_list_models",
       "ao_list_workflows",
       "ao_list_tools",
+      "ao_list_audit_events",
       "ao_interview_worker",
       "ao_list_workers",
       "ao_get_worker_profile",
@@ -99,6 +100,7 @@ describe("mcp tool registration", () => {
   it("lists MCP tool definitions including dedicated workflow tools", async () => {
     const tools = await aoListToolsTool.execute({});
 
+    expect(tools.some((tool) => tool.name === "ao_list_audit_events")).toBe(true);
     expect(tools.some((tool) => tool.name === "ao_run_leader_worker")).toBe(true);
     expect(tools.some((tool) => tool.name === "ao_doctor")).toBe(true);
   });

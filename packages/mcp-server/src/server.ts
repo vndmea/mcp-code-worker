@@ -7,6 +7,7 @@ import { aoDoctorTool } from "./tools/ao-doctor.tool.js";
 import { aoFixErrorTool } from "./tools/ao-fix-error.tool.js";
 import { aoGetWorkerProfileTool } from "./tools/ao-get-worker-profile.tool.js";
 import { aoInterviewWorkerTool } from "./tools/ao-interview-worker.tool.js";
+import { aoListAuditEventsTool } from "./tools/ao-list-audit-events.tool.js";
 import { aoListModelsTool } from "./tools/ao-list-models.tool.js";
 import { aoListToolsTool } from "./tools/ao-list-tools.tool.js";
 import { aoListWorkersTool } from "./tools/ao-list-workers.tool.js";
@@ -25,6 +26,7 @@ export const aoToolDefinitions = [
   aoListModelsTool,
   aoListWorkflowsTool,
   aoListToolsTool,
+  aoListAuditEventsTool,
   aoInterviewWorkerTool,
   aoListWorkersTool,
   aoGetWorkerProfileTool,

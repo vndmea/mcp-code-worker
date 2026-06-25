@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { createExecutionContextFromEnv, runDoctor } from "@agent-orchestrator/core";
+import {
+  createExecutionContextFromEnv,
+  runDoctor,
+  writeAuditEvent
+} from "@agent-orchestrator/core";
 import { createWorkerProfileDoctorChecks } from "@agent-orchestrator/models";
 
 import type { AoToolDefinition } from "./tool-types.js";
@@ -16,9 +20,23 @@ export const aoDoctorTool: AoToolDefinition<
   inputSchema,
   execute: async () => {
     const context = createExecutionContextFromEnv();
-
-    return runDoctor(context, {
+    const report = await runDoctor(context, {
       additionalChecks: await createWorkerProfileDoctorChecks(context)
     });
+    await writeAuditEvent(context, {
+      actor: "mcp",
+      action: "tool-call",
+      mode: context.dryRun ? "dry-run" : "execute",
+      tool: "ao_doctor",
+      inputSummary: "ao_doctor",
+      outputSummary: `Doctor completed with ok=${String(report.ok)}.`,
+      warnings: report.checks
+        .filter((check) => check.status === "warning")
+        .map((check) => check.message),
+      errors: report.checks
+        .filter((check) => check.status === "fail")
+        .map((check) => check.message)
+    });
+    return report;
   }
 };

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { createExecutionContextFromEnv, writeAuditEvent } from "@agent-orchestrator/core";
 import { runLeaderWorkerWorkflow } from "@agent-orchestrator/graph";
 
 import type { AoToolDefinition } from "./tool-types.js";
@@ -18,11 +19,30 @@ export const aoRunLeaderWorkerTool: AoToolDefinition<
   name: "ao_run_leader_worker",
   description: "Run the leader-worker workflow with optional worker profile requirements.",
   inputSchema,
-  execute: async (args) =>
-    runLeaderWorkerWorkflow({
+  execute: async (args) => {
+    const context = createExecutionContextFromEnv();
+    const result = await runLeaderWorkerWorkflow({
+      context,
       goal: args.goal,
       requireProfile: args.requireProfile,
       scope: args.scope,
       workerId: args.workerId
-    })
+    });
+    await writeAuditEvent(context, {
+      actor: "mcp",
+      action: "tool-call",
+      mode: context.dryRun ? "dry-run" : "execute",
+      tool: "ao_run_leader_worker",
+      inputSummary: args.goal,
+      outputSummary: "Leader-worker MCP workflow completed.",
+      warnings: result.state.warnings,
+      errors: result.state.errors,
+      metadata: {
+        requireProfile: args.requireProfile,
+        scope: args.scope,
+        workerId: args.workerId
+      }
+    });
+    return result;
+  }
 };

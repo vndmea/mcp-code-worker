@@ -3,6 +3,7 @@ export * from "./server.js";
 export * from "./tools/ao-fix-error.tool.js";
 export * from "./tools/ao-get-worker-profile.tool.js";
 export * from "./tools/ao-interview-worker.tool.js";
+export * from "./tools/ao-list-audit-events.tool.js";
 export * from "./tools/ao-list-models.tool.js";
 export * from "./tools/ao-list-tools.tool.js";
 export * from "./tools/ao-list-workers.tool.js";

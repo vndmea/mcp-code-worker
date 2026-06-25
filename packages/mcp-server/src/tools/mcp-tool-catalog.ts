@@ -37,6 +37,10 @@ export const mcpToolCatalog: McpToolCatalogEntry[] = [
     description: "List MCP tool definitions exposed by the server."
   },
   {
+    name: "ao_list_audit_events",
+    description: "List local audit events in reverse chronological order."
+  },
+  {
     name: "ao_interview_worker",
     description: "Evaluate a worker model, generate a capability profile, and optionally persist it."
   },

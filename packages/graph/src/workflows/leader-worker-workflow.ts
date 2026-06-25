@@ -8,7 +8,10 @@ import type {
   WorkerCapabilityProfile,
   WorkflowState
 } from "@agent-orchestrator/core";
-import { createExecutionContextFromEnv } from "@agent-orchestrator/core";
+import {
+  createExecutionContextFromEnv,
+  writeAuditEvent
+} from "@agent-orchestrator/core";
 import {
   assessWorkerTaskEligibility,
   resolveWorkerProfile
@@ -108,6 +111,21 @@ export const runLeaderWorkerWorkflow = async (
   input: LeaderWorkerWorkflowInput
 ): Promise<LeaderWorkerWorkflowOutput> => {
   const context = input.context ?? createExecutionContextFromEnv();
+  await writeAuditEvent(context, {
+    actor: "workflow",
+    action: "start",
+    mode: context.dryRun ? "dry-run" : "execute",
+    workflow: "leader-worker-workflow",
+    inputSummary: input.goal,
+    outputSummary: "Leader-worker workflow started.",
+    warnings: [],
+    errors: [],
+    metadata: {
+      requireProfile: input.requireProfile,
+      scope: input.scope,
+      workerId: input.workerId
+    }
+  });
   const leader = new LeaderAgent(context);
   const summarizeWorker = new SummarizeWorker(context);
   const codegenWorker = new CodegenWorker(context);
@@ -285,6 +303,20 @@ export const runLeaderWorkerWorkflow = async (
     .compile();
 
   const state = await app.invoke(initialState);
+  await writeAuditEvent(context, {
+    actor: "workflow",
+    action: "complete",
+    mode: context.dryRun ? "dry-run" : "execute",
+    workflow: "leader-worker-workflow",
+    inputSummary: input.goal,
+    outputSummary: `Leader-worker workflow completed with ${state.workerResults.length} worker result(s).`,
+    warnings: state.warnings,
+    errors: state.errors,
+    metadata: {
+      finalStatus: state.finalResult?.status,
+      workerId: state.workerCapabilityProfile?.workerId
+    }
+  });
 
   return {
     state,

@@ -1,6 +1,9 @@
 import type { Command } from "commander";
 
-import { createExecutionContextFromEnv } from "@agent-orchestrator/core";
+import {
+  createExecutionContextFromEnv,
+  writeAuditEvent
+} from "@agent-orchestrator/core";
 import {
   runFixErrorWorkflow,
   runLeaderWorkerWorkflow,
@@ -100,6 +103,24 @@ export const registerRunCommand = (program: Command, io: CliIo): void => {
             break;
           default:
             throw new Error(`Unknown workflow: ${workflow}`);
+        }
+
+        if (resolvedWorkflow === "leader-worker-workflow") {
+          await writeAuditEvent(context, {
+            actor: "cli",
+            action: "run-workflow",
+            mode: context.dryRun ? "dry-run" : "execute",
+            workflow: resolvedWorkflow,
+            inputSummary: `ao run ${resolvedWorkflow}`,
+            outputSummary: "Leader-worker workflow CLI invocation completed.",
+            warnings: [],
+            errors: [],
+            metadata: {
+              requireProfile: options.requireProfile,
+              scope: options.scope,
+              workerId: options.worker
+            }
+          });
         }
 
         io.write(JSON.stringify(result, null, 2));
