@@ -133,6 +133,13 @@ export async function resolveExecutionContext(
     (hasEnvValue(env, "AO_ALLOWED_COMMANDS")
       ? baseContext.allowedCommands
       : config.safety.allowedCommands);
+  const contextBudget = {
+    ...baseContext.contextBudget,
+    ...(cliOverrides.contextBudget ?? config.context),
+    ignoredPaths:
+      cliOverrides.contextBudget?.ignoredPaths ??
+      config.context.ignoredPaths
+  };
   const leaderModel = mergeModelConfig(
     baseContext.leaderModel,
     config.leaderModel,
@@ -154,6 +161,7 @@ export async function resolveExecutionContext(
     dryRun,
     allowWrite,
     allowedCommands,
+    contextBudget,
     leaderModel,
     workerModel
   });

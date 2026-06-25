@@ -106,4 +106,50 @@ describe("repository context pack", () => {
       })
     ).rejects.toThrow("escapes the repository root");
   });
+
+  it("uses context budget defaults from execution context", async () => {
+    const rootDir = await createRootDir();
+    const context = createExecutionContextFromEnv(undefined, {
+      contextBudget: {
+        maxFileBytes: 12,
+        maxTotalBytes: 20,
+        ignoredPaths: ["generated"]
+      },
+      rootDir
+    });
+
+    await writeText(rootDir, "src/index.ts", "export const value = 12345;\n");
+    await writeText(rootDir, "generated/skip.ts", "export const skipped = true;\n");
+
+    const result = await buildRepositoryContextPack(context, {
+      rootDir
+    });
+
+    expect(result.selectedFiles[0]?.truncated).toBe(true);
+    expect(result.selectedFiles[0]?.content.length).toBeLessThanOrEqual(12);
+    expect(result.files.some((file) => file.path === "generated/skip.ts")).toBe(false);
+  });
+
+  it("lets explicit max options override context budget", async () => {
+    const rootDir = await createRootDir();
+    const context = createExecutionContextFromEnv(undefined, {
+      contextBudget: {
+        maxFileBytes: 8,
+        maxTotalBytes: 16,
+        ignoredPaths: []
+      },
+      rootDir
+    });
+
+    await writeText(rootDir, "src/index.ts", "export const expanded = 12345;\n");
+
+    const result = await buildRepositoryContextPack(context, {
+      rootDir,
+      maxFileBytes: 40,
+      maxTotalBytes: 80
+    });
+
+    expect(result.selectedFiles[0]?.truncated).toBe(false);
+    expect(result.selectedFiles[0]?.content.length).toBeGreaterThan(8);
+  });
 });

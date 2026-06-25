@@ -7,7 +7,7 @@ import {
   type RepositoryFileSummary
 } from "@agent-orchestrator/core";
 
-const DEFAULT_IGNORED_DIRECTORIES = new Set([
+const DEFAULT_IGNORED_PATHS = [
   "node_modules",
   ".git",
   "dist",
@@ -15,7 +15,7 @@ const DEFAULT_IGNORED_DIRECTORIES = new Set([
   "coverage",
   ".turbo",
   ".next"
-]);
+] as const;
 
 const SECRET_FILE_PATTERNS = [
   /^\.env(?:\..+)?$/u,
@@ -44,6 +44,7 @@ const TEXT_EXTENSIONS = new Set([
 
 export interface SelectRepositoryFilesOptions {
   files?: string[];
+  ignoredPaths?: string[];
   maxFileBytes?: number;
   maxTotalBytes?: number;
   rootDir: string;
@@ -74,9 +75,33 @@ const ensureInsideRoot = (rootDir: string, path: string): string => {
   return normalized;
 };
 
-const shouldIgnoreEntry = (path: string): boolean => {
-  const segments = path.split(/[\\/]/u);
-  return segments.some((segment) => DEFAULT_IGNORED_DIRECTORIES.has(segment));
+const normalizeIgnoredPath = (path: string): string =>
+  path.replaceAll("\\", "/").replace(/^\.\/+/u, "").replace(/\/+$/u, "");
+
+const shouldIgnoreEntry = (
+  path: string,
+  ignoredPaths: string[]
+): boolean => {
+  const normalizedPath = normalizeIgnoredPath(path);
+  const segments = normalizedPath.split("/");
+
+  return ignoredPaths.some((ignoredPath) => {
+    const normalizedIgnoredPath = normalizeIgnoredPath(ignoredPath);
+    if (!normalizedIgnoredPath) {
+      return false;
+    }
+
+    if (normalizedPath === normalizedIgnoredPath) {
+      return true;
+    }
+
+    if (normalizedPath.startsWith(`${normalizedIgnoredPath}/`)) {
+      return true;
+    }
+
+    return !normalizedIgnoredPath.includes("/") &&
+      segments.includes(normalizedIgnoredPath);
+  });
 };
 
 const isReadableTextFile = (path: string): boolean => {
@@ -135,6 +160,7 @@ export const selectRepositoryFiles = async ({
   rootDir,
   scope,
   files,
+  ignoredPaths = [...DEFAULT_IGNORED_PATHS],
   maxFileBytes = 20_000,
   maxTotalBytes = 120_000
 }: SelectRepositoryFilesOptions): Promise<{
@@ -159,7 +185,7 @@ export const selectRepositoryFiles = async ({
       const fullPath = join(directory, entry.name);
       const relativePath = toRelativePath(rootDir, fullPath);
 
-      if (shouldIgnoreEntry(relativePath) || isSecretLikeFile(fullPath)) {
+      if (shouldIgnoreEntry(relativePath, ignoredPaths) || isSecretLikeFile(fullPath)) {
         continue;
       }
 

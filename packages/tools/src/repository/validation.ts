@@ -43,6 +43,7 @@ const createScopedContext = (
         rootDir: resolveRepositoryScope(context.rootDir, scope),
         allowWrite: context.allowWrite,
         allowedCommands: context.allowedCommands,
+        contextBudget: context.contextBudget,
         dryRun: context.dryRun,
         leaderModel: context.leaderModel,
         logLevel: context.logLevel,

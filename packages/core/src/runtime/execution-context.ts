@@ -7,6 +7,11 @@ export interface ExecutionContext {
   dryRun: boolean;
   allowWrite: boolean;
   allowedCommands: string[];
+  contextBudget: {
+    maxFileBytes: number;
+    maxTotalBytes: number;
+    ignoredPaths: string[];
+  };
   leaderModel: ModelConfig;
   workerModel: ModelConfig;
   serverName: string;
@@ -19,6 +24,7 @@ export interface ExecutionContext {
 export interface ExecutionContextOverrides {
   allowWrite?: boolean;
   allowedCommands?: string[];
+  contextBudget?: Partial<ExecutionContext["contextBudget"]>;
   dryRun?: boolean;
   leaderModel?: Partial<ModelConfig>;
   logLevel?: string;
@@ -55,6 +61,20 @@ const mergeModelConfig = (
   ...override
 });
 
+const DEFAULT_CONTEXT_BUDGET: ExecutionContext["contextBudget"] = {
+  maxFileBytes: 20_000,
+  maxTotalBytes: 120_000,
+  ignoredPaths: [
+    "node_modules",
+    ".git",
+    "dist",
+    "build",
+    "coverage",
+    ".turbo",
+    ".next"
+  ]
+};
+
 export const createExecutionContextFromEnv = (
   env: NodeJS.ProcessEnv = process.env,
   overrides: ExecutionContextOverrides = {}
@@ -66,6 +86,13 @@ export const createExecutionContextFromEnv = (
   const allowedCommands =
     overrides.allowedCommands ??
     parseList(env.AO_ALLOWED_COMMANDS, ["git", "node", "pnpm"]);
+  const contextBudget = {
+    ...DEFAULT_CONTEXT_BUDGET,
+    ...overrides.contextBudget,
+    ignoredPaths:
+      overrides.contextBudget?.ignoredPaths ??
+      DEFAULT_CONTEXT_BUDGET.ignoredPaths
+  };
 
   const leaderModel = mergeModelConfig(
     {
@@ -106,6 +133,7 @@ export const createExecutionContextFromEnv = (
     dryRun,
     allowWrite,
     allowedCommands,
+    contextBudget,
     leaderModel,
     workerModel,
     serverName: overrides.serverName ?? env.MCP_SERVER_NAME ?? "agent-orchestrator",

@@ -71,6 +71,7 @@ describe("ao config", () => {
     expect(context.workerModel.apiKey).toBe("worker-secret");
     expect(context.allowWrite).toBe(true);
     expect(context.dryRun).toBe(false);
+    expect(context.contextBudget.maxFileBytes).toBe(20_000);
   });
 
   it("returns clear errors for invalid config and falls back to defaults", async () => {
@@ -152,5 +153,31 @@ describe("ao config", () => {
     expect(context.dryRun).toBe(true);
     expect(context.allowWrite).toBe(true);
     expect(context.allowedCommands).toEqual(["git"]);
+  });
+
+  it("resolves context budget from config", async () => {
+    const rootDir = await createWorkspace();
+    await writeFile(
+      join(rootDir, ".ao", "config.json"),
+      JSON.stringify(
+        {
+          version: 1,
+          context: {
+            maxFileBytes: 128,
+            maxTotalBytes: 512,
+            ignoredPaths: ["generated", "tmp/cache"]
+          }
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+
+    const context = await resolveExecutionContext({ rootDir });
+
+    expect(context.contextBudget.maxFileBytes).toBe(128);
+    expect(context.contextBudget.maxTotalBytes).toBe(512);
+    expect(context.contextBudget.ignoredPaths).toEqual(["generated", "tmp/cache"]);
   });
 });
