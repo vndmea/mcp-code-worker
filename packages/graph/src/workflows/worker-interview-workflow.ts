@@ -21,7 +21,7 @@ import {
   WorkerCapabilityProfileSchema,
   createExecutionContextFromEnv
 } from "@agent-orchestrator/core";
-import { ModelRouter } from "@agent-orchestrator/models";
+import { ModelRouter, invokeStructured } from "@agent-orchestrator/models";
 
 import { createInitialWorkflowState } from "../leader/leader-state.js";
 
@@ -258,14 +258,6 @@ const buildInterviewTasks = (): InterviewTaskRuntimeDefinition[] => [
   }
 ];
 
-const tryParseJson = (value: string): unknown => {
-  try {
-    return JSON.parse(value) as unknown;
-  } catch {
-    return value;
-  }
-};
-
 const createTaskResult = async (
   runtimeTask: InterviewTaskRuntimeDefinition,
   router: ModelRouter,
@@ -275,51 +267,37 @@ const createTaskResult = async (
   const provider = router.route("worker").provider;
   const mockResponse =
     simulatedResponses[runtimeTask.task.type] ?? runtimeTask.mockResponse;
+  const invocation = await invokeStructured({
+    provider,
+    config: modelConfig,
+    schema: runtimeTask.schema,
+    prompt: runtimeTask.task.prompt,
+    mockResponse,
+    maxAttempts: 1
+  });
 
-  try {
-    const invocation = await provider.invoke(modelConfig, {
-      prompt: runtimeTask.task.prompt,
-      responseFormat: "json",
-      mockResponse
-    });
-    const parsed = tryParseJson(invocation.text);
-    const schemaResult = runtimeTask.schema.safeParse(parsed);
-
-    if (!schemaResult.success) {
-      return {
-        taskId: runtimeTask.task.id,
-        type: runtimeTask.task.type,
-        passed: false,
-        score: 0,
-        findings: [
-          "Output failed schema validation.",
-          schemaResult.error.issues[0]?.message ?? "Unknown schema error."
-        ],
-        rawOutput: parsed
-      };
-    }
-
-    const evaluation = runtimeTask.evaluateParsed(schemaResult.data);
-    return {
-      taskId: runtimeTask.task.id,
-      type: runtimeTask.task.type,
-      passed: evaluation.score >= 0.6,
-      score: clampScore(evaluation.score),
-      findings: evaluation.findings,
-      rawOutput: schemaResult.data
-    };
-  } catch (error) {
+  if (!invocation.ok) {
     return {
       taskId: runtimeTask.task.id,
       type: runtimeTask.task.type,
       passed: false,
       score: 0,
-      findings: [
-        error instanceof Error ? error.message : "Worker interview execution failed."
-      ],
-      rawOutput: null
+      findings: invocation.errors.length > 0
+        ? invocation.errors
+        : ["Worker interview execution failed."],
+      rawOutput: invocation.raw ?? invocation.rawText
     };
   }
+
+  const evaluation = runtimeTask.evaluateParsed(invocation.data);
+  return {
+    taskId: runtimeTask.task.id,
+    type: runtimeTask.task.type,
+    passed: evaluation.score >= 0.6,
+    score: clampScore(evaluation.score),
+    findings: evaluation.findings,
+    rawOutput: invocation.data
+  };
 };
 
 const average = (values: number[]): number =>
