@@ -68,8 +68,11 @@ pnpm test
 ```bash
 ao plan --goal "Generate TipTap nodes from S1000D proced.xsd"
 ao run leader-worker-basic --goal "Generate tests for schema parser"
-ao review --diff main...HEAD
-ao fix --error ./tmp/tsc-error.log --scope packages/schema-codegen
+ao review repo --scope packages/graph
+ao review diff --base main --head HEAD
+ao review files --file packages/graph/src/index.ts
+ao validate --typecheck --lint --test
+ao fix error --error-log-file ./tmp/tsc-error.log --scope packages/schema-codegen
 ao models list
 ao mcp serve
 ao mcp list-tools
@@ -145,6 +148,44 @@ ao worker profile litellm:qwen3-coder
 ```
 
 当前行为仍然偏保守：如果 workflow 启动时没有显式传入 profile object，系统可以重新执行 interview，而不是盲目信任旧的能力记录。
+
+## Worker registry 流程
+
+先注册可复用 worker，再做 interview，并在真正执行时显式引用它：
+
+```bash
+ao worker register \
+  --provider litellm \
+  --model qwen3-coder \
+  --base-url http://localhost:4000/v1 \
+  --api-key-env-var LITELLM_API_KEY \
+  --allow-write
+
+ao worker interview --worker litellm:qwen3-coder --save
+
+ao run leader-worker-workflow \
+  --goal "Review this repository" \
+  --worker litellm:qwen3-coder \
+  --require-profile
+
+ao audit list
+```
+
+这条链路强调本地注册、能力画像持久化，以及可审计的显式分配。
+
+## 仓库 review 流程
+
+日常工程检查建议直接使用专用命令：
+
+```bash
+ao review repo --scope packages/graph
+ao review diff --base main --head HEAD
+ao review files --file packages/graph/src/index.ts
+ao validate --typecheck --lint --test
+ao fix error --error-log-file ./tmp/tsc-error.log --scope packages/core
+```
+
+这些命令会构建 repository context pack、安全读取 scope 内文件，并把确定性验证结果并入 review 输出。
 
 ## MCP server 用法
 
@@ -232,6 +273,10 @@ pnpm example:leader-worker-basic
 - 默认模式是 dry-run。
 - 文件写入需要显式的策略授权。
 - Shell 执行通过 allowlist 控制。
+- 仓库读取必须留在 repo root 内，并会阻止 `.env`、私钥等 secret-like 文件进入上下文。
+- 专用 review / fix 流程只返回结构化 JSON，不会自动应用 patch。
+- validation 命令统一走安全命令路径，相关行为可通过 audit log 追踪。
+- `ao audit list` 可查看本地 workflow、文件与命令事件。
 - Worker 输出在 leader review 完成前都不能视为最终结果。
 - Worker 在进入生产任务前应先通过 onboarding evaluation。
 - structured output 或可靠性不达标的 worker 会被限制或阻断。

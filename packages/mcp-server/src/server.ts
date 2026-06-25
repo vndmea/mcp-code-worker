@@ -17,15 +17,21 @@ import { aoListWorkflowsTool } from "./tools/ao-list-workflows.tool.js";
 import { aoPlanTool } from "./tools/ao-plan.tool.js";
 import { aoRegisterWorkerTool } from "./tools/ao-register-worker.tool.js";
 import { aoReviewDiffTool } from "./tools/ao-review-diff.tool.js";
+import { aoReviewFilesTool } from "./tools/ao-review-files.tool.js";
+import { aoReviewRepositoryTool } from "./tools/ao-review-repository.tool.js";
 import { aoRunLeaderWorkerTool } from "./tools/ao-run-leader-worker.tool.js";
 import { aoRunWorkflowTool } from "./tools/ao-run-workflow.tool.js";
 import { aoUnregisterWorkerTool } from "./tools/ao-unregister-worker.tool.js";
+import { aoValidateRepositoryTool } from "./tools/ao-validate-repository.tool.js";
 
 export const aoToolDefinitions = [
   aoPlanTool,
   aoRunWorkflowTool,
   aoRunLeaderWorkerTool,
+  aoReviewRepositoryTool,
   aoReviewDiffTool,
+  aoReviewFilesTool,
+  aoValidateRepositoryTool,
   aoFixErrorTool,
   aoListModelsTool,
   aoListWorkflowsTool,

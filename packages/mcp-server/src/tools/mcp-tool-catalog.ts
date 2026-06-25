@@ -17,8 +17,20 @@ export const mcpToolCatalog: McpToolCatalogEntry[] = [
     description: "Run the leader-worker workflow with optional worker profile requirements."
   },
   {
+    name: "ao_review_repository",
+    description: "Review repository context for a scope and return structured findings."
+  },
+  {
     name: "ao_review_diff",
     description: "Review a diff and return structured review findings."
+  },
+  {
+    name: "ao_review_files",
+    description: "Review selected repository files and return structured findings."
+  },
+  {
+    name: "ao_validate_repository",
+    description: "Run deterministic repository validation checks with dry-run by default."
   },
   {
     name: "ao_fix_error",

@@ -68,8 +68,11 @@ pnpm test
 ```bash
 ao plan --goal "Generate TipTap nodes from S1000D proced.xsd"
 ao run leader-worker-basic --goal "Generate tests for schema parser"
-ao review --diff main...HEAD
-ao fix --error ./tmp/tsc-error.log --scope packages/schema-codegen
+ao review repo --scope packages/graph
+ao review diff --base main --head HEAD
+ao review files --file packages/graph/src/index.ts
+ao validate --typecheck --lint --test
+ao fix error --error-log-file ./tmp/tsc-error.log --scope packages/schema-codegen
 ao models list
 ao mcp serve
 ao mcp list-tools
@@ -145,6 +148,44 @@ ao worker profile litellm:qwen3-coder
 ```
 
 Current behavior is conservative: if a workflow is started without an explicit profile object, the system can re-run the interview instead of blindly trusting an old capability record.
+
+## Worker registry flow
+
+Register a reusable worker, evaluate it, and keep the assignment explicit:
+
+```bash
+ao worker register \
+  --provider litellm \
+  --model qwen3-coder \
+  --base-url http://localhost:4000/v1 \
+  --api-key-env-var LITELLM_API_KEY \
+  --allow-write
+
+ao worker interview --worker litellm:qwen3-coder --save
+
+ao run leader-worker-workflow \
+  --goal "Review this repository" \
+  --worker litellm:qwen3-coder \
+  --require-profile
+
+ao audit list
+```
+
+This flow keeps worker selection local, auditable, and gated by a persisted capability profile.
+
+## Repository review flow
+
+Use the dedicated repository workflows for day-to-day engineering checks:
+
+```bash
+ao review repo --scope packages/graph
+ao review diff --base main --head HEAD
+ao review files --file packages/graph/src/index.ts
+ao validate --typecheck --lint --test
+ao fix error --error-log-file ./tmp/tsc-error.log --scope packages/core
+```
+
+These commands build repository context packs, read scoped files safely, and route deterministic validation into the review output.
 
 ## MCP server usage
 
@@ -232,6 +273,10 @@ If you want different endpoints for leader and worker traffic, use the model-spe
 - Default mode is dry-run.
 - File writes require explicit policy allowance.
 - Shell execution is allowlisted.
+- Repository reads stay inside the repo root and block secret-like files such as `.env` and private keys.
+- Dedicated review and fix flows return structured JSON and do not apply patches.
+- Validation commands go through the safe command path and can be inspected through audit logs.
+- `ao audit list` exposes the local audit trail for workflow, file, and command events.
 - Worker outputs are not final until leader review completes.
 - Workers must pass onboarding evaluation before they should receive production tasks.
 - Workers that fail structured output or reliability checks are limited or blocked.

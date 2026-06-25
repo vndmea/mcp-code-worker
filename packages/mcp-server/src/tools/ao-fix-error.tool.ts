@@ -5,8 +5,12 @@ import { runFixErrorWorkflow } from "@agent-orchestrator/graph";
 import type { AoToolDefinition } from "./tool-types.js";
 
 const inputSchema = z.object({
-  errorLog: z.string().min(1),
-  scope: z.string().optional()
+  errorLog: z.string().optional(),
+  errorLogFile: z.string().optional(),
+  scope: z.string().optional(),
+  typecheck: z.boolean().optional(),
+  lint: z.boolean().optional(),
+  test: z.boolean().optional()
 });
 
 export const aoFixErrorTool: AoToolDefinition<
@@ -19,6 +23,12 @@ export const aoFixErrorTool: AoToolDefinition<
   execute: async (args) =>
     runFixErrorWorkflow({
       errorLog: args.errorLog,
-      scope: args.scope
+      errorLogFile: args.errorLogFile,
+      scope: args.scope,
+      validate: {
+        typecheck: args.typecheck,
+        lint: args.lint,
+        test: args.test
+      }
     })
 };

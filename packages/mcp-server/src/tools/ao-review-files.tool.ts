@@ -5,8 +5,7 @@ import { runReviewWorkflow } from "@agent-orchestrator/graph";
 import type { AoToolDefinition } from "./tool-types.js";
 
 const inputSchema = z.object({
-  base: z.string().optional(),
-  head: z.string().optional(),
+  files: z.array(z.string()).min(1),
   scope: z.string().optional(),
   typecheck: z.boolean().optional(),
   lint: z.boolean().optional(),
@@ -15,18 +14,16 @@ const inputSchema = z.object({
   maxTotalBytes: z.number().int().positive().optional()
 });
 
-export const aoReviewDiffTool: AoToolDefinition<
+export const aoReviewFilesTool: AoToolDefinition<
   typeof inputSchema.shape,
   Awaited<ReturnType<typeof runReviewWorkflow>>
 > = {
-  name: "ao_review_diff",
-  description: "Review a git diff and return structured impact analysis.",
+  name: "ao_review_files",
+  description: "Review selected repository files and return structured findings.",
   inputSchema,
   execute: async (args) =>
     runReviewWorkflow({
-      includeDiff: true,
-      diffBase: args.base,
-      diffHead: args.head,
+      files: args.files,
       scope: args.scope,
       maxFileBytes: args.maxFileBytes,
       maxTotalBytes: args.maxTotalBytes,
