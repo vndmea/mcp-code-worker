@@ -48,6 +48,31 @@ const writeProfiles = async (rootDir: string, profiles: unknown[]): Promise<void
   );
 };
 
+const writeRegistry = async (rootDir: string, workers: unknown[]): Promise<void> => {
+  const aoDir = join(rootDir, ".ao");
+  await mkdir(aoDir, { recursive: true });
+  await writeFile(
+    join(aoDir, "workers.json"),
+    JSON.stringify({ version: 1, workers }, null, 2),
+    "utf8"
+  );
+};
+
+const createRegistration = (overrides: Record<string, unknown> = {}) => {
+  const now = new Date().toISOString();
+
+  return {
+    workerId: "mock:registered-worker",
+    provider: "mock",
+    model: "registered-worker",
+    enabled: true,
+    tags: [],
+    createdAt: now,
+    updatedAt: now,
+    ...overrides
+  };
+};
+
 const createProfile = (overrides: Record<string, unknown> = {}) => ({
   workerId: "mock:gpt-5.4-mini",
   provider: "mock",
@@ -116,8 +141,29 @@ describe("cli parsing", () => {
     expect(output.join("\n")).toContain("[");
   });
 
-  it("passes workerId into the leader-worker workflow", async () => {
+  it("fails unknown explicit workers in the leader-worker workflow", async () => {
     await withTempCwd(async () => {
+      const { io } = createIo();
+      const cli = buildCli(io);
+
+      await expect(
+        cli.parseAsync([
+          "node",
+          "ao",
+          "run",
+          "leader-worker-workflow",
+          "--goal",
+          "Review this repository",
+          "--worker",
+          "mock:custom-worker"
+        ])
+      ).rejects.toThrow("not registered");
+    });
+  });
+
+  it("uses registered workers in the leader-worker workflow", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeRegistry(rootDir, [createRegistration()]);
       const { io, output } = createIo();
       const cli = buildCli(io);
 
@@ -129,10 +175,11 @@ describe("cli parsing", () => {
         "--goal",
         "Review this repository",
         "--worker",
-        "mock:custom-worker"
+        "mock:registered-worker"
       ]);
 
-      expect(output.join("\n")).toContain("\"workerId\": \"mock:custom-worker\"");
+      expect(output.join("\n")).toContain("\"workerId\": \"mock:registered-worker\"");
+      expect(output.join("\n")).toContain("\"model\": \"registered-worker\"");
     });
   });
 
@@ -185,6 +232,114 @@ describe("cli parsing", () => {
 
       expect(output.join("\n")).toContain("\"checks\"");
       expect(output.join("\n")).toContain("\"worker-profile-store\"");
+    });
+  });
+
+  it("manages worker registry entries", async () => {
+    await withTempCwd(async () => {
+      const { io, output } = createIo();
+      const cli = buildCli(io);
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "worker",
+        "register",
+        "--provider",
+        "mock",
+        "--model",
+        "registered-worker"
+      ]);
+      expect(output.join("\n")).toContain("\"mode\": \"dry-run\"");
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "worker",
+        "register",
+        "--provider",
+        "mock",
+        "--model",
+        "registered-worker",
+        "--tag",
+        "coding",
+        "--allow-write"
+      ]);
+      await cli.parseAsync(["node", "ao", "worker", "registry", "list"]);
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "worker",
+        "registry",
+        "get",
+        "mock:registered-worker"
+      ]);
+
+      expect(output.join("\n")).toContain("\"workerId\": \"mock:registered-worker\"");
+      expect(output.join("\n")).toContain("\"tags\"");
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "worker",
+        "unregister",
+        "mock:registered-worker"
+      ]);
+      expect(output.at(-1)).toContain("\"mode\": \"dry-run\"");
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "worker",
+        "unregister",
+        "mock:registered-worker",
+        "--allow-write"
+      ]);
+      expect(output.at(-1)).toContain("\"removed\": true");
+    });
+  });
+
+  it("interviews registered workers and rejects unknown worker-only interviews", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeRegistry(rootDir, [createRegistration()]);
+      const { io, output } = createIo();
+      const cli = buildCli(io);
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "worker",
+        "interview",
+        "--worker",
+        "mock:registered-worker"
+      ]);
+
+      expect(output.join("\n")).toContain("\"workerId\": \"mock:registered-worker\"");
+      expect(output.join("\n")).toContain("\"model\": \"registered-worker\"");
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "worker",
+        "interview",
+        "--provider",
+        "mock",
+        "--model",
+        "manual-worker"
+      ]);
+
+      expect(output.join("\n")).toContain("\"workerId\": \"mock:manual-worker\"");
+
+      await expect(
+        cli.parseAsync([
+          "node",
+          "ao",
+          "worker",
+          "interview",
+          "--worker",
+          "mock:unknown"
+        ])
+      ).rejects.toThrow("not registered");
     });
   });
 });
