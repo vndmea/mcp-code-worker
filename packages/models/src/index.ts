@@ -4,5 +4,6 @@ export * from "./providers/mock-provider.js";
 export * from "./router/model-router.js";
 export * from "./router/worker-profile-store.js";
 export * from "./router/worker-routing.js";
+export * from "./structured/structured-invocation.js";
 export * from "./types/model-config.js";
 export * from "./types/model-provider.js";
