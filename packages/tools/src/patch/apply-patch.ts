@@ -23,6 +23,7 @@ const createCommandContext = (
     rootDir: context.rootDir,
     allowWrite,
     allowedCommands: context.allowedCommands,
+    contextBudget: context.contextBudget,
     dryRun: false,
     leaderModel: context.leaderModel,
     logLevel: context.logLevel,

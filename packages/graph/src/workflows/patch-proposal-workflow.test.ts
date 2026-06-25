@@ -10,6 +10,7 @@ import {
   runFixErrorWorkflow,
   runPatchProposalWorkflow
 } from "@agent-orchestrator/graph";
+import { applyPatchProposal } from "@agent-orchestrator/tools";
 
 const createWorkspace = async (): Promise<string> => {
   const rootDir = await mkdtemp(join(tmpdir(), "ao-patch-proposal-"));
@@ -77,8 +78,22 @@ describe("patch proposal workflow", () => {
     });
 
     expect(result.inspection.ok).toBe(false);
-    expect(result.warnings[0]).toContain("fell back");
+    expect(result.proposal.title).toContain("[PLACEHOLDER]");
+    expect(result.proposal.summary).toContain("not an actionable fix");
+    expect(result.warnings[0]).toContain("must not be applied");
+    expect(result.inspection.blockedReasons).toContain(
+      "Patch proposal is a fallback placeholder and must not be applied."
+    );
     expect(result.inspection.blockedReasons).toContain("schema validation failed");
+
+    const applyResult = await applyPatchProposal(createContext(rootDir), result.proposal, {
+      dryRun: true
+    });
+
+    expect(applyResult.mode).toBe("blocked");
+    expect(applyResult.errors).toContain(
+      "Patch proposal is a fallback placeholder and must not be applied."
+    );
 
     invokeStructuredSpy.mockRestore();
   });

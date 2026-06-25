@@ -125,30 +125,29 @@ const buildFallbackProposal = (
 
   return PatchProposalSchema.parse({
     id: randomUUID(),
-    title: goal,
-    summary: input.errorLog
-      ? `Investigate and propose a candidate fix for: ${input.errorLog.slice(0, 120)}`
-      : `Generate a reviewable candidate patch for ${input.scope ?? "the current repository"}.`,
+    title: `[PLACEHOLDER] ${goal}`,
+    summary:
+      "This is not an actionable fix. Structured patch generation failed, so the proposal is a blocked placeholder for manual review only.",
     rationale: [
-      "Patch proposals remain reviewable artifacts until a human explicitly applies them.",
-      "Repository context and validation signals should guide any final implementation."
+      "Structured model output failed, so no trustworthy patch could be generated automatically.",
+      "A human should inspect repository context, validation results, and fix guidance before drafting a real patch."
     ],
     unifiedDiff: patchTarget.diffText,
     files: [
       {
         path: patchTarget.path,
         changeType: "modify",
-        summary: "Add a candidate review marker near the top of the file.",
+        summary: "Placeholder diff only; do not apply.",
         riskLevel: "medium"
       }
     ],
     risks: [
-      "Candidate patch may not fully address the underlying root cause.",
-      "Patch still requires deterministic validation after application."
+      "Placeholder proposal generated because structured model output failed.",
+      "Patch is not actionable and requires manual review before any application attempt."
     ],
     validationPlan: [
-      "Run git apply --check before applying the patch.",
-      "Run requested repository validation after application."
+      "Do not apply this placeholder patch.",
+      "Regenerate or author a real patch before running deterministic validation."
     ],
     generatedAt: new Date().toISOString(),
     source: {
@@ -231,11 +230,12 @@ export const runPatchProposalWorkflow = async (
   let inspection = await inspectPatch(context, proposal);
 
   if (!invocation.ok) {
-    warnings.push("Structured patch proposal generation fell back to a deterministic proposal.");
+    warnings.push("Patch proposal is a fallback placeholder and must not be applied.");
     inspection = PatchInspectionSchema.parse({
       ...inspection,
       ok: false,
       blockedReasons: [
+        "Patch proposal is a fallback placeholder and must not be applied.",
         ...inspection.blockedReasons,
         ...invocation.errors
       ]

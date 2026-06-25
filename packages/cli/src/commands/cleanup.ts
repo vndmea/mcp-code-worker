@@ -1,5 +1,5 @@
-import { readdir, rm, stat } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { readdir, realpath, rm, stat } from "node:fs/promises";
+import { basename, join, relative, resolve } from "node:path";
 
 import type { Command } from "commander";
 
@@ -19,17 +19,69 @@ interface CleanupResult {
   wouldDelete: string[];
 }
 
+interface CleanupTargetValidation {
+  deletePath?: string;
+  warning?: string;
+}
+
+const PROTECTED_AO_FILES = new Set([
+  "config.json",
+  "worker-profiles.json",
+  "workers.json"
+]);
+
+const isPathInsideDirectory = (directory: string, candidate: string): boolean => {
+  const relativePath = relative(directory, candidate);
+  return relativePath !== "" &&
+    !relativePath.startsWith("..") &&
+    !relativePath.includes(`..\\`) &&
+    !relativePath.includes("../");
+};
+
+export const resolveCleanupTargetPath = async (
+  rootDir: string,
+  target: CleanupResult["target"],
+  candidatePath: string
+): Promise<CleanupTargetValidation> => {
+  const allowedDirectory = resolve(rootDir, ".ao", target);
+  const normalizedCandidatePath = resolve(candidatePath);
+  const resolvedCandidatePath = await realpath(candidatePath).catch(
+    () => normalizedCandidatePath
+  );
+  const candidateName = basename(normalizedCandidatePath);
+
+  if (PROTECTED_AO_FILES.has(candidateName)) {
+    return {
+      warning: `Skipped protected .ao file ${candidateName}.`
+    };
+  }
+
+  if (
+    !isPathInsideDirectory(allowedDirectory, normalizedCandidatePath) ||
+    !isPathInsideDirectory(allowedDirectory, resolvedCandidatePath)
+  ) {
+    return {
+      warning: `Skipped unsafe cleanup target ${normalizedCandidatePath}.`
+    };
+  }
+
+  return {
+    deletePath: normalizedCandidatePath
+  };
+};
+
 const listCleanupTargets = async (
   rootDir: string,
   target: CleanupResult["target"],
   olderThanDays: number
-): Promise<string[]> => {
+): Promise<{ targets: string[]; warnings: string[] }> => {
   const targetDir = join(rootDir, ".ao", target);
   const cutoff = Date.now() - olderThanDays * 86_400_000;
 
   try {
     const entries = await readdir(targetDir, { withFileTypes: true });
     const selected: string[] = [];
+    const warnings: string[] = [];
 
     for (const entry of entries) {
       const path = join(targetDir, entry.name);
@@ -48,12 +100,26 @@ const listCleanupTargets = async (
         continue;
       }
 
-      selected.push(path);
+      const validated = await resolveCleanupTargetPath(rootDir, target, path);
+      if (validated.deletePath) {
+        selected.push(validated.deletePath);
+        continue;
+      }
+
+      if (validated.warning) {
+        warnings.push(validated.warning);
+      }
     }
 
-    return selected;
+    return {
+      targets: selected,
+      warnings
+    };
   } catch {
-    return [];
+    return {
+      targets: [],
+      warnings: []
+    };
   }
 };
 
@@ -103,18 +169,18 @@ const registerCleanupSubcommand = (
           options.olderThanDays ?? `${config.config.sessions.retentionDays}`,
           10
         );
-        const targets = await listCleanupTargets(
+        const cleanupTargets = await listCleanupTargets(
           context.rootDir,
           target,
           Number.isNaN(retentionDays) ? config.config.sessions.retentionDays : retentionDays
         );
-        const deletion = await deleteTargets(targets, options.allowWrite);
+        const deletion = await deleteTargets(cleanupTargets.targets, options.allowWrite);
         const result: CleanupResult = {
           mode: options.allowWrite ? "execute" : "dry-run",
           target,
           deleted: deletion.deleted.map((path) => relative(context.rootDir, path).replaceAll("\\", "/")),
           wouldDelete: deletion.wouldDelete.map((path) => relative(context.rootDir, path).replaceAll("\\", "/")),
-          warnings: []
+          warnings: cleanupTargets.warnings
         };
 
         if (options.allowWrite) {

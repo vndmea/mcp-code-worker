@@ -75,8 +75,14 @@ const mergeInspectionFiles = (
         matchingProposalFile?.riskLevel ?? inferRiskLevel(parsedFile),
       beforeHash: matchingProposalFile?.beforeHash,
       afterHash: matchingProposalFile?.afterHash
-    };
+      };
   });
+
+const isPlaceholderProposal = (proposal: PatchProposal): boolean =>
+  proposal.title.includes("[PLACEHOLDER]") ||
+  proposal.risks.includes(
+    "Placeholder proposal generated because structured model output failed."
+  );
 
 export async function inspectPatch(
   context: ExecutionContext,
@@ -97,6 +103,10 @@ export async function inspectPatch(
 
   if (!proposal.unifiedDiff.includes("diff --git ")) {
     blockedReasons.push("Unsupported diff format. Expected unified diff output.");
+  }
+
+  if (isPlaceholderProposal(proposal)) {
+    blockedReasons.push("Patch proposal is a fallback placeholder and must not be applied.");
   }
 
   const parsedFiles = blockedReasons.includes(
