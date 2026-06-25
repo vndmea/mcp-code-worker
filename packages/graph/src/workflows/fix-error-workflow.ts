@@ -19,11 +19,13 @@ import { LeaderAgent } from "../leader/leader-agent.js";
 import { createInitialWorkflowState } from "../leader/leader-state.js";
 import { CodegenWorker } from "../workers/codegen-worker.js";
 import { TestWorker } from "../workers/test-worker.js";
+import { runPatchProposalWorkflow } from "./patch-proposal-workflow.js";
 
 export interface FixErrorWorkflowInput {
   context?: ExecutionContext;
   errorLog?: string;
   errorLogFile?: string;
+  proposePatch?: boolean;
   scope?: string;
   validate?: {
     lint?: boolean;
@@ -37,6 +39,8 @@ export interface FixErrorWorkflowOutput {
   leaderReview: Awaited<ReturnType<LeaderAgent["review"]>>;
   repositoryContext: RepositoryContextPack;
   rootCauseAnalysis: string;
+  patchInspection?: Awaited<ReturnType<typeof runPatchProposalWorkflow>>["inspection"];
+  patchProposal?: Awaited<ReturnType<typeof runPatchProposalWorkflow>>["proposal"];
   suggestedPatchArtifact: string;
   validationReport: ValidationReport;
 }
@@ -145,6 +149,24 @@ export const runFixErrorWorkflow = async (
     state.workerResults,
     state.toolResults
   );
+  const patchResult = input.proposePatch
+    ? await runPatchProposalWorkflow({
+        context,
+        errorLog,
+        fixResult: {
+          candidateFixPlan: [
+            "Reproduce the failing command in dry-run-safe conditions.",
+            "Limit the fix to the provided scope.",
+            "Run deterministic validation after the change."
+          ]
+        },
+        goal: input.scope
+          ? `Fix issues within ${input.scope}`
+          : "Fix the supplied repository issue",
+        repositoryContext,
+        scope: input.scope
+      })
+    : undefined;
 
   return {
     rootCauseAnalysis: errorLog.trim()
@@ -155,6 +177,12 @@ export const runFixErrorWorkflow = async (
       "Limit the fix to the provided scope.",
       "Run deterministic validation after the change."
     ],
+    ...(patchResult
+      ? {
+          patchProposal: patchResult.proposal,
+          patchInspection: patchResult.inspection
+        }
+      : {}),
     repositoryContext,
     suggestedPatchArtifact: "candidate-patch-plan.md",
     validationReport,

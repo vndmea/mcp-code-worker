@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 
 import { buildCli } from "@agent-orchestrator/cli";
+import { PatchProposalSchema } from "@agent-orchestrator/core";
 
 const execFile = promisify(execFileCallback);
 
@@ -114,6 +115,45 @@ const initGitRepo = async (rootDir: string): Promise<void> => {
   await writeFile(
     join(rootDir, "packages", "core", "src", "index.ts"),
     "export const value = 2;\n",
+    "utf8"
+  );
+  await execFile("git", ["add", "packages/core/src/index.ts"], { cwd: rootDir });
+  await execFile("git", ["commit", "-m", "update"], { cwd: rootDir });
+};
+
+const writePatchProposalFile = async (rootDir: string): Promise<void> => {
+  const targetPath = join(rootDir, "packages", "core", "src", "index.ts");
+  const originalContents = "export const value = 2;\n";
+  await writeFile(targetPath, `// comment\n${originalContents}`, "utf8");
+  const diff = await execFile("git", ["diff", "--", "packages/core/src/index.ts"], {
+    cwd: rootDir
+  });
+  await writeFile(targetPath, originalContents, "utf8");
+  const proposal = PatchProposalSchema.parse({
+    id: "patch-1",
+    title: "Add a candidate comment",
+    summary: "Insert a comment above the export.",
+    rationale: ["Used by CLI patch tests."],
+    unifiedDiff: diff.stdout,
+    files: [
+      {
+        path: "packages/core/src/index.ts",
+        changeType: "modify",
+        summary: "Insert a candidate comment.",
+        riskLevel: "low"
+      }
+    ],
+    risks: [],
+    validationPlan: ["pnpm typecheck"],
+    generatedAt: new Date().toISOString(),
+    source: {
+      workflow: "patch-proposal-workflow"
+    }
+  });
+
+  await writeFile(
+    join(rootDir, "tmp", "candidate.patch"),
+    JSON.stringify(proposal, null, 2),
     "utf8"
   );
 };
@@ -475,6 +515,69 @@ describe("cli parsing", () => {
       ]);
       expect(output.at(-1)).toContain("\"rootCauseAnalysis\"");
       expect(output.at(-1)).toContain("\"repositoryContext\"");
+    });
+  });
+
+  it("runs patch lifecycle commands", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeWorkspaceFixture(rootDir);
+      await initGitRepo(rootDir);
+      await writePatchProposalFile(rootDir);
+      const { io, output } = createIo();
+      const cli = buildCli(io);
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "patch",
+        "propose",
+        "--goal",
+        "Fix typecheck",
+        "--scope",
+        "packages/core"
+      ]);
+      expect(output.at(-1)).toContain("\"proposal\"");
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "patch",
+        "inspect",
+        "tmp/candidate.patch"
+      ]);
+      expect(output.at(-1)).toContain("\"inspection\"");
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "patch",
+        "apply",
+        "tmp/candidate.patch",
+        "--dry-run"
+      ]);
+      expect(output.at(-1)).toContain("\"mode\": \"dry-run\"");
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "patch",
+        "apply",
+        "tmp/candidate.patch",
+        "--allow-write"
+      ]);
+      expect(output.at(-1)).toContain("\"mode\": \"blocked\"");
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "patch",
+        "apply",
+        "tmp/candidate.patch",
+        "--allow-write",
+        "--confirm-apply",
+        "--typecheck"
+      ]);
+      expect(output.at(-1)).toContain("\"mode\": \"execute\"");
     });
   });
 });

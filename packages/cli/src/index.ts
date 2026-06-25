@@ -5,6 +5,7 @@ import { registerDoctorCommand } from "./commands/doctor.js";
 import { registerFixCommand } from "./commands/fix.js";
 import { registerMcpCommand } from "./commands/mcp.js";
 import { registerModelsCommand } from "./commands/models.js";
+import { registerPatchCommand } from "./commands/patch.js";
 import { registerPlanCommand } from "./commands/plan.js";
 import { registerReviewCommand } from "./commands/review.js";
 import { registerRunCommand } from "./commands/run.js";
@@ -39,6 +40,7 @@ export const buildCli = (io: CliIo = defaultIo): Command => {
 
   registerPlanCommand(program, io);
   registerRunCommand(program, io);
+  registerPatchCommand(program, io);
   registerReviewCommand(program, io);
   registerFixCommand(program, io);
   registerValidateCommand(program, io);
