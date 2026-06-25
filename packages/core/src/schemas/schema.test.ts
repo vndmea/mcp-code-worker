@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  AoConfigSchema,
   AgentResultSchema,
   AgentTaskSchema,
   LeaderDecisionSchema,
@@ -9,6 +10,7 @@ import {
   PatchInspectionSchema,
   PatchProposalSchema,
   RepositoryContextPackSchema,
+  TaskSessionSchema,
   ValidationReportSchema,
   WorkerCapabilityProfileSchema,
   WorkerRegistrationSchema,
@@ -201,6 +203,43 @@ describe("core schemas", () => {
         ],
         ok: true,
         warnings: []
+      })
+    ).toThrow();
+  });
+
+  it("parses task sessions and config defaults", () => {
+    expect(() =>
+      TaskSessionSchema.parse({
+        taskId: "task-1",
+        goal: "Review packages/core",
+        status: "created",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        steps: [],
+        artifacts: {},
+        warnings: [],
+        errors: [],
+        metadata: {}
+      })
+    ).not.toThrow();
+
+    expect(() =>
+      AoConfigSchema.parse({
+        version: 1,
+        safety: {},
+        context: {},
+        sessions: {}
+      })
+    ).not.toThrow();
+
+    expect(() =>
+      AoConfigSchema.parse({
+        version: 1,
+        leaderModel: {
+          provider: "litellm",
+          model: "qwen3-coder",
+          apiKeyEnvVar: "invalid-name"
+        }
       })
     ).toThrow();
   });
