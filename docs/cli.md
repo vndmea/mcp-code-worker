@@ -8,6 +8,7 @@ For write gates and local artifact boundaries, see `docs/permissions.md`.
 ## Core Commands
 
 ```bash
+ao setup
 ao plan --goal "Generate TipTap nodes from S1000D proced.xsd"
 ao run leader-worker-basic --goal "Generate tests for schema parser"
 ao review repo --scope packages/graph
@@ -82,6 +83,7 @@ ao task resume <taskId> --apply-patch --allow-write --confirm-apply
 
 - `ao task report` is the primary human-readable artifact.
 - `ao task resume` should follow the `nextRecommendedActions` returned by task start/resume.
+- `ao setup` and `ao doctor` are the quickest readiness checks before you start a new task.
 - `patch apply` stays explicitly gated even inside task sessions.
 - `task start`, `task status`, `task resume`, `task list`, `review`, `fix`, and `validate` accept summary-oriented flags such as `--summary` and `--max-bytes`.
 

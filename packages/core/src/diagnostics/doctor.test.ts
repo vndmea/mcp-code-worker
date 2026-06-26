@@ -102,5 +102,8 @@ describe("doctor", () => {
     expect(report.checks.find((check) => check.name === "ao-config")?.status).toBe("pass");
     expect(report.checks.find((check) => check.name === "runs-dir")?.status).toBe("pass");
     expect(report.checks.find((check) => check.name === "validation-scripts")?.status).toBe("pass");
+    expect(report.status).toBe("ready");
+    expect(report.summary).toContain("ready:");
+    expect(report.recommendedEntrypoints.map((entry) => entry.toolName)).toContain("ao_start_task");
   });
 });

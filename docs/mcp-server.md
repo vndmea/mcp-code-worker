@@ -67,6 +67,7 @@ You can also set `AO_ROOT_DIR` in the server environment. Explicit CLI `--root` 
 
 - Internal trial workflow: start with `docs/trial-runbook.md`.
 - MCP client integration: start with `ao_start_task`, `ao_resume_task`, and `ao_get_task_report`.
+- New-user onboarding: start with `docs/minimal-success-path.md` and `ao setup`.
 - Command/operator detail: refer to `docs/cli.md`.
 - Workspace install and launch: refer to `docs/install.md`.
 

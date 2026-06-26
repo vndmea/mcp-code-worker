@@ -379,6 +379,20 @@ describe("cli parsing", () => {
     });
   });
 
+  it("runs setup and returns the minimal success path", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeProfiles(rootDir, [createProfile()]);
+      const { io, output } = createIo();
+      const cli = buildCli(io);
+
+      await cli.parseAsync(["node", "ao", "setup"]);
+
+      expect(output.join("\n")).toContain("\"minimalSuccessPath\"");
+      expect(output.join("\n")).toContain("\"recommendedEntrypoints\"");
+      expect(output.join("\n")).toContain("\"setupSteps\"");
+    });
+  });
+
   it("manages worker registry entries", async () => {
     await withTempCwd(async () => {
       const { io, output } = createIo();

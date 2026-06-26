@@ -1,7 +1,7 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { resolveExecutionContext } from "@agent-orchestrator/core";
+import { AgentError, resolveExecutionContext } from "@agent-orchestrator/core";
 
 import { aoBenchmarkWorkerTool } from "./tools/ao-benchmark-worker.tool.js";
 import { aoDoctorTool } from "./tools/ao-doctor.tool.js";
@@ -79,6 +79,29 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> => {
 export const toStructuredContent = (result: unknown): Record<string, unknown> =>
   isPlainObject(result) ? result : { result };
 
+const toUserFacingToolError = (error: unknown): Error => {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (error instanceof AgentError) {
+    const userMessage =
+      error.code === "TASK_SESSION_NOT_FOUND"
+        ? "ao is connected to this workspace, but the requested task session was not found here."
+        : error.code === "TASK_ARTIFACT_NOT_FOUND"
+          ? "ao found the task session, but this artifact is not registered for it, so it cannot be read safely."
+          : error.code === "TASK_PATCH_PROPOSAL_MISSING"
+            ? "This step needs a stored patch proposal before it can continue."
+            : error.code === "WRITE_BLOCKED"
+              ? "ao refused to write because the current safety mode does not allow that path yet."
+              : "ao reached the tool, but the request could not be completed cleanly.";
+
+    return new Error(`${userMessage} Technical details: ${message}`);
+  }
+
+  return new Error(
+    `ao reached the tool, but it failed unexpectedly. Technical details: ${message}`
+  );
+};
+
 export interface AoMcpServerOptions {
   rootDir?: string;
 }
@@ -102,18 +125,22 @@ export const createAoMcpServer = async (
         inputSchema: tool.inputSchema
       },
       async (args: unknown) => {
-        const result = await tool.execute(args as never);
-        const structuredContent = toStructuredContent(result);
+        try {
+          const result = await tool.execute(args as never);
+          const structuredContent = toStructuredContent(result);
 
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(result, null, 2)
-            }
-          ],
-          structuredContent
-        };
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(result, null, 2)
+              }
+            ],
+            structuredContent
+          };
+        } catch (error) {
+          throw toUserFacingToolError(error);
+        }
       }
     );
   });

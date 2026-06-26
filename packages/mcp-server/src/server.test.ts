@@ -272,16 +272,20 @@ describe("mcp tool registration", () => {
 
   it("lists MCP tool definitions including dedicated workflow tools", async () => {
     const tools = await aoListToolsTool.execute({});
+    const names = tools.groups.flatMap((group) => group.tools.map((tool) => tool.name));
 
-    expect(tools.some((tool) => tool.name === "ao_list_audit_events")).toBe(true);
-    expect(tools.some((tool) => tool.name === "ao_register_worker")).toBe(true);
-    expect(tools.some((tool) => tool.name === "ao_benchmark_worker")).toBe(true);
-    expect(tools.some((tool) => tool.name === "ao_run_leader_worker")).toBe(true);
-    expect(tools.some((tool) => tool.name === "ao_propose_patch")).toBe(true);
-    expect(tools.some((tool) => tool.name === "ao_review_repository")).toBe(true);
-    expect(tools.some((tool) => tool.name === "ao_validate_repository")).toBe(true);
-    expect(tools.some((tool) => tool.name === "ao_start_task")).toBe(true);
-    expect(tools.some((tool) => tool.name === "ao_doctor")).toBe(true);
+    expect(names).toContain("ao_list_audit_events");
+    expect(names).toContain("ao_register_worker");
+    expect(names).toContain("ao_benchmark_worker");
+    expect(names).toContain("ao_run_leader_worker");
+    expect(names).toContain("ao_propose_patch");
+    expect(names).toContain("ao_review_repository");
+    expect(names).toContain("ao_validate_repository");
+    expect(names).toContain("ao_start_task");
+    expect(names).toContain("ao_doctor");
+    expect(tools.recommendedEntrypoints.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining(["ao_start_task", "ao_resume_task", "ao_get_task_report"])
+    );
   });
 
   it("wraps array results into record-shaped structured content", () => {
