@@ -83,8 +83,7 @@ const renderRecoverySection = (
 const renderNextAction = (
   session: TaskSession,
   patchInspection: PatchInspection | undefined,
-  patchApplyResult: PatchApplyResult | undefined,
-  validationReport: ValidationReport | undefined
+  patchApplyResult: PatchApplyResult | undefined
 ): string => {
   if (patchInspection && !patchInspection.ok) {
     return "Inspect blocked patch paths and revise the proposal before retrying.";
@@ -174,6 +173,6 @@ export function renderTaskSessionReport(input: {
     ...errorLines,
     ``,
     `## Next Recommended Action`,
-    `- ${renderNextAction(session, patchInspection, patchApplyResult, validationReport)}`
+    `- ${renderNextAction(session, patchInspection, patchApplyResult)}`
   ].join("\n");
 }

@@ -202,7 +202,7 @@ export const selectRepositoryFiles = async ({
   const scopedRoot = resolveRepositoryScope(rootDir, scope);
   const warnings: string[] = [];
   const summaries: RepositoryFileSummary[] = [];
-  let selectedFiles: RepositoryFileContent[] = [];
+  const selectedFiles: RepositoryFileContent[] = [];
   let selectionReasons: SelectionReason[] = [];
 
   const selectedSet = new Set(

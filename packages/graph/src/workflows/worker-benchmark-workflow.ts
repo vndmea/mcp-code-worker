@@ -40,7 +40,7 @@ export interface WorkerBenchmarkWorkflowInput {
   workerId?: string;
 }
 
-export interface WorkerBenchmarkWorkflowOutput extends WorkerBenchmarkResult {}
+export type WorkerBenchmarkWorkflowOutput = WorkerBenchmarkResult;
 
 const clampScore = (value: number): number =>
   Math.max(0, Math.min(1, Number(value.toFixed(2))));
