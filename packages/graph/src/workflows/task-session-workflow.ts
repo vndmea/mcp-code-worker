@@ -1,6 +1,8 @@
 import {
   AgentError,
+  buildWorkspaceBindingSummary,
   resolveExecutionContext,
+  summarizeValidationOutcome,
   createExecutionContextWithWorkerModel,
   createTaskSession,
   getTaskSessionPath,
@@ -17,6 +19,7 @@ import {
   type TaskSessionStatus,
   type TaskSessionStep,
   type ValidationReport,
+  type WorkspaceBindingSummary,
   updateTaskSession,
   writeTaskArtifact
 } from "@agent-orchestrator/core";
@@ -88,21 +91,44 @@ export interface TaskSessionWorkflowOutput {
   patchApplyResult?: PatchApplyResult;
   patchInspection?: PatchInspection;
   patchProposal?: PatchProposal;
+  persistence: TaskSessionPersistenceState;
+  readinessSummary: string;
   report: string;
+  repositoryWriteMode: "execute" | "dry-run";
   repositoryContext?: RepositoryContextPack;
   reviewResult?: ReviewWorkflowOutput;
+  rootDir: string;
   session: TaskSession;
   sessionPath: string;
+  sessionWriteMode: "execute" | "dry-run";
+  transientNotice?: string;
   validationReport?: ValidationReport;
   workerId: string;
+  workspaceBinding: WorkspaceBindingSummary;
 }
 
 export interface NextRecommendedAction {
-  action: "inspect_patch" | "dry_run_apply" | "manual_review" | "confirm_apply";
+  action:
+    | "confirm_apply"
+    | "dry_run_apply"
+    | "inspect_patch"
+    | "manual_review"
+    | "persist_session"
+    | "propose_patch"
+    | "view_report";
   reason: string;
   command?: string;
   toolName?: string;
   toolArgs?: Record<string, unknown>;
+}
+
+export interface TaskSessionPersistenceState {
+  artifactRegistryComplete: boolean;
+  artifactsReadable: boolean;
+  reportRegistered: boolean;
+  resumable: boolean;
+  sessionPersisted: boolean;
+  storageKind: "persisted" | "temporary";
 }
 
 interface ResolvedTaskContext {
@@ -335,14 +361,21 @@ const deriveResumeOptions = (
 };
 
 const buildSessionReport = (input: {
+  artifactRegistryComplete?: boolean;
+  artifactsReadable?: boolean;
   fixResult?: FixErrorWorkflowOutput;
   patchApplyResult?: PatchApplyResult;
   patchInspection?: PatchInspection;
   patchProposal?: PatchProposal;
+  repositoryWriteMode?: "execute" | "dry-run";
   repositoryContext?: RepositoryContextPack;
   reviewResult?: ReviewWorkflowOutput;
+  rootDir?: string;
+  sessionPersisted?: boolean;
+  sessionWriteMode?: "execute" | "dry-run";
   session: TaskSession;
   validationReport?: ValidationReport;
+  workspaceBinding?: WorkspaceBindingSummary;
 }): string =>
   renderTaskSessionReport({
     session: input.session,
@@ -352,24 +385,143 @@ const buildSessionReport = (input: {
     validationReport: input.validationReport,
     patchProposal: input.patchProposal,
     patchInspection: input.patchInspection,
-    patchApplyResult: input.patchApplyResult
+    patchApplyResult: input.patchApplyResult,
+    rootDir: input.rootDir,
+    workspaceBinding: input.workspaceBinding,
+    repositoryWriteMode: input.repositoryWriteMode,
+    sessionWriteMode: input.sessionWriteMode,
+    sessionPersisted: input.sessionPersisted,
+    artifactsReadable: input.artifactsReadable,
+    artifactRegistryComplete: input.artifactRegistryComplete
   });
+
+const getRepositoryWriteMode = (
+  context: ExecutionContext
+): "execute" | "dry-run" =>
+  context.dryRun || !context.allowWrite ? "dry-run" : "execute";
+
+const getSessionWriteMode = (
+  allowWriteSession: boolean
+): "execute" | "dry-run" => (allowWriteSession ? "execute" : "dry-run");
+
+const getExpectedArtifactNames = (input: {
+  fixResult?: FixErrorWorkflowOutput;
+  patchApplyResult?: PatchApplyResult;
+  patchInspection?: PatchInspection;
+  patchProposal?: PatchProposal;
+  report: string;
+  repositoryContext?: RepositoryContextPack;
+  reviewResult?: ReviewWorkflowOutput;
+  validationReport?: ValidationReport;
+}): string[] => {
+  const artifactNames: string[] = [];
+
+  if (input.repositoryContext) {
+    artifactNames.push(ARTIFACT_NAMES.repositoryContext);
+  }
+
+  if (input.reviewResult) {
+    artifactNames.push(ARTIFACT_NAMES.reviewResult);
+  }
+
+  if (input.validationReport) {
+    artifactNames.push(ARTIFACT_NAMES.validationReport);
+  }
+
+  if (input.fixResult) {
+    artifactNames.push(ARTIFACT_NAMES.fixResult);
+  }
+
+  if (input.patchProposal) {
+    artifactNames.push(ARTIFACT_NAMES.patchProposal);
+  }
+
+  if (input.patchInspection) {
+    artifactNames.push(ARTIFACT_NAMES.patchInspection);
+  }
+
+  if (input.patchApplyResult) {
+    artifactNames.push(ARTIFACT_NAMES.patchApplyResult);
+  }
+
+  if (input.report.length > 0) {
+    artifactNames.push(ARTIFACT_NAMES.report);
+  }
+
+  return Array.from(new Set(artifactNames));
+};
+
+const buildPersistenceState = (input: {
+  expectedArtifactNames: string[];
+  session: TaskSession;
+  sessionWriteMode: "execute" | "dry-run";
+}): TaskSessionPersistenceState => {
+  const reportRegistered = Boolean(input.session.artifacts[ARTIFACT_NAMES.report]);
+  const artifactRegistryComplete = input.expectedArtifactNames.every(
+    (name) => Boolean(input.session.artifacts[name])
+  );
+  const sessionPersisted = input.sessionWriteMode === "execute";
+
+  return {
+    artifactRegistryComplete,
+    artifactsReadable: sessionPersisted && artifactRegistryComplete,
+    reportRegistered,
+    resumable: sessionPersisted,
+    sessionPersisted,
+    storageKind: sessionPersisted ? "persisted" : "temporary"
+  };
+};
+
+const buildReadinessSummary = (input: {
+  persistence: TaskSessionPersistenceState;
+  repositoryWriteMode: "execute" | "dry-run";
+  validationReport?: ValidationReport;
+}): string => {
+  const persistenceSummary = input.persistence.sessionPersisted
+    ? "Persisted task session is available for resume and artifact reads."
+    : "This result is temporary only; it cannot be resumed or read back as persisted artifacts.";
+  const repositoryWriteSummary =
+    input.repositoryWriteMode === "execute"
+      ? "Repository writes are enabled for explicit apply steps."
+      : "Repository writes are still dry-run only.";
+  const validationSummary = summarizeValidationOutcome(
+    input.validationReport
+  ).summary;
+
+  return `${persistenceSummary} ${repositoryWriteSummary} ${validationSummary}`;
+};
 
 const buildNextRecommendedActions = (input: {
   patchApplyResult?: PatchApplyResult;
   patchInspection?: PatchInspection;
   patchProposal?: PatchProposal;
+  persistence: TaskSessionPersistenceState;
   session: TaskSession;
 }): NextRecommendedAction[] => {
-  const reportAction: NextRecommendedAction = {
-    action: "manual_review",
-    reason: "Read the persisted task report before taking the next step.",
-    command: `ao task report ${input.session.taskId}`,
-    toolName: "ao_get_task_report",
-    toolArgs: {
-      taskId: input.session.taskId
-    }
-  };
+  const reportAction: NextRecommendedAction = input.persistence.sessionPersisted
+    ? {
+        action: "view_report",
+        reason: "Read the persisted task report before taking the next step.",
+        command: `ao task report ${input.session.taskId}`,
+        toolName: "ao_get_task_report",
+        toolArgs: {
+          taskId: input.session.taskId
+        }
+      }
+    : {
+        action: "view_report",
+        reason:
+          "Review the inline report now. This session is temporary, so it cannot be resumed or read back later unless you rerun with session persistence enabled."
+      };
+  const persistenceAction = !input.persistence.sessionPersisted
+    ? [
+        {
+          action: "persist_session" as const,
+          reason:
+            "Rerun this task with `--allow-write-session` if you want resumable sessions and readable artifacts under .ao/runs."
+        }
+      ]
+    : [];
 
   if (input.patchInspection && !input.patchInspection.ok) {
     return [
@@ -377,7 +529,8 @@ const buildNextRecommendedActions = (input: {
         ...reportAction,
         reason:
           "Patch inspection blocked the proposal. Review blocked paths and warnings before regenerating or editing the patch."
-      }
+      },
+      ...persistenceAction
     ];
   }
 
@@ -387,7 +540,8 @@ const buildNextRecommendedActions = (input: {
         ...reportAction,
         reason:
           "Patch application succeeded but validation failed. Review the recovery guidance before making any further repository changes."
-      }
+      },
+      ...persistenceAction
     ];
   }
 
@@ -413,7 +567,8 @@ const buildNextRecommendedActions = (input: {
             allowWrite: true,
             confirmApply: true
           }
-        }
+        },
+        ...persistenceAction
       ];
     }
 
@@ -422,7 +577,8 @@ const buildNextRecommendedActions = (input: {
         ...reportAction,
         reason:
           "Patch application was blocked by a safety gate. Review the report and resolve the blocking condition before retrying."
-      }
+      },
+      ...persistenceAction
     ];
   }
 
@@ -463,12 +619,32 @@ const buildNextRecommendedActions = (input: {
           applyPatch: true,
           allowWrite: true,
           confirmApply: true
+          }
+      },
+      ...persistenceAction
+    ];
+  }
+
+  if (!input.patchProposal && input.persistence.sessionPersisted) {
+    return [
+      reportAction,
+      {
+        action: "propose_patch",
+        reason:
+          "If the report looks good, continue into patch proposal and inspection from the stored session.",
+        command:
+          `ao task resume ${input.session.taskId} --propose-patch --inspect-patch`,
+        toolName: "ao_resume_task",
+        toolArgs: {
+          taskId: input.session.taskId,
+          proposePatch: true,
+          inspectPatch: true
         }
       }
     ];
   }
 
-  return [reportAction];
+  return [reportAction, ...persistenceAction];
 };
 
 const resolveFinalStatus = (input: {
@@ -877,6 +1053,7 @@ const persistReport = async (
     allowWriteSession
   );
   session.artifacts[ARTIFACT_NAMES.report] = artifactPath;
+  await updateTaskSession(context, session, allowWriteSession);
 };
 
 export const runTaskSessionWorkflow = async (
@@ -997,6 +1174,38 @@ export const runTaskSessionWorkflow = async (
     finalStatus,
     allowWriteSession
   );
+  const initialReport = buildSessionReport({
+    session,
+    reviewResult,
+    repositoryContext,
+    fixResult,
+    validationReport,
+    patchProposal: patchResult?.proposal,
+    patchInspection: patchResult?.inspection,
+    patchApplyResult,
+    rootDir: resolved.context.rootDir,
+    workspaceBinding: buildWorkspaceBindingSummary(resolved.context.rootDir),
+    repositoryWriteMode: getRepositoryWriteMode(resolved.context),
+    sessionWriteMode: sessionCreate.mode,
+    sessionPersisted: sessionCreate.mode === "execute"
+  });
+  await persistReport(resolved.context, session, initialReport, allowWriteSession);
+  const persistence = buildPersistenceState({
+    session,
+    sessionWriteMode: sessionCreate.mode,
+    expectedArtifactNames: getExpectedArtifactNames({
+      reviewResult,
+      repositoryContext,
+      validationReport,
+      fixResult,
+      patchProposal: patchResult?.proposal,
+      patchInspection: patchResult?.inspection,
+      patchApplyResult,
+      report: initialReport
+    })
+  });
+  const workspaceBinding = buildWorkspaceBindingSummary(resolved.context.rootDir);
+  const repositoryWriteMode = getRepositoryWriteMode(resolved.context);
   const report = buildSessionReport({
     session,
     reviewResult,
@@ -1005,22 +1214,46 @@ export const runTaskSessionWorkflow = async (
     validationReport,
     patchProposal: patchResult?.proposal,
     patchInspection: patchResult?.inspection,
-    patchApplyResult
+    patchApplyResult,
+    rootDir: resolved.context.rootDir,
+    workspaceBinding,
+    repositoryWriteMode,
+    sessionWriteMode: sessionCreate.mode,
+    sessionPersisted: persistence.sessionPersisted,
+    artifactsReadable: persistence.artifactsReadable,
+    artifactRegistryComplete: persistence.artifactRegistryComplete
   });
+  if (report !== initialReport) {
+    await persistReport(resolved.context, session, report, allowWriteSession);
+  }
   const nextRecommendedActions = buildNextRecommendedActions({
     session,
     patchProposal: patchResult?.proposal,
     patchInspection: patchResult?.inspection,
-    patchApplyResult
+    patchApplyResult,
+    persistence
   });
-  await persistReport(resolved.context, session, report, allowWriteSession);
+  const readinessSummary = buildReadinessSummary({
+    persistence,
+    repositoryWriteMode,
+    validationReport
+  });
 
   return {
     mode: sessionCreate.mode,
     nextRecommendedActions,
+    persistence,
+    readinessSummary,
     session,
     sessionPath: sessionCreate.path,
+    repositoryWriteMode,
+    rootDir: resolved.context.rootDir,
+    sessionWriteMode: sessionCreate.mode,
+    transientNotice: persistence.sessionPersisted
+      ? undefined
+      : "Temporary result only. Rerun with --allow-write-session to resume later or read artifacts from .ao/runs.",
     workerId: resolved.workerId,
+    workspaceBinding,
     reviewResult,
     repositoryContext,
     validationReport,
@@ -1163,6 +1396,44 @@ export const resumeTaskSessionWorkflow = async (
     });
   }
 
+  const initialReport = buildSessionReport({
+    session,
+    reviewResult,
+    repositoryContext: repositoryContext ?? reviewResult.repositoryContext,
+    fixResult,
+    validationReport: validationReport ?? reviewResult.validationReport,
+    patchProposal,
+    patchInspection,
+    patchApplyResult,
+    rootDir: resolved.context.rootDir,
+    workspaceBinding: buildWorkspaceBindingSummary(resolved.context.rootDir),
+    repositoryWriteMode: getRepositoryWriteMode(resolved.context),
+    sessionWriteMode: getSessionWriteMode(input.allowWriteSession ?? false),
+    sessionPersisted: Boolean(input.allowWriteSession ?? false)
+  });
+  await persistReport(
+    resolved.context,
+    session,
+    initialReport,
+    input.allowWriteSession ?? false
+  );
+  const sessionWriteMode = getSessionWriteMode(input.allowWriteSession ?? false);
+  const persistence = buildPersistenceState({
+    session,
+    sessionWriteMode,
+    expectedArtifactNames: getExpectedArtifactNames({
+      reviewResult,
+      repositoryContext: repositoryContext ?? reviewResult.repositoryContext,
+      validationReport: validationReport ?? reviewResult.validationReport,
+      fixResult,
+      patchProposal,
+      patchInspection,
+      patchApplyResult,
+      report: initialReport
+    })
+  });
+  const repositoryWriteMode = getRepositoryWriteMode(resolved.context);
+  const workspaceBinding = buildWorkspaceBindingSummary(resolved.context.rootDir);
   const report = buildSessionReport({
     session,
     reviewResult,
@@ -1171,20 +1442,30 @@ export const resumeTaskSessionWorkflow = async (
     validationReport: validationReport ?? reviewResult.validationReport,
     patchProposal,
     patchInspection,
-    patchApplyResult
+    patchApplyResult,
+    rootDir: resolved.context.rootDir,
+    workspaceBinding,
+    repositoryWriteMode,
+    sessionWriteMode,
+    sessionPersisted: persistence.sessionPersisted,
+    artifactsReadable: persistence.artifactsReadable,
+    artifactRegistryComplete: persistence.artifactRegistryComplete
   });
+  if (report !== initialReport) {
+    await persistReport(
+      resolved.context,
+      session,
+      report,
+      input.allowWriteSession ?? false
+    );
+  }
   const nextRecommendedActions = buildNextRecommendedActions({
     session,
     patchProposal,
     patchInspection,
-    patchApplyResult
+    patchApplyResult,
+    persistence
   });
-  await persistReport(
-    resolved.context,
-    session,
-    report,
-    input.allowWriteSession ?? false
-  );
   const finalStatus = resolveFinalStatus({
     applyPatchRequested: options.applyPatch,
     patchApplyResult,
@@ -1199,14 +1480,24 @@ export const resumeTaskSessionWorkflow = async (
   );
 
   return {
-    mode:
-      input.allowWriteSession && !resolved.context.dryRun
-        ? "execute"
-        : "dry-run",
+    mode: sessionWriteMode,
     nextRecommendedActions,
+    persistence,
+    readinessSummary: buildReadinessSummary({
+      persistence,
+      repositoryWriteMode,
+      validationReport: validationReport ?? reviewResult.validationReport
+    }),
     session,
     sessionPath: getTaskSessionPath(resolved.context.rootDir, session.taskId),
+    repositoryWriteMode,
+    rootDir: resolved.context.rootDir,
+    sessionWriteMode,
+    transientNotice: persistence.sessionPersisted
+      ? undefined
+      : "Temporary result only. Rerun with --allow-write-session to resume later or read artifacts from .ao/runs.",
     workerId: resolved.workerId,
+    workspaceBinding,
     reviewResult,
     repositoryContext: repositoryContext ?? reviewResult.repositoryContext,
     validationReport: validationReport ?? reviewResult.validationReport,
@@ -1249,7 +1540,13 @@ export const getTaskSessionReport = async (
       validationReport: hydrated.validationReport,
       patchProposal: hydrated.patchProposal,
       patchInspection: hydrated.patchInspection,
-      patchApplyResult: hydrated.patchApplyResult
+      patchApplyResult: hydrated.patchApplyResult,
+      rootDir,
+      workspaceBinding: buildWorkspaceBindingSummary(rootDir),
+      sessionPersisted: true,
+      sessionWriteMode: "execute",
+      artifactsReadable: true,
+      artifactRegistryComplete: Boolean(session.artifacts[ARTIFACT_NAMES.report])
     });
 
   return {

@@ -45,7 +45,7 @@ describe("runRepositoryValidation", () => {
     ]);
   });
 
-  it("skips missing scripts", async () => {
+  it("marks missing scripts as not configured", async () => {
     const rootDir = await createRootDir();
     await writePackage(rootDir, "package.json", {});
     const context = createExecutionContextFromEnv(undefined, {
@@ -61,10 +61,53 @@ describe("runRepositoryValidation", () => {
     expect(result.checks).toEqual([
       expect.objectContaining({
         name: "lint",
-        status: "skipped"
+        status: "not-configured"
       })
     ]);
-    expect(result.warnings[0]).toContain("Skipped lint");
+    expect(result.warnings[0]).toContain("not configured");
+  });
+
+  it("uses validation script mappings from ao config", async () => {
+    const rootDir = await createRootDir();
+    await mkdir(join(rootDir, ".ao"), { recursive: true });
+    await writePackage(rootDir, "package.json", {
+      "check-types": "node -e \"process.exit(0)\""
+    });
+    await writeFile(
+      join(rootDir, ".ao", "config.json"),
+      JSON.stringify(
+        {
+          version: 1,
+          validation: {
+            autoDiscover: false,
+            scripts: {
+              typecheck: ["check-types"]
+            }
+          }
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+    const context = createExecutionContextFromEnv(undefined, {
+      dryRun: true,
+      allowWrite: false,
+      rootDir
+    });
+
+    const result = await runRepositoryValidation(context, {
+      typecheck: true
+    });
+
+    expect(result.checks).toEqual([
+      expect.objectContaining({
+        name: "typecheck",
+        status: "dry-run",
+        scriptName: "check-types",
+        resolutionSource: "configured"
+      })
+    ]);
   });
 
   it(

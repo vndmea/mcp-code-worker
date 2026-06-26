@@ -35,6 +35,13 @@ export const formatTaskSessionWorkflowOutput = (
   return {
     ...createTaskSessionSummary(output.session, includeArtifactRefs(options)),
     mode: output.mode,
+    rootDir: output.rootDir,
+    readinessSummary: output.readinessSummary,
+    repositoryWriteMode: output.repositoryWriteMode,
+    sessionWriteMode: output.sessionWriteMode,
+    persistence: output.persistence,
+    workspaceBinding: output.workspaceBinding,
+    transientNotice: output.transientNotice,
     workerId: output.workerId,
     sessionPath: output.sessionPath,
     nextRecommendedActions: output.nextRecommendedActions,

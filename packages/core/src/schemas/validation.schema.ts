@@ -8,7 +8,18 @@ export const ValidationCheckDiagnosticSchema = z.object({
 export const ValidationCheckSchema = z.object({
   name: z.string(),
   command: z.string(),
-  status: z.enum(["success", "failure", "skipped", "dry-run"]),
+  status: z.enum([
+    "success",
+    "failure",
+    "skipped",
+    "dry-run",
+    "not-configured",
+    "not-run"
+  ]),
+  scriptName: z.string().optional(),
+  resolutionSource: z
+    .enum(["canonical", "configured", "auto-discovered", "missing"])
+    .optional(),
   exitCode: z.number().nullable().optional(),
   stdout: z.string().optional(),
   stderr: z.string().optional(),

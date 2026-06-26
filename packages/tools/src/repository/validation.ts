@@ -6,7 +6,11 @@ import type {
   ValidationCheck,
   ValidationReport
 } from "@agent-orchestrator/core";
-import { createExecutionContextFromEnv } from "@agent-orchestrator/core";
+import {
+  createExecutionContextFromEnv,
+  loadAoConfig,
+  resolveValidationScript
+} from "@agent-orchestrator/core";
 
 import { runSafeCommand } from "../shell/safe-command.js";
 import { resolveRepositoryScope } from "./file-selection.js";
@@ -28,10 +32,20 @@ const readScripts = async (rootDir: string): Promise<Record<string, string>> => 
   }
 };
 
-const buildSkippedCheck = (name: string, command: string): ValidationCheck => ({
+const buildUnconfiguredCheck = (
+  name: string,
+  triedScriptNames: string[]
+): ValidationCheck => ({
   name,
-  command,
-  status: "skipped"
+  command: `pnpm run ${name}`,
+  status: "not-configured",
+  resolutionSource: "missing",
+  diagnosticSummary: {
+    affectedPaths: [],
+    previewLines: [
+      `No script mapping was found for ${name}. Tried: ${triedScriptNames.join(", ")}`
+    ]
+  }
 });
 
 const diagnosticPathPattern =
@@ -88,12 +102,13 @@ export const runRepositoryValidation = async (
 ): Promise<ValidationReport> => {
   const scopedContext = createScopedContext(context, options.scope);
   const scripts = await readScripts(scopedContext.rootDir);
+  const rootConfig = await loadAoConfig(context.rootDir);
   const checks: ValidationCheck[] = [];
   const warnings: string[] = [];
   const requestedChecks = [
-    { enabled: options.typecheck, name: "typecheck", command: "pnpm typecheck" },
-    { enabled: options.lint, name: "lint", command: "pnpm lint" },
-    { enabled: options.test, name: "test", command: "pnpm test" }
+    { enabled: options.typecheck, name: "typecheck" as const },
+    { enabled: options.lint, name: "lint" as const },
+    { enabled: options.test, name: "test" as const }
   ];
 
   for (const check of requestedChecks) {
@@ -101,20 +116,30 @@ export const runRepositoryValidation = async (
       continue;
     }
 
-    if (!scripts[check.name]) {
-      checks.push(buildSkippedCheck(check.name, check.command));
-      warnings.push(`Skipped ${check.name} because the script is missing.`);
+    const resolution = resolveValidationScript(
+      scripts,
+      rootConfig.config.validation,
+      check.name
+    );
+
+    if (resolution.source === "missing" || !resolution.command) {
+      checks.push(buildUnconfiguredCheck(check.name, resolution.triedScriptNames));
+      warnings.push(
+        `Validation for ${check.name} is not configured in ${scopedContext.rootDir}.`
+      );
       continue;
     }
 
-    const result = await runSafeCommand(check.command, scopedContext, {
+    const result = await runSafeCommand(resolution.command, scopedContext, {
       maxOutputBytes: 120_000,
       timeoutMs: 120_000
     });
 
     checks.push({
       name: check.name,
-      command: check.command,
+      command: resolution.command,
+      scriptName: resolution.scriptName,
+      resolutionSource: resolution.source,
       status:
         result.mode === "dry-run"
           ? "dry-run"
@@ -129,6 +154,18 @@ export const runRepositoryValidation = async (
       stderrTruncated: result.stderrTruncated,
       diagnosticSummary: buildDiagnosticSummary(result.stdout, result.stderr)
     });
+
+    if (resolution.source === "configured") {
+      warnings.push(
+        `Validation for ${check.name} is using an explicit script mapping to ${resolution.scriptName}.`
+      );
+    }
+
+    if (resolution.source === "auto-discovered") {
+      warnings.push(
+        `Validation for ${check.name} auto-discovered script ${resolution.scriptName}. Consider persisting a mapping in .ao/config.json.`
+      );
+    }
   }
 
   return {

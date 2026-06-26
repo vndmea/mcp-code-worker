@@ -3,9 +3,11 @@ import type {
   PatchInspection,
   PatchProposal,
   RepositoryContextPack,
-  ValidationReport
+  ValidationReport,
+  WorkspaceBindingSummary
 } from "../index.js";
 import type { TaskSession } from "../schemas/task-session.schema.js";
+import { summarizeValidationOutcome } from "../validation/validation-report.js";
 
 const summarizeReview = (reviewResult: unknown): string => {
   if (!reviewResult || typeof reviewResult !== "object") {
@@ -28,19 +30,7 @@ const summarizeFix = (fixResult: unknown): string => {
 const summarizeValidation = (
   validationReport: ValidationReport | undefined
 ): string => {
-  if (!validationReport) {
-    return "No validation report recorded.";
-  }
-
-  if (validationReport.ok) {
-    return `Validation passed across ${validationReport.checks.length} check(s).`;
-  }
-
-  const failedChecks = validationReport.checks
-    .filter((check) => check.status === "failure")
-    .map((check) => check.name);
-
-  return `Validation requires review. Failed checks: ${failedChecks.join(", ") || "unknown"}.`;
+  return summarizeValidationOutcome(validationReport).summary;
 };
 
 const summarizePatch = (
@@ -103,14 +93,21 @@ const renderNextAction = (
 };
 
 export function renderTaskSessionReport(input: {
+  artifactRegistryComplete?: boolean;
+  artifactsReadable?: boolean;
   fixResult?: unknown;
   patchApplyResult?: PatchApplyResult;
   patchInspection?: PatchInspection;
   patchProposal?: PatchProposal;
   repositoryContext?: RepositoryContextPack;
+  repositoryWriteMode?: "execute" | "dry-run";
   reviewResult?: unknown;
+  rootDir?: string;
+  sessionPersisted?: boolean;
+  sessionWriteMode?: "execute" | "dry-run";
   session: TaskSession;
   validationReport?: ValidationReport;
+  workspaceBinding?: WorkspaceBindingSummary;
 }): string {
   const {
     session,
@@ -120,7 +117,14 @@ export function renderTaskSessionReport(input: {
     patchProposal,
     patchInspection,
     patchApplyResult,
-    validationReport
+    validationReport,
+    rootDir,
+    workspaceBinding,
+    repositoryWriteMode,
+    sessionWriteMode,
+    sessionPersisted,
+    artifactsReadable,
+    artifactRegistryComplete
   } = input;
   const stepLines = session.steps.map(
     (step) => `- ${step.name}: ${step.status}`
@@ -142,6 +146,21 @@ export function renderTaskSessionReport(input: {
     `- Status: ${session.status}`,
     `- Created At: ${session.createdAt}`,
     `- Updated At: ${session.updatedAt}`,
+    ``,
+    `## Workspace Binding`,
+    `- Active Root Directory: ${rootDir ?? "Not recorded"}`,
+    `- Caller Working Directory: ${workspaceBinding?.callerWorkingDirectory ?? "Not recorded"}`,
+    `- Binding Matches Caller: ${workspaceBinding ? (workspaceBinding.matchesCallerWorkingDirectory ? "yes" : "no") : "unknown"}`,
+    `- Binding Note: ${workspaceBinding?.warning ?? "No workspace switch warning."}`,
+    ``,
+    `## Write Modes`,
+    `- Repository Write Mode: ${repositoryWriteMode ?? "Not recorded"}`,
+    `- Session Write Mode: ${sessionWriteMode ?? "Not recorded"}`,
+    ``,
+    `## Persistence`,
+    `- Session Persisted: ${typeof sessionPersisted === "boolean" ? (sessionPersisted ? "yes" : "no") : "Not recorded"}`,
+    `- Artifacts Readable Later: ${typeof artifactsReadable === "boolean" ? (artifactsReadable ? "yes" : "no") : "Not recorded"}`,
+    `- Artifact Registry Complete: ${typeof artifactRegistryComplete === "boolean" ? (artifactRegistryComplete ? "yes" : "no") : "Not recorded"}`,
     ``,
     `## Repository Context`,
     repositoryContext

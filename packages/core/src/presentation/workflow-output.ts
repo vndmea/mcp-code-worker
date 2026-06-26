@@ -3,6 +3,7 @@ import type {
   ValidationCheck,
   ValidationReport
 } from "../schemas/validation.schema.js";
+import { summarizeValidationOutcome } from "../validation/validation-report.js";
 
 export type OutputDetailLevel = "summary" | "full";
 
@@ -106,21 +107,29 @@ export const createTaskSessionReportSummary = (
 export const summarizeValidationReport = (
   report: ValidationReport,
   maxBytes = 2_000
-) => ({
-  ok: report.ok,
-  warnings: report.warnings,
-  failedChecks: report.checks
-    .filter((check) => check.status === "failure")
-    .map((check) => check.name),
-  checks: report.checks.map((check) => ({
-    name: check.name,
-    command: check.command,
-    status: check.status,
-    exitCode: check.exitCode,
-    timedOut: check.timedOut ?? false,
-    affectedPaths: unique(check.diagnosticSummary?.affectedPaths ?? []),
-    previewLines: previewValidationLines(check, maxBytes),
-    stdoutTruncated: check.stdoutTruncated ?? false,
-    stderrTruncated: check.stderrTruncated ?? false
-  }))
-});
+) => {
+  const outcome = summarizeValidationOutcome(report);
+
+  return {
+    ok: report.ok,
+    confidence: outcome.confidence,
+    summary: outcome.summary,
+    warnings: report.warnings,
+    failedChecks: outcome.failedChecks,
+    notConfiguredChecks: outcome.notConfiguredChecks,
+    dryRunChecks: outcome.dryRunChecks,
+    checks: report.checks.map((check) => ({
+      name: check.name,
+      command: check.command,
+      status: check.status,
+      scriptName: check.scriptName,
+      resolutionSource: check.resolutionSource,
+      exitCode: check.exitCode,
+      timedOut: check.timedOut ?? false,
+      affectedPaths: unique(check.diagnosticSummary?.affectedPaths ?? []),
+      previewLines: previewValidationLines(check, maxBytes),
+      stdoutTruncated: check.stdoutTruncated ?? false,
+      stderrTruncated: check.stderrTruncated ?? false
+    }))
+  };
+};

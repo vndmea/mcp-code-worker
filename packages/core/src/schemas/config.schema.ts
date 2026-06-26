@@ -34,6 +34,21 @@ export const AoSessionConfigSchema = z.object({
   maxStoredSessions: z.number().int().positive().default(100)
 });
 
+const ValidationScriptMappingSchema = z.object({
+  typecheck: z.array(z.string().min(1)).default([]),
+  lint: z.array(z.string().min(1)).default([]),
+  test: z.array(z.string().min(1)).default([])
+});
+
+export const AoValidationConfigSchema = z.object({
+  autoDiscover: z.boolean().default(true),
+  scripts: ValidationScriptMappingSchema.default({
+    typecheck: [],
+    lint: [],
+    test: []
+  })
+});
+
 export const AoConfigSchema = z.object({
   version: z.literal(1),
   leaderModel: AoModelConfigSchema.optional(),
@@ -59,6 +74,14 @@ export const AoConfigSchema = z.object({
   sessions: AoSessionConfigSchema.default({
     retentionDays: 30,
     maxStoredSessions: 100
+  }),
+  validation: AoValidationConfigSchema.default({
+    autoDiscover: true,
+    scripts: {
+      typecheck: [],
+      lint: [],
+      test: []
+    }
   })
 });
 
