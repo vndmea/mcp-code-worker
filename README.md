@@ -57,10 +57,10 @@ docs/
 
 ## Runtime requirements
 
-- Node.js `>=22`
+- Node.js `22`
 - pnpm `>=10`
 
-This repository targets actively maintained Node.js LTS releases only. Use Node 22 or newer for local development, CI, and published CLI installs.
+This repository targets actively maintained Node.js LTS releases only. CI currently validates Node 22. Other Node.js `>=22` versions are best-effort until they are added to the CI matrix.
 
 ## Setup
 
@@ -69,7 +69,7 @@ node --version
 pnpm install
 pnpm build
 pnpm exec ao doctor
-pnpm exec ao init --allow-write
+pnpm exec ao setup --allow-write
 pnpm exec ao doctor
 pnpm typecheck
 pnpm test
@@ -78,20 +78,25 @@ pnpm test
 ## First run
 
 ```bash
-pnpm exec ao init --allow-write
+pnpm exec ao setup --allow-write
 pnpm exec ao doctor
 pnpm exec ao mcp config
 ```
 
 Internal-trial installation and MCP launch guidance lives in `docs/install.md`.
+Storage migration guidance for older repository-local `.ao/` artifacts lives in `docs/storage-migration.md`.
 
-`ao init` creates local-only scaffolding under `.ao/`:
+Unless noted otherwise, read every `ao ...` example below as `pnpm exec ao ...` from the repository root for the current internal-trial install path.
 
-- `.ao/config.json`
-- `.ao/workers.json`
-- `.ao/worker-profiles.json`
-- `.ao/audit/`
-- `.ao/runs/`
+`ao setup` creates user-scoped AO workspace storage under `~/.ao/workspaces/<workspace-id>/` by default:
+
+- `config.json`
+- `workers.json`
+- `worker-profiles.json`
+- `audit/`
+- `runs/`
+
+`ao init` remains available as a lower-level compatibility command, but `ao setup` is the primary onboarding entrypoint.
 
 ## CLI usage
 
@@ -172,7 +177,7 @@ ao worker interview --provider litellm --model qwen3-coder --save
 Saved profiles are written to:
 
 ```text
-.ao/worker-profiles.json
+~/.ao/workspaces/<workspace-id>/worker-profiles.json
 ```
 
 You can inspect persisted profiles with:
@@ -255,7 +260,7 @@ Safety constraints for patch lifecycle:
 
 ## Task sessions
 
-Task sessions keep local review artifacts and resumable state under `.ao/runs`:
+Task sessions keep local review artifacts and resumable state under `~/.ao/workspaces/<workspace-id>/runs` by default:
 
 ```bash
 ao task start \
@@ -282,7 +287,7 @@ ao task resume <taskId> \
   --confirm-apply
 ```
 
-Session persistence is separate from repository writes. `--allow-write-session` only permits `.ao/runs` artifacts. It does not enable patch apply.
+Session persistence is separate from repository writes. `--allow-write-session` only permits AO session artifacts under `runs/`. It does not enable patch apply.
 
 See `docs/permissions.md` for the full write-gate model.
 
@@ -323,6 +328,8 @@ See [.env.example](https://github.com/vndmea/agent-orchestrator/blob/master/.env
 - `MCP_SERVER_NAME`
 - `MCP_SERVER_VERSION`
 - `LOG_LEVEL`
+- `AO_ROOT_DIR`
+- `AO_HOME_DIR`
 - `AO_DRY_RUN`
 - `AO_ALLOW_WRITE`
 - `AO_ALLOWED_COMMANDS`
@@ -333,12 +340,12 @@ Runtime configuration resolves in this order:
 
 1. CLI flags
 2. Environment variables
-3. `.ao/config.json`
+3. `~/.ao/workspaces/<workspace-id>/config.json`
 4. built-in defaults
 
 `config.json` stores only env-var names for secrets such as `apiKeyEnvVar`. Actual API keys stay in the environment.
 
-Repository context settings in `.ao/config.json` also control default `maxFileBytes`, `maxTotalBytes`, and `ignoredPaths` for review, fix, patch, and task workflows unless a command overrides them explicitly.
+Repository context settings in the user-scoped AO `config.json` also control default `maxFileBytes`, `maxTotalBytes`, and `ignoredPaths` for review, fix, patch, and task workflows unless a command overrides them explicitly.
 
 ## Workflows
 
@@ -392,14 +399,14 @@ If you want different endpoints for leader and worker traffic, use the model-spe
 - File writes require explicit policy allowance.
 - Shell execution is allowlisted.
 - Read-only git inspection commands such as `git diff` can still execute inside dry-run so review workflows keep working without enabling writes.
-- `ao init`, `ao cleanup`, worker registry writes, and task session persistence remain local-only.
+- `ao setup`, `ao init`, `ao cleanup`, worker registry writes, and task session persistence remain local-only inside AO-managed storage.
 - Repository reads stay inside the repo root and block secret-like files such as `.env` and private keys.
 - Dedicated review and fix flows return structured JSON and do not apply patches.
 - Patch proposal, inspection, and apply are separated to keep write actions reviewable.
 - If structured patch generation fails, the fallback proposal is marked as a blocked `[PLACEHOLDER]` artifact and cannot be applied.
 - Validation commands go through the safe command path and can be inspected through audit logs.
 - `ao audit list` exposes the local audit trail for workflow, file, and command events.
-- `ao cleanup runs` and `ao cleanup audit` only delete local `.ao` artifacts and never touch project source files.
+- `ao cleanup runs` and `ao cleanup audit` only delete local AO artifacts and never touch project source files.
 - Worker outputs are not final until leader review completes.
 - Workers must pass onboarding evaluation before they should receive production tasks.
 - Workers that fail structured output or reliability checks are limited or blocked.

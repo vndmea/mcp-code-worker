@@ -12,10 +12,12 @@ Supporting templates:
 
 ## Prerequisites
 
-- Node.js `>=22`
+- Node.js `22`
 - pnpm `>=11`
 - Git available on `PATH`
 - Optional real worker credentials via environment variables
+
+CI currently validates Node 22. Other Node.js `>=22` versions are best-effort until they are added to the CI matrix.
 
 ## Local Quality Gate
 
@@ -33,24 +35,25 @@ pnpm test
 ## Local Setup
 
 ```bash
-pnpm exec ao init --allow-write
+pnpm exec ao setup --allow-write
 pnpm exec ao doctor
 ```
 
 Recommended next checks:
 
-- Confirm `.ao/config.json` exists.
-- Confirm `.ao/worker-profiles.json` and `.ao/workers.json` are local-only artifacts.
-- Confirm no API key was written into `.ao/config.json`.
+- Confirm `~/.ao/workspaces/<workspace-id>/config.json` exists, or the equivalent path under `AO_HOME_DIR`.
+- Confirm `worker-profiles.json` and `workers.json` were created in user-scoped AO storage, not in the repository checkout.
+- Confirm no API key was written into the persisted `config.json`.
+- If you upgraded from a repository-local `.ao/`, review `docs/storage-migration.md` before assuming old evidence disappeared.
 
 ## Write Modes And Safety Gates
 
 - Dry-run: default for commands that could affect repository state or local managed artifacts.
-- `--allow-write-session`: allows `.ao/runs/<taskId>` artifact persistence only.
+- `--allow-write-session`: allows `aoStorageDir/runs/<taskId>` artifact persistence only.
 - `--allow-write`: allows repository writes when the command supports them.
 - `--confirm-apply`: the second explicit gate for patch application. `--allow-write` alone is not enough.
 
-Dry-run does not create audit files by default for ordinary evaluation paths. Audit artifacts are local `.ao/audit` writes.
+Dry-run does not create audit files by default for ordinary evaluation paths. Audit artifacts are local `aoStorageDir/audit` writes.
 
 Patch apply remains two-step:
 
@@ -71,6 +74,8 @@ Interview and benchmark serve different purposes:
 3. explicit `--update-profile-capabilities`
 
 ## Example: DeepSeek / OpenAI-Compatible Worker
+
+Detailed provider expectations and troubleshooting are documented in `docs/provider-contracts/deepseek.md`.
 
 Official OpenAI-compatible base URL currently documented by DeepSeek:
 
@@ -181,7 +186,7 @@ For each internal trial run, keep:
 - interview/profile artifact path
 - benchmark artifact path
 - task session id
-- `.ao/runs/<taskId>/report.md`
+- `aoStorageDir/runs/<taskId>/report.md`
 - patch proposal / inspection artifact paths
 - sanitized failure reason if the run failed
 - any returned re-interview guidance when provider invocation failed

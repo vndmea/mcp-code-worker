@@ -55,14 +55,21 @@ examples/
 docs/
 ```
 
+## 运行要求
+
+- Node.js `22`
+- pnpm `>=10`
+
+当前 CI 只验证 Node 22。其他 Node.js `>=22` 版本暂时属于 best-effort，只有进入 CI matrix 后才视为正式验证。
+
 ## 初始化与检查
 
 ```bash
 pnpm install
 pnpm build
-pnpm cli -- doctor
-ao init --allow-write
-ao doctor
+pnpm exec ao doctor
+pnpm exec ao setup --allow-write
+pnpm exec ao doctor
 pnpm typecheck
 pnpm test
 ```
@@ -70,18 +77,24 @@ pnpm test
 ## 首次使用
 
 ```bash
-ao init --allow-write
-ao doctor
-ao mcp config
+pnpm exec ao setup --allow-write
+pnpm exec ao doctor
+pnpm exec ao mcp config
 ```
 
-`ao init` 会在 `.ao/` 下创建仅本地使用的脚手架：
+当前 internal-trial 安装路径下，除非特别说明，下面所有 `ao ...` 示例都等价于在仓库根目录执行 `pnpm exec ao ...`。
 
-- `.ao/config.json`
-- `.ao/workers.json`
-- `.ao/worker-profiles.json`
-- `.ao/audit/`
-- `.ao/runs/`
+`ao setup` 默认会在 `~/.ao/workspaces/<workspace-id>/` 下创建用户级 AO 工作区存储：
+
+- `config.json`
+- `workers.json`
+- `worker-profiles.json`
+- `audit/`
+- `runs/`
+
+旧版仓库内 `.ao/` 到用户级存储的迁移说明见 `docs/storage-migration.md`。
+
+`ao init` 仍然保留为更底层的兼容命令，但新用户入口应以 `ao setup` 为主。
 
 ## CLI 用法
 
@@ -162,7 +175,7 @@ ao worker interview --provider litellm --model qwen3-coder --save
 保存后的 profile 会写到：
 
 ```text
-.ao/worker-profiles.json
+~/.ao/workspaces/<workspace-id>/worker-profiles.json
 ```
 
 你可以通过下面的命令查看这些已保存的 profile：
@@ -245,7 +258,7 @@ ao patch apply ./tmp/candidate.patch \
 
 ## Task session 流程
 
-task session 会把本地可审查产物和可恢复状态写入 `.ao/runs`：
+task session 默认会把本地可审查产物和可恢复状态写入 `~/.ao/workspaces/<workspace-id>/runs`：
 
 ```bash
 ao task start \
@@ -272,7 +285,7 @@ ao task resume <taskId> \
   --confirm-apply
 ```
 
-`--allow-write-session` 只允许写入 `.ao/runs` 会话产物，并不等于允许修改仓库文件。
+`--allow-write-session` 只允许写入 AO session 产物，并不等于允许修改仓库文件。
 
 ## MCP server 用法
 
@@ -311,6 +324,8 @@ ao mcp list-tools
 - `MCP_SERVER_NAME`
 - `MCP_SERVER_VERSION`
 - `LOG_LEVEL`
+- `AO_ROOT_DIR`
+- `AO_HOME_DIR`
 - `AO_DRY_RUN`
 - `AO_ALLOW_WRITE`
 - `AO_ALLOWED_COMMANDS`
@@ -321,12 +336,12 @@ ao mcp list-tools
 
 1. CLI flags
 2. 环境变量
-3. `.ao/config.json`
+3. `~/.ao/workspaces/<workspace-id>/config.json`
 4. 内置默认值
 
 `config.json` 只记录密钥环境变量名，例如 `apiKeyEnvVar`，不会保存实际 API key。
 
-`.ao/config.json` 里的 repository context 配置也会作为 review、fix、patch 和 task workflow 的默认预算来源，包括 `maxFileBytes`、`maxTotalBytes` 和 `ignoredPaths`，除非某个命令显式覆盖。
+用户级 AO `config.json` 里的 repository context 配置也会作为 review、fix、patch 和 task workflow 的默认预算来源，包括 `maxFileBytes`、`maxTotalBytes` 和 `ignoredPaths`，除非某个命令显式覆盖。
 
 ## 内置工作流
 
@@ -380,14 +395,14 @@ pnpm example:leader-worker-basic
 - 文件写入需要显式的策略授权。
 - Shell 执行通过 allowlist 控制。
 - `git diff` 这类只读 git 检查命令即使在 dry-run 下也允许执行，因此 review workflow 不需要开启写权限。
-- `ao init`、`ao cleanup`、worker registry 写入和 task session 持久化都只作用于本地。
+- `ao setup`、`ao init`、`ao cleanup`、worker registry 写入和 task session 持久化都只作用于 AO 本地存储。
 - 仓库读取必须留在 repo root 内，并会阻止 `.env`、私钥等 secret-like 文件进入上下文。
 - 专用 review / fix 流程只返回结构化 JSON，不会自动应用 patch。
 - patch proposal / inspection / apply 被显式拆开，保证写入动作始终可审查。
 - 如果结构化 patch 生成失败，fallback proposal 会被标记为不可应用的 `[PLACEHOLDER]` 产物。
 - validation 命令统一走安全命令路径，相关行为可通过 audit log 追踪。
 - `ao audit list` 可查看本地 workflow、文件与命令事件。
-- `ao cleanup runs` 和 `ao cleanup audit` 只删除本地 `.ao` 产物，不会碰项目源代码。
+- `ao cleanup runs` 和 `ao cleanup audit` 只删除本地 AO 产物，不会碰项目源代码。
 - Worker 输出在 leader review 完成前都不能视为最终结果。
 - Worker 在进入生产任务前应先通过 onboarding evaluation。
 - structured output 或可靠性不达标的 worker 会被限制或阻断。
