@@ -33,7 +33,8 @@ Notes:
 - `pnpm --filter @agent-orchestrator/cli exec ao ...` is not the recommended entrypoint because it changes path resolution semantics.
 - The repository is still private and does not yet document a supported global install, internal npm registry release, or Docker distribution as the primary trial path.
 - AO-managed local state now lives under `~/.ao/workspaces/<workspace-id>/` by default. Use `AO_HOME_DIR` if you need a non-default AO home root.
-- `ao init` still exists as a lower-level compatibility command, but `ao setup` is the supported onboarding path.
+- Repository-local legacy `.ao/` directories are unsupported and ignored by current builds.
+- `ao init` still exists as a lower-level bootstrap command, but `ao setup` is the supported onboarding path.
 
 ## Direct Fallback
 

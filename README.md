@@ -84,9 +84,10 @@ pnpm exec ao mcp config
 ```
 
 Internal-trial installation and MCP launch guidance lives in `docs/install.md`.
-Storage migration guidance for older repository-local `.ao/` artifacts lives in `docs/storage-migration.md`.
 
 Unless noted otherwise, read every `ao ...` example below as `pnpm exec ao ...` from the repository root for the current internal-trial install path.
+
+Legacy repository-local `.ao/` directories are unsupported and ignored by current builds.
 
 `ao setup` creates user-scoped AO workspace storage under `~/.ao/workspaces/<workspace-id>/` by default:
 
@@ -96,7 +97,7 @@ Unless noted otherwise, read every `ao ...` example below as `pnpm exec ao ...` 
 - `audit/`
 - `runs/`
 
-`ao init` remains available as a lower-level compatibility command, but `ao setup` is the primary onboarding entrypoint.
+`ao init` remains available as a lower-level bootstrap command, but `ao setup` is the primary onboarding entrypoint.
 
 ## CLI usage
 

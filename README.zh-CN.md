@@ -84,6 +84,8 @@ pnpm exec ao mcp config
 
 当前 internal-trial 安装路径下，除非特别说明，下面所有 `ao ...` 示例都等价于在仓库根目录执行 `pnpm exec ao ...`。
 
+当前版本不会读取仓库内旧 `.ao/` 目录；旧路径不受支持，也不会被兼容处理。
+
 `ao setup` 默认会在 `~/.ao/workspaces/<workspace-id>/` 下创建用户级 AO 工作区存储：
 
 - `config.json`
@@ -92,9 +94,7 @@ pnpm exec ao mcp config
 - `audit/`
 - `runs/`
 
-旧版仓库内 `.ao/` 到用户级存储的迁移说明见 `docs/storage-migration.md`。
-
-`ao init` 仍然保留为更底层的兼容命令，但新用户入口应以 `ao setup` 为主。
+`ao init` 仍然保留为更底层的初始化命令，但新用户入口应以 `ao setup` 为主。
 
 ## CLI 用法
 

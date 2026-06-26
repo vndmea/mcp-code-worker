@@ -16,7 +16,6 @@ The current internal trial line follows semantic-style version labels even while
 - Interview diagnostics that distinguish provider invocation failures from completed worker evaluations.
 - Summary-first MCP/CLI output shaping and a minimal task artifact reader for persisted task artifacts.
 - User-scoped AO storage path helpers under `packages/core/src/storage/ao-paths.ts`.
-- Storage migration guidance for moving legacy repository-local `.ao/` artifacts into user-scoped workspace storage.
 
 ### Changed
 
@@ -25,6 +24,7 @@ The current internal trial line follows semantic-style version labels even while
 - `worker interview --save` now skips persistence when provider access fails and returns re-interview guidance instead of saving a misleading blocked profile.
 - Validation reports now include compact diagnostic summaries so MCP and CLI clients can stay within tighter context budgets.
 - AO local state now persists under `~/.ao/workspaces/<workspace-id>/` by default instead of repository-local `.ao/`.
+- Legacy repository-local `.ao/` storage is no longer supported or read by current builds.
 - `AO_HOME_DIR` now overrides the user-scoped storage root and `AO_ROOT_DIR` now overrides workspace binding for CLI and MCP launches.
 - `ao setup` is now the primary onboarding path for creating config, worker registry/profile stores, runs, and audit directories.
 - MCP workspace-root guidance now documents `--root` and `AO_ROOT_DIR` for workspace-scoped launches.

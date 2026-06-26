@@ -44,7 +44,7 @@ Recommended next checks:
 - Confirm `~/.ao/workspaces/<workspace-id>/config.json` exists, or the equivalent path under `AO_HOME_DIR`.
 - Confirm `worker-profiles.json` and `workers.json` were created in user-scoped AO storage, not in the repository checkout.
 - Confirm no API key was written into the persisted `config.json`.
-- If you upgraded from a repository-local `.ao/`, review `docs/storage-migration.md` before assuming old evidence disappeared.
+- Confirm no workflow depends on a repository-local legacy `.ao/` directory. Current builds do not read it.
 
 ## Write Modes And Safety Gates
 
