@@ -11,10 +11,10 @@
   "scripts": {
     "build": "pnpm -r build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run",
+    "test": "vitest run --exclude packages/cli/src/smoke-dist.test.ts",
     "smoke": "vitest run packages/cli/src/smoke.test.ts",
     "smoke:dist": "pnpm build && vitest run packages/cli/src/smoke-dist.test.ts",
-    "test:watch": "vitest",
+    "test:watch": "vitest --exclude packages/cli/src/smoke-dist.test.ts",
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
