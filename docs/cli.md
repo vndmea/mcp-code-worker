@@ -67,6 +67,7 @@ ao task start \
 
 ao task status <taskId>
 ao task report <taskId>
+ao task report <taskId> --summary --max-bytes 2000
 ao task resume <taskId> --apply-patch
 ao task resume <taskId> --apply-patch --allow-write --confirm-apply
 ```
@@ -74,6 +75,7 @@ ao task resume <taskId> --apply-patch --allow-write --confirm-apply
 - `ao task report` is the primary human-readable artifact.
 - `ao task resume` should follow the `nextRecommendedActions` returned by task start/resume.
 - `patch apply` stays explicitly gated even inside task sessions.
+- `task start`, `task status`, `task resume`, `task list`, `review`, `fix`, and `validate` accept summary-oriented flags such as `--summary` and `--max-bytes`.
 
 ## Worker Evaluation
 

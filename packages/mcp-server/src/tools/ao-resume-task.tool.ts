@@ -1,9 +1,16 @@
 import { z } from "zod";
 
 import { resolveExecutionContext } from "@agent-orchestrator/core";
-import { resumeTaskSessionWorkflow } from "@agent-orchestrator/graph";
+import {
+  formatTaskSessionWorkflowOutput,
+  resumeTaskSessionWorkflow
+} from "@agent-orchestrator/graph";
 
 import type { AoToolDefinition } from "./tool-types.js";
+import {
+  resolveWorkflowOutputOptions,
+  workflowOutputOptionShape
+} from "./output-options.js";
 
 const inputSchema = z.object({
   taskId: z.string().min(1),
@@ -17,12 +24,13 @@ const inputSchema = z.object({
   allowWrite: z.boolean().optional(),
   allowDirtyWorktree: z.boolean().optional(),
   confirmApply: z.boolean().optional(),
-  allowWriteSession: z.boolean().optional()
+  allowWriteSession: z.boolean().optional(),
+  ...workflowOutputOptionShape
 });
 
 export const aoResumeTaskTool: AoToolDefinition<
   typeof inputSchema.shape,
-  Awaited<ReturnType<typeof resumeTaskSessionWorkflow>>
+  ReturnType<typeof formatTaskSessionWorkflowOutput>
 > = {
   name: "ao_resume_task",
   description: "Resume a stored local task session, skip successful steps unless told otherwise, and return updated next recommended actions.",
@@ -39,7 +47,7 @@ export const aoResumeTaskTool: AoToolDefinition<
       }
     });
 
-    return resumeTaskSessionWorkflow({
+    const result = await resumeTaskSessionWorkflow({
       context,
       taskId: args.taskId,
       errorLog: args.errorLog,
@@ -54,5 +62,7 @@ export const aoResumeTaskTool: AoToolDefinition<
       confirmApply: args.confirmApply,
       allowWriteSession: args.allowWriteSession
     });
+
+    return formatTaskSessionWorkflowOutput(result, resolveWorkflowOutputOptions(args));
   }
 };

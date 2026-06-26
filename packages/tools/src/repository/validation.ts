@@ -34,6 +34,35 @@ const buildSkippedCheck = (name: string, command: string): ValidationCheck => ({
   status: "skipped"
 });
 
+const diagnosticPathPattern =
+  /(?:^|\s)([A-Za-z0-9._/-]+\.(?:[A-Za-z0-9]{1,8}))(?:[:(]\d+)?/gu;
+
+const buildDiagnosticSummary = (
+  stdout: string,
+  stderr: string
+): ValidationCheck["diagnosticSummary"] | undefined => {
+  const output = `${stderr}\n${stdout}`.trim();
+
+  if (!output) {
+    return undefined;
+  }
+
+  const affectedPaths = Array.from(output.matchAll(diagnosticPathPattern))
+    .map((match) => match[1])
+    .filter((value): value is string => Boolean(value));
+  const previewLines = output
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .slice(0, 5)
+    .map((line) => line.slice(0, 240));
+
+  return {
+    affectedPaths: Array.from(new Set(affectedPaths)),
+    previewLines
+  };
+};
+
 const createScopedContext = (
   context: ExecutionContext,
   scope?: string
@@ -97,7 +126,8 @@ export const runRepositoryValidation = async (
       stderr: result.stderr,
       timedOut: result.timedOut,
       stdoutTruncated: result.stdoutTruncated,
-      stderrTruncated: result.stderrTruncated
+      stderrTruncated: result.stderrTruncated,
+      diagnosticSummary: buildDiagnosticSummary(result.stdout, result.stderr)
     });
   }
 

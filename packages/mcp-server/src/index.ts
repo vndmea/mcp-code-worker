@@ -4,6 +4,7 @@ export * from "./tools/ao-apply-patch.tool.js";
 export * from "./tools/ao-fix-error.tool.js";
 export * from "./tools/ao-get-task-report.tool.js";
 export * from "./tools/ao-get-task-status.tool.js";
+export * from "./tools/ao-read-task-artifact.tool.js";
 export * from "./tools/ao-get-worker-registration.tool.js";
 export * from "./tools/ao-get-worker-profile.tool.js";
 export * from "./tools/ao-inspect-patch.tool.js";

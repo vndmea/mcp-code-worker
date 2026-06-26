@@ -69,6 +69,10 @@ export const mcpToolCatalog: McpToolCatalogEntry[] = [
     description: "Render a readable markdown report for one local task session."
   },
   {
+    name: "ao_read_task_artifact",
+    description: "Read one persisted task artifact for a local task session."
+  },
+  {
     name: "ao_list_models",
     description: "List resolved leader and worker model configurations."
   },

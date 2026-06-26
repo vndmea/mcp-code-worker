@@ -12,11 +12,13 @@ The current internal trial line follows semantic-style version labels even while
 - Example AO config under `docs/examples/ao-config.example.json`.
 - Expanded MCP and CLI documentation aligned with current command and tool names.
 - Interview diagnostics that distinguish provider invocation failures from completed worker evaluations.
+- Summary-first MCP/CLI output shaping and a minimal task artifact reader for persisted `.ao/runs` artifacts.
 
 ### Changed
 
 - Documented internal trial evidence requirements, config safety expectations, and current MCP tool surface.
 - `worker interview --save` now skips persistence when provider access fails and returns re-interview guidance instead of saving a misleading blocked profile.
+- Validation reports now include compact diagnostic summaries so MCP and CLI clients can stay within tighter context budgets.
 
 ### Rollback Guidance
 

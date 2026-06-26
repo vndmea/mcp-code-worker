@@ -8,6 +8,7 @@ import { aoApplyPatchTool } from "./tools/ao-apply-patch.tool.js";
 import { aoFixErrorTool } from "./tools/ao-fix-error.tool.js";
 import { aoGetTaskReportTool } from "./tools/ao-get-task-report.tool.js";
 import { aoGetTaskStatusTool } from "./tools/ao-get-task-status.tool.js";
+import { aoReadTaskArtifactTool } from "./tools/ao-read-task-artifact.tool.js";
 import { aoGetWorkerRegistrationTool } from "./tools/ao-get-worker-registration.tool.js";
 import { aoGetWorkerProfileTool } from "./tools/ao-get-worker-profile.tool.js";
 import { aoInspectPatchTool } from "./tools/ao-inspect-patch.tool.js";
@@ -49,6 +50,7 @@ export const aoToolDefinitions = [
   aoGetTaskStatusTool,
   aoListTasksTool,
   aoGetTaskReportTool,
+  aoReadTaskArtifactTool,
   aoListModelsTool,
   aoListWorkflowsTool,
   aoListToolsTool,

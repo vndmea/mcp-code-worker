@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+export const ValidationCheckDiagnosticSchema = z.object({
+  affectedPaths: z.array(z.string()),
+  previewLines: z.array(z.string())
+});
+
 export const ValidationCheckSchema = z.object({
   name: z.string(),
   command: z.string(),
@@ -9,7 +14,8 @@ export const ValidationCheckSchema = z.object({
   stderr: z.string().optional(),
   timedOut: z.boolean().optional(),
   stdoutTruncated: z.boolean().optional(),
-  stderrTruncated: z.boolean().optional()
+  stderrTruncated: z.boolean().optional(),
+  diagnosticSummary: ValidationCheckDiagnosticSchema.optional()
 });
 
 export const ValidationReportSchema = z.object({

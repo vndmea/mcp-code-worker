@@ -100,7 +100,10 @@ describe("runRepositoryValidation", () => {
           expect.objectContaining({
             name: "lint",
             status: "failure",
-            exitCode: 1
+            exitCode: 1,
+            diagnosticSummary: expect.objectContaining({
+              previewLines: expect.arrayContaining(["lint failed"])
+            })
           }),
           expect.objectContaining({
             name: "test",

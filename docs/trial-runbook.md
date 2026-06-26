@@ -2,6 +2,12 @@
 
 Use this runbook to execute one complete internal trial on a fresh machine.
 
+Supporting templates:
+
+- Trial evidence template: `docs/examples/internal-trial-evidence-template.md`
+- RC checklist: `docs/internal-trial-rc-matrix.md`
+- Branch protection / required checks: `docs/repository-governance.md`
+
 ## Prerequisites
 
 - Node.js `>=22`
@@ -148,6 +154,8 @@ After `ao task start`, capture the returned `taskId`, then:
 ao task report <taskId>
 ao audit list
 ```
+
+For MCP clients, use `ao_get_task_report` and `ao_read_task_artifact` against the returned artifact refs instead of rehydrating large task payloads eagerly.
 
 If a patch proposal was generated and inspection passed:
 

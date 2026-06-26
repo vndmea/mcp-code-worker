@@ -1,9 +1,13 @@
 import type { Command } from "commander";
 
 import { resolveExecutionContext } from "@agent-orchestrator/core";
-import { runFixErrorWorkflow } from "@agent-orchestrator/graph";
+import {
+  formatFixErrorWorkflowOutput,
+  runFixErrorWorkflow
+} from "@agent-orchestrator/graph";
 
 import type { CliIo } from "../index.js";
+import { resolveWorkflowOutputOptions, writeJson } from "../output.js";
 
 export const registerFixCommand = (program: Command, io: CliIo): void => {
   const fix = program.command("fix").description("Analyze failures and propose a fix plan.");
@@ -18,13 +22,19 @@ export const registerFixCommand = (program: Command, io: CliIo): void => {
     .option("--typecheck", "Run typecheck", false)
     .option("--lint", "Run lint", false)
     .option("--test", "Run tests", false)
+    .option("--summary", "Print a summary instead of the full fix output", false)
+    .option("--full", "Force the full fix output", false)
+    .option("--max-bytes <bytes>", "Limit preview fields in summary output", Number)
     .action(
       async (options: {
         errorLog?: string;
         errorLogFile?: string;
+        full: boolean;
         lint: boolean;
+        maxBytes?: number;
         proposePatch: boolean;
         scope?: string;
+        summary: boolean;
         test: boolean;
         typecheck: boolean;
       }) => {
@@ -42,7 +52,7 @@ export const registerFixCommand = (program: Command, io: CliIo): void => {
           }
         });
 
-        io.write(JSON.stringify(result, null, 2));
+        writeJson(io, formatFixErrorWorkflowOutput(result, resolveWorkflowOutputOptions(options)));
       }
     );
 };

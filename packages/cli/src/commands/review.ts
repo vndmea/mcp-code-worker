@@ -1,9 +1,13 @@
 import type { Command } from "commander";
 
 import { resolveExecutionContext } from "@agent-orchestrator/core";
-import { runReviewWorkflow } from "@agent-orchestrator/graph";
+import {
+  formatReviewWorkflowOutput,
+  runReviewWorkflow
+} from "@agent-orchestrator/graph";
 
 import type { CliIo } from "../index.js";
+import { resolveWorkflowOutputOptions, writeJson } from "../output.js";
 
 export const registerReviewCommand = (program: Command, io: CliIo): void => {
   const review = program.command("review").description("Review repository context, diffs, or files.");
@@ -16,11 +20,17 @@ export const registerReviewCommand = (program: Command, io: CliIo): void => {
     .option("--typecheck", "Run typecheck", false)
     .option("--lint", "Run lint", false)
     .option("--test", "Run tests", false)
+    .option("--summary", "Print a summary instead of the full review output", false)
+    .option("--full", "Force the full review output", false)
+    .option("--max-bytes <bytes>", "Limit preview fields in summary output", Number)
     .action(async (options: {
+      full: boolean;
       lint: boolean;
+      maxBytes?: number;
       maxFileBytes?: number;
       maxTotalBytes?: number;
       scope?: string;
+      summary: boolean;
       test: boolean;
       typecheck: boolean;
     }) => {
@@ -37,7 +47,7 @@ export const registerReviewCommand = (program: Command, io: CliIo): void => {
         }
       });
 
-      io.write(JSON.stringify(result, null, 2));
+      writeJson(io, formatReviewWorkflowOutput(result, resolveWorkflowOutputOptions(options)));
     });
 
   review
@@ -50,14 +60,20 @@ export const registerReviewCommand = (program: Command, io: CliIo): void => {
     .option("--typecheck", "Run typecheck", false)
     .option("--lint", "Run lint", false)
     .option("--test", "Run tests", false)
+    .option("--summary", "Print a summary instead of the full review output", false)
+    .option("--full", "Force the full review output", false)
+    .option("--max-bytes <bytes>", "Limit preview fields in summary output", Number)
     .action(
       async (options: {
         base?: string;
+        full: boolean;
         head?: string;
         lint: boolean;
+        maxBytes?: number;
         maxFileBytes?: number;
         maxTotalBytes?: number;
         scope?: string;
+        summary: boolean;
         test: boolean;
         typecheck: boolean;
       }) => {
@@ -77,7 +93,7 @@ export const registerReviewCommand = (program: Command, io: CliIo): void => {
           }
         });
 
-        io.write(JSON.stringify(result, null, 2));
+        writeJson(io, formatReviewWorkflowOutput(result, resolveWorkflowOutputOptions(options)));
       }
     );
 
@@ -90,13 +106,19 @@ export const registerReviewCommand = (program: Command, io: CliIo): void => {
     .option("--typecheck", "Run typecheck", false)
     .option("--lint", "Run lint", false)
     .option("--test", "Run tests", false)
+    .option("--summary", "Print a summary instead of the full review output", false)
+    .option("--full", "Force the full review output", false)
+    .option("--max-bytes <bytes>", "Limit preview fields in summary output", Number)
     .action(
       async (options: {
         file: string[];
+        full: boolean;
         lint: boolean;
+        maxBytes?: number;
         maxFileBytes?: number;
         maxTotalBytes?: number;
         scope?: string;
+        summary: boolean;
         test: boolean;
         typecheck: boolean;
       }) => {
@@ -114,7 +136,7 @@ export const registerReviewCommand = (program: Command, io: CliIo): void => {
           }
         });
 
-        io.write(JSON.stringify(result, null, 2));
+        writeJson(io, formatReviewWorkflowOutput(result, resolveWorkflowOutputOptions(options)));
       }
     );
 };

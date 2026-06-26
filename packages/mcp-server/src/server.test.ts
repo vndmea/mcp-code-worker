@@ -6,13 +6,22 @@ import { promisify } from "node:util";
 
 import { describe, expect, it } from "vitest";
 
-import { PatchProposalSchema } from "@agent-orchestrator/core";
+import {
+  PatchProposalSchema,
+  type TaskSession
+} from "@agent-orchestrator/core";
+import type {
+  FixErrorWorkflowOutput,
+  ReviewWorkflowOutput,
+  TaskSessionWorkflowOutput
+} from "@agent-orchestrator/graph";
 import {
   aoApplyPatchTool,
   aoDoctorTool,
   aoFixErrorTool,
   aoGetTaskReportTool,
   aoGetTaskStatusTool,
+  aoReadTaskArtifactTool,
   aoGetWorkerRegistrationTool,
   aoInspectPatchTool,
   aoListTasksTool,
@@ -314,23 +323,28 @@ describe("mcp tool registration", () => {
 
       const repoReview = await aoReviewRepositoryTool.execute({
         scope: "packages/core",
-        typecheck: true
-      });
+        typecheck: true,
+        detailLevel: "full"
+      }) as ReviewWorkflowOutput;
       const diffReview = await aoReviewDiffTool.execute({
         base: "HEAD",
         head: "HEAD",
-        scope: "packages/core"
-      });
+        scope: "packages/core",
+        detailLevel: "full"
+      }) as ReviewWorkflowOutput;
       const fileReview = await aoReviewFilesTool.execute({
-        files: ["packages/core/src/index.ts"]
-      });
+        files: ["packages/core/src/index.ts"],
+        detailLevel: "full"
+      }) as ReviewWorkflowOutput;
       const validation = await aoValidateRepositoryTool.execute({
-        typecheck: true
+        typecheck: true,
+        detailLevel: "full"
       });
       const fix = await aoFixErrorTool.execute({
         errorLogFile: "tmp/error.log",
-        scope: "packages/core"
-      });
+        scope: "packages/core",
+        detailLevel: "full"
+      }) as FixErrorWorkflowOutput;
 
       expect(repoReview.repositoryContext.scope).toBe("packages/core");
       expect(diffReview.repositoryContext.gitDiff).toBeDefined();
@@ -353,8 +367,9 @@ describe("mcp tool registration", () => {
       });
 
       const repoReview = await aoReviewRepositoryTool.execute({
-        scope: "packages/core"
-      });
+        scope: "packages/core",
+        detailLevel: "full"
+      }) as ReviewWorkflowOutput;
 
       expect(repoReview.repositoryContext.selectedFiles.some((file) => file.truncated === true)).toBe(
         true
@@ -397,26 +412,39 @@ describe("mcp tool registration", () => {
         goal: "Review packages/core",
         scope: "packages/core",
         typecheck: true,
-        allowWriteSession: true
-      });
-      const listed = await aoListTasksTool.execute({});
+        allowWriteSession: true,
+        detailLevel: "full"
+      }) as TaskSessionWorkflowOutput;
+      const listed = await aoListTasksTool.execute({
+        detailLevel: "full"
+      }) as TaskSession[];
       const status = await aoGetTaskStatusTool.execute({
-        taskId: started.session.taskId
-      });
+        taskId: started.session.taskId,
+        detailLevel: "full"
+      }) as TaskSession;
       const report = await aoGetTaskReportTool.execute({
-        taskId: started.session.taskId
+        taskId: started.session.taskId,
+        detailLevel: "full"
+      }) as { report: string; session: TaskSession };
+      const artifactName = Object.keys(started.session.artifacts)[0] ?? "report.md";
+      const artifact = await aoReadTaskArtifactTool.execute({
+        taskId: started.session.taskId,
+        artifactName,
+        maxBytes: 256
       });
       const resumed = await aoResumeTaskTool.execute({
         taskId: started.session.taskId,
         proposePatch: true,
         inspectPatch: true,
-        allowWriteSession: true
-      });
+        allowWriteSession: true,
+        detailLevel: "full"
+      }) as TaskSessionWorkflowOutput;
 
       expect(started.session.taskId).toBeTruthy();
       expect(listed[0]?.taskId).toBe(started.session.taskId);
       expect(status.taskId).toBe(started.session.taskId);
       expect(report.report).toContain("Task Session Report");
+      expect(artifact.path).toContain(artifactName);
       expect(resumed.patchProposal?.id).toBeTruthy();
     });
   });

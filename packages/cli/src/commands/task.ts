@@ -2,6 +2,10 @@ import type { Command } from "commander";
 
 import { resolveExecutionContext } from "@agent-orchestrator/core";
 import {
+  formatTaskSessionListOutput,
+  formatTaskSessionReportOutput,
+  formatTaskSessionStatusOutput,
+  formatTaskSessionWorkflowOutput,
   getTaskSessionReport,
   getTaskSessionStatus,
   listStoredTaskSessions,
@@ -10,6 +14,7 @@ import {
 } from "@agent-orchestrator/graph";
 
 import type { CliIo } from "../index.js";
+import { resolveWorkflowOutputOptions, writeJson } from "../output.js";
 
 export const registerTaskCommand = (program: Command, io: CliIo): void => {
   const task = program.command("task").description("Manage local end-to-end task sessions.");
@@ -33,8 +38,13 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
     .option("--allow-dirty-worktree", "Allow patch apply when the git worktree is dirty", false)
     .option("--confirm-apply", "Confirm patch application", false)
     .option("--allow-write-session", "Persist session files under .ao/runs", false)
+    .option("--summary", "Print a summary instead of the full workflow output", false)
+    .option("--full", "Force the full workflow output", false)
+    .option("--max-bytes <bytes>", "Limit preview fields in summary output", Number)
+    .option("--no-artifact-refs", "Hide artifact refs in summary output")
     .action(
       async (options: {
+        artifactRefs: boolean;
         allowWrite: boolean;
         allowDirtyWorktree: boolean;
         allowWriteSession: boolean;
@@ -42,13 +52,16 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
         confirmApply: boolean;
         errorLog?: string;
         errorLogFile?: string;
+        full: boolean;
         goal: string;
         inspectPatch: boolean;
         lint: boolean;
+        maxBytes?: number;
         proposePatch: boolean;
         requireProfile: boolean;
         runFix: boolean;
         scope?: string;
+        summary: boolean;
         test: boolean;
         typecheck: boolean;
         worker?: string;
@@ -86,17 +99,29 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
           allowWriteSession: options.allowWriteSession
         });
 
-        io.write(JSON.stringify(result, null, 2));
+        writeJson(io, formatTaskSessionWorkflowOutput(result, resolveWorkflowOutputOptions(options)));
       }
     );
 
   task
     .command("status")
     .argument("<taskId>", "Task session id")
-    .action(async (taskId: string) => {
+    .option("--summary", "Print a summary instead of the full session JSON", false)
+    .option("--full", "Force the full session JSON", false)
+    .option("--max-bytes <bytes>", "Limit preview fields in summary output", Number)
+    .option("--no-artifact-refs", "Hide artifact refs in summary output")
+    .action(async (
+      taskId: string,
+      options: {
+        artifactRefs: boolean;
+        full: boolean;
+        maxBytes?: number;
+        summary: boolean;
+      }
+    ) => {
       const context = await resolveExecutionContext();
       const session = await getTaskSessionStatus(context.rootDir, taskId);
-      io.write(JSON.stringify(session, null, 2));
+      writeJson(io, formatTaskSessionStatusOutput(session, resolveWorkflowOutputOptions(options)));
     });
 
   task
@@ -113,10 +138,15 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
     .option("--allow-dirty-worktree", "Allow patch apply when the git worktree is dirty", false)
     .option("--confirm-apply", "Confirm patch application", false)
     .option("--allow-write-session", "Persist session files under .ao/runs", false)
+    .option("--summary", "Print a summary instead of the full workflow output", false)
+    .option("--full", "Force the full workflow output", false)
+    .option("--max-bytes <bytes>", "Limit preview fields in summary output", Number)
+    .option("--no-artifact-refs", "Hide artifact refs in summary output")
     .action(
       async (
         taskId: string,
         options: {
+          artifactRefs: boolean;
           allowWrite: boolean;
           allowDirtyWorktree: boolean;
           allowWriteSession: boolean;
@@ -124,10 +154,13 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
           confirmApply: boolean;
           errorLog?: string;
           errorLogFile?: string;
+          full: boolean;
           fromStep?: string;
           inspectPatch: boolean;
+          maxBytes?: number;
           proposePatch: boolean;
           runFix: boolean;
+          summary: boolean;
         }
       ) => {
         const context = await resolveExecutionContext({
@@ -156,29 +189,57 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
           allowWriteSession: options.allowWriteSession
         });
 
-        io.write(JSON.stringify(result, null, 2));
+        writeJson(io, formatTaskSessionWorkflowOutput(result, resolveWorkflowOutputOptions(options)));
       }
     );
 
   task
     .command("report")
     .argument("<taskId>", "Task session id")
-    .action(async (taskId: string) => {
+    .option("--summary", "Print a JSON summary instead of markdown", false)
+    .option("--full", "Print the full JSON payload instead of markdown", false)
+    .option("--max-bytes <bytes>", "Limit preview fields in summary output", Number)
+    .option("--no-artifact-refs", "Hide artifact refs in summary output")
+    .action(async (
+      taskId: string,
+      options: {
+        artifactRefs: boolean;
+        full: boolean;
+        maxBytes?: number;
+        summary: boolean;
+      }
+    ) => {
       const context = await resolveExecutionContext();
       const report = await getTaskSessionReport(context.rootDir, taskId);
+
+      if (options.summary || options.full) {
+        writeJson(io, formatTaskSessionReportOutput(report, resolveWorkflowOutputOptions(options)));
+        return;
+      }
+
       io.write(report.report);
     });
 
   task
     .command("list")
     .option("--limit <count>", "Maximum number of task sessions to return", "50")
-    .action(async (options: { limit: string }) => {
+    .option("--summary", "Print a summary instead of the full session list", false)
+    .option("--full", "Force the full session list", false)
+    .option("--max-bytes <bytes>", "Limit preview fields in summary output", Number)
+    .option("--no-artifact-refs", "Hide artifact refs in summary output")
+    .action(async (options: {
+      artifactRefs: boolean;
+      full: boolean;
+      limit: string;
+      maxBytes?: number;
+      summary: boolean;
+    }) => {
       const context = await resolveExecutionContext();
       const limit = Number.parseInt(options.limit, 10);
       const sessions = await listStoredTaskSessions(
         context.rootDir,
         Number.isNaN(limit) ? 50 : limit
       );
-      io.write(JSON.stringify(sessions, null, 2));
+      writeJson(io, formatTaskSessionListOutput(sessions, resolveWorkflowOutputOptions(options)));
     });
 };

@@ -1,9 +1,16 @@
 import { z } from "zod";
 
 import { resolveExecutionContext } from "@agent-orchestrator/core";
-import { runTaskSessionWorkflow } from "@agent-orchestrator/graph";
+import {
+  formatTaskSessionWorkflowOutput,
+  runTaskSessionWorkflow
+} from "@agent-orchestrator/graph";
 
 import type { AoToolDefinition } from "./tool-types.js";
+import {
+  resolveWorkflowOutputOptions,
+  workflowOutputOptionShape
+} from "./output-options.js";
 
 const inputSchema = z.object({
   goal: z.string().min(1),
@@ -22,12 +29,13 @@ const inputSchema = z.object({
   allowWrite: z.boolean().optional(),
   allowDirtyWorktree: z.boolean().optional(),
   confirmApply: z.boolean().optional(),
-  allowWriteSession: z.boolean().optional()
+  allowWriteSession: z.boolean().optional(),
+  ...workflowOutputOptionShape
 });
 
 export const aoStartTaskTool: AoToolDefinition<
   typeof inputSchema.shape,
-  Awaited<ReturnType<typeof runTaskSessionWorkflow>>
+  ReturnType<typeof formatTaskSessionWorkflowOutput>
 > = {
   name: "ao_start_task",
   description: "Recommended high-level coding task entrypoint. Start a local task session, persist reviewable artifacts under .ao/runs when allowed, and return next recommended actions.",
@@ -44,7 +52,7 @@ export const aoStartTaskTool: AoToolDefinition<
       }
     });
 
-    return runTaskSessionWorkflow({
+    const result = await runTaskSessionWorkflow({
       context,
       errorLog: args.errorLog,
       errorLogFile: args.errorLogFile,
@@ -66,5 +74,7 @@ export const aoStartTaskTool: AoToolDefinition<
       confirmApply: args.confirmApply,
       allowWriteSession: args.allowWriteSession
     });
+
+    return formatTaskSessionWorkflowOutput(result, resolveWorkflowOutputOptions(args));
   }
 };

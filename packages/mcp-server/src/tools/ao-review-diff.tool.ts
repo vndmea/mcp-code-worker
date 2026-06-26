@@ -1,9 +1,16 @@
 import { z } from "zod";
 
 import { resolveExecutionContext } from "@agent-orchestrator/core";
-import { runReviewWorkflow } from "@agent-orchestrator/graph";
+import {
+  formatReviewWorkflowOutput,
+  runReviewWorkflow
+} from "@agent-orchestrator/graph";
 
 import type { AoToolDefinition } from "./tool-types.js";
+import {
+  resolveWorkflowOutputOptions,
+  workflowOutputOptionShape
+} from "./output-options.js";
 
 const inputSchema = z.object({
   base: z.string().optional(),
@@ -13,19 +20,20 @@ const inputSchema = z.object({
   lint: z.boolean().optional(),
   test: z.boolean().optional(),
   maxFileBytes: z.number().int().positive().optional(),
-  maxTotalBytes: z.number().int().positive().optional()
+  maxTotalBytes: z.number().int().positive().optional(),
+  ...workflowOutputOptionShape
 });
 
 export const aoReviewDiffTool: AoToolDefinition<
   typeof inputSchema.shape,
-  Awaited<ReturnType<typeof runReviewWorkflow>>
+  ReturnType<typeof formatReviewWorkflowOutput>
 > = {
   name: "ao_review_diff",
   description: "Review a git diff and return structured impact analysis.",
   inputSchema,
   execute: async (args) => {
     const context = await resolveExecutionContext();
-    return runReviewWorkflow({
+    const result = await runReviewWorkflow({
       context,
       includeDiff: true,
       diffBase: args.base,
@@ -39,5 +47,7 @@ export const aoReviewDiffTool: AoToolDefinition<
         test: args.test
       }
     });
+
+    return formatReviewWorkflowOutput(result, resolveWorkflowOutputOptions(args));
   }
 };

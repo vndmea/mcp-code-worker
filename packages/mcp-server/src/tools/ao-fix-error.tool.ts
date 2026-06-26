@@ -1,9 +1,16 @@
 import { z } from "zod";
 
 import { resolveExecutionContext } from "@agent-orchestrator/core";
-import { runFixErrorWorkflow } from "@agent-orchestrator/graph";
+import {
+  formatFixErrorWorkflowOutput,
+  runFixErrorWorkflow
+} from "@agent-orchestrator/graph";
 
 import type { AoToolDefinition } from "./tool-types.js";
+import {
+  resolveWorkflowOutputOptions,
+  workflowOutputOptionShape
+} from "./output-options.js";
 
 const inputSchema = z.object({
   errorLog: z.string().optional(),
@@ -12,19 +19,20 @@ const inputSchema = z.object({
   scope: z.string().optional(),
   typecheck: z.boolean().optional(),
   lint: z.boolean().optional(),
-  test: z.boolean().optional()
+  test: z.boolean().optional(),
+  ...workflowOutputOptionShape
 });
 
 export const aoFixErrorTool: AoToolDefinition<
   typeof inputSchema.shape,
-  Awaited<ReturnType<typeof runFixErrorWorkflow>>
+  ReturnType<typeof formatFixErrorWorkflowOutput>
 > = {
   name: "ao_fix_error",
   description: "Analyze an error log, propose a safe fix plan, and return validation guidance.",
   inputSchema,
   execute: async (args) => {
     const context = await resolveExecutionContext();
-    return runFixErrorWorkflow({
+    const result = await runFixErrorWorkflow({
       context,
       errorLog: args.errorLog,
       errorLogFile: args.errorLogFile,
@@ -36,5 +44,7 @@ export const aoFixErrorTool: AoToolDefinition<
         test: args.test
       }
     });
+
+    return formatFixErrorWorkflowOutput(result, resolveWorkflowOutputOptions(args));
   }
 };

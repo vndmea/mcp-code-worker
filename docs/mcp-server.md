@@ -31,6 +31,7 @@ Use `ao_start_task` as the default high-level entrypoint for coding flows, and f
 - `ao_get_task_status`
 - `ao_list_tasks`
 - `ao_get_task_report`
+- `ao_read_task_artifact`
 - `ao_list_models`
 - `ao_list_workflows`
 - `ao_list_tools`
@@ -62,7 +63,15 @@ Typical artifacts include:
 - `patch-inspection.json`
 - `patch-apply-result.json`
 
-MCP clients should surface report paths and/or `ao_get_task_report` output to operators before any write action.
+Use `ao_read_task_artifact` for the minimum safe artifact-read path when a task response only returns refs.
+
+Task-oriented MCP tools default to summary-oriented responses. Use these optional fields when the client needs more or less detail:
+
+- `detailLevel`: `summary` or `full`
+- `includeArtifactRefs`: include or suppress persisted artifact refs
+- `maxBytes`: cap preview-style text fields such as report excerpts or validation diagnostics
+
+MCP clients should surface report paths, `ao_get_task_report`, and/or `ao_read_task_artifact` output to operators before any write action.
 
 ## Keeping This Document In Sync
 
