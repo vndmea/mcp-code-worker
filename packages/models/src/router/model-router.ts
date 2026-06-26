@@ -8,6 +8,7 @@ import {
 
 import { AiSdkProvider } from "../providers/ai-sdk-provider.js";
 import { LiteLlmProvider } from "../providers/litellm-provider.js";
+import { LocalClientProvider } from "../providers/local-client-provider.js";
 import { MockModelProvider } from "../providers/mock-provider.js";
 import type { ModelProvider } from "../types/model-provider.js";
 import { assessWorkerTaskEligibility } from "./worker-routing.js";
@@ -30,7 +31,9 @@ export class ModelRouter {
       ["mock", new MockModelProvider()],
       ["openai", new AiSdkProvider()],
       ["openai-compatible", new AiSdkProvider()],
-      ["litellm", new LiteLlmProvider()]
+      ["client", new LocalClientProvider()],
+      ["litellm", new LiteLlmProvider()],
+      ["local-client", new LocalClientProvider()]
     ]);
   }
 

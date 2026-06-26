@@ -1,5 +1,6 @@
 export * from "./providers/ai-sdk-provider.js";
 export * from "./providers/litellm-provider.js";
+export * from "./providers/local-client-provider.js";
 export * from "./providers/mock-provider.js";
 export * from "./router/model-router.js";
 export * from "./router/worker-profile-doctor.js";
