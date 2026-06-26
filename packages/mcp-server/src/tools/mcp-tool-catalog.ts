@@ -109,6 +109,10 @@ export const mcpToolCatalog: McpToolCatalogEntry[] = [
     description: "Evaluate a worker model, generate a capability profile, and optionally persist it."
   },
   {
+    name: "ao_benchmark_worker",
+    description: "Run the coding benchmark suite for a worker model, optionally persist the artifact, and optionally update persisted worker capabilities."
+  },
+  {
     name: "ao_list_workers",
     description: "List persisted worker capability profiles."
   },

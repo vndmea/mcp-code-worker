@@ -10,7 +10,7 @@ Use `ao_start_task` as the default high-level entrypoint for coding flows, and f
 
 - High-level orchestration: task sessions, leader-worker orchestration, plan, review, fix, patch proposal.
 - Patch lifecycle gates: inspect and apply remain explicit, separate safety steps.
-- Worker management: registry, profile, onboarding interview.
+- Worker management: registry, profile, onboarding interview, and benchmark-driven capability qualification.
 - Diagnostics and audit: doctor, audit event listing, model and workflow inspection.
 
 ## Exposed Tools
@@ -41,6 +41,7 @@ Use `ao_start_task` as the default high-level entrypoint for coding flows, and f
 - `ao_list_worker_registry`
 - `ao_get_worker_registration`
 - `ao_interview_worker`
+- `ao_benchmark_worker`
 - `ao_list_workers`
 - `ao_get_worker_profile`
 - `ao_doctor`
@@ -51,6 +52,12 @@ Use `ao_start_task` as the default high-level entrypoint for coding flows, and f
 - MCP client integration: start with `ao_start_task`, `ao_resume_task`, and `ao_get_task_report`.
 - Command/operator detail: refer to `docs/cli.md`.
 - Workspace install and launch: refer to `docs/install.md`.
+
+For worker qualification over MCP, use:
+
+1. `ao_register_worker`
+2. `ao_interview_worker` with profile persistence when appropriate
+3. `ao_benchmark_worker` with artifact persistence and optional capability promotion
 
 ## Artifact-Oriented Usage
 

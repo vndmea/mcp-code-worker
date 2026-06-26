@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { resolveExecutionContext } from "@agent-orchestrator/core";
 
+import { aoBenchmarkWorkerTool } from "./tools/ao-benchmark-worker.tool.js";
 import { aoDoctorTool } from "./tools/ao-doctor.tool.js";
 import { aoApplyPatchTool } from "./tools/ao-apply-patch.tool.js";
 import { aoFixErrorTool } from "./tools/ao-fix-error.tool.js";
@@ -60,6 +61,7 @@ export const aoToolDefinitions = [
   aoListWorkerRegistryTool,
   aoGetWorkerRegistrationTool,
   aoInterviewWorkerTool,
+  aoBenchmarkWorkerTool,
   aoListWorkersTool,
   aoGetWorkerProfileTool,
   aoDoctorTool

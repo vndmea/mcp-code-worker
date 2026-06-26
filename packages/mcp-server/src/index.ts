@@ -1,5 +1,6 @@
 export * from "./tools/ao-doctor.tool.js";
 export * from "./server.js";
+export * from "./tools/ao-benchmark-worker.tool.js";
 export * from "./tools/ao-apply-patch.tool.js";
 export * from "./tools/ao-fix-error.tool.js";
 export * from "./tools/ao-get-task-report.tool.js";

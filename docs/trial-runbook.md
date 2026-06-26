@@ -162,6 +162,8 @@ ao audit list
 
 For MCP clients, use `ao_get_task_report` and `ao_read_task_artifact` against the returned artifact refs instead of rehydrating large task payloads eagerly.
 
+If onboarding is driven from an MCP client rather than the CLI, use `ao_interview_worker` first and then `ao_benchmark_worker` so benchmark evidence and optional capability promotion stay inside the same reviewed tool surface.
+
 If a patch proposal was generated and inspection passed:
 
 ```bash

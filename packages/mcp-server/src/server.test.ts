@@ -16,6 +16,7 @@ import type {
   TaskSessionWorkflowOutput
 } from "@agent-orchestrator/graph";
 import {
+  aoBenchmarkWorkerTool,
   aoApplyPatchTool,
   aoDoctorTool,
   aoFixErrorTool,
@@ -211,6 +212,26 @@ const createProfile = () => ({
   suiteVersion: "1"
 });
 
+const createLimitedProfile = () => ({
+  ...createProfile(),
+  supportedTaskTypes: [
+    "summarization",
+    "log-analysis",
+    "json-extraction",
+    "review-lite",
+    "codegen",
+    "test-generation"
+  ],
+  unsupportedTaskTypes: ["patch-generation"],
+  routingPolicy: {
+    maxTaskComplexity: "medium",
+    requiresLeaderReview: false,
+    allowCodegen: true,
+    allowPatchGeneration: false,
+    allowDomainTasks: true
+  }
+});
+
 const extractCodeBulletList = (markdown: string, heading: string): string[] => {
   const headingPattern = new RegExp(`^## ${heading}\\r?\\n([\\s\\S]*?)(?=^## |\\Z)`, "m");
   const sectionMatch = markdown.match(headingPattern);
@@ -253,6 +274,7 @@ describe("mcp tool registration", () => {
 
     expect(tools.some((tool) => tool.name === "ao_list_audit_events")).toBe(true);
     expect(tools.some((tool) => tool.name === "ao_register_worker")).toBe(true);
+    expect(tools.some((tool) => tool.name === "ao_benchmark_worker")).toBe(true);
     expect(tools.some((tool) => tool.name === "ao_run_leader_worker")).toBe(true);
     expect(tools.some((tool) => tool.name === "ao_propose_patch")).toBe(true);
     expect(tools.some((tool) => tool.name === "ao_review_repository")).toBe(true);
@@ -293,6 +315,23 @@ describe("mcp tool registration", () => {
       });
 
       expect(removed.removed).toBe(true);
+    });
+  });
+
+  it("benchmarks a worker and can persist capability updates through MCP", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeProfiles(rootDir, [createLimitedProfile()]);
+
+      const result = await aoBenchmarkWorkerTool.execute({
+        persistArtifact: true,
+        updateProfileCapabilities: true
+      });
+
+      expect(result.persistence?.mode).toBe("execute");
+      expect(result.persistence?.path).toContain(".ao");
+      expect(result.patchGenerationQualified).toBe(true);
+      expect(result.capabilityUpdateApplied).toBe(true);
+      expect(result.profilePersistence?.mode).toBe("execute");
     });
   });
 
