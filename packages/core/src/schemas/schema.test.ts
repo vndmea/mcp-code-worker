@@ -324,6 +324,22 @@ describe("core schemas", () => {
             deletions: 0
           }
         },
+        recovery: {
+          validationFailed: true,
+          touchedFiles: [],
+          failedChecks: ["lint"],
+          preApplyDirty: false,
+          dirtyFilesBeforeApply: [],
+          safeToRunRollbackCommands: true,
+          rollbackActions: [
+            {
+              command: "git",
+              args: ["restore", "--worktree", "--", "src/demo.ts"]
+            }
+          ],
+          rollbackCommands: ["git restore --worktree -- src/demo.ts"],
+          manualRecoveryGuide: ["Inspect validation failures and restore touched files."]
+        },
         warnings: [],
         errors: ["Patch diff was empty."]
       })

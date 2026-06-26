@@ -63,6 +63,23 @@ const summarizePatch = (
   return `Patch ${patchProposal.id} was proposed for manual review.`;
 };
 
+const renderRecoverySection = (
+  patchApplyResult: PatchApplyResult | undefined
+): string[] => {
+  const recovery = patchApplyResult?.recovery;
+  if (!recovery) {
+    return ["- No recovery guidance recorded."];
+  }
+
+  return [
+    `- Validation Failed: ${recovery.validationFailed ? "yes" : "no"}`,
+    `- Failed Checks: ${recovery.failedChecks.join(", ") || "None"}`,
+    `- Safe Rollback Commands Available: ${recovery.safeToRunRollbackCommands ? "yes" : "no"}`,
+    `- Rollback Commands: ${recovery.rollbackCommands.join(" ; ") || "None"}`,
+    ...recovery.manualRecoveryGuide.map((line) => `- ${line}`)
+  ];
+};
+
 const renderNextAction = (
   session: TaskSession,
   patchInspection: PatchInspection | undefined,
@@ -73,8 +90,10 @@ const renderNextAction = (
     return "Inspect blocked patch paths and revise the proposal before retrying.";
   }
 
-  if (patchApplyResult?.applied && validationReport && !validationReport.ok) {
-    return "Patch applied but validation failed; inspect the repository and rerun validation.";
+  if (patchApplyResult?.recovery) {
+    return patchApplyResult.recovery.safeToRunRollbackCommands
+      ? "Patch applied but validation failed; use the recovery guidance and rerun validation."
+      : "Patch applied but validation failed on a previously dirty worktree; inspect diffs manually before restoring files.";
   }
 
   if (session.status === "completed") {
@@ -144,6 +163,9 @@ export function renderTaskSessionReport(input: {
     ``,
     `## Validation Summary`,
     `- ${summarizeValidation(validationReport)}`,
+    ``,
+    `## Recovery Guidance`,
+    ...renderRecoverySection(patchApplyResult),
     ``,
     `## Warnings`,
     ...warningLines,

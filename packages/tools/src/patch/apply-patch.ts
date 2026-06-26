@@ -1,4 +1,14 @@
-import { createExecutionContextFromEnv, type DirtyWorktree, type ExecutionContext, type PatchApplyResult, type PatchInspection, type PatchProposal, type ValidationReport, PatchApplyResultSchema, writeAuditEvent } from "@agent-orchestrator/core";
+import {
+  createExecutionContextFromEnv,
+  type DirtyWorktree,
+  type ExecutionContext,
+  type PatchApplyResult,
+  type PatchInspection,
+  type PatchProposal,
+  type ValidationReport,
+  PatchApplyResultSchema,
+  writeAuditEvent
+} from "@agent-orchestrator/core";
 
 import { inspectPatch } from "./patch-inspector.js";
 import { hasBlockingDirtyWorktree, readDirtyWorktree } from "../repository/git-status.js";
@@ -32,8 +42,105 @@ const createCommandContext = (
     logLevel: context.logLevel,
     serverName: context.serverName,
     serverVersion: context.serverVersion,
-    workerModel: context.workerModel
+      workerModel: context.workerModel
   });
+
+const listDirtyFiles = (dirtyWorktree: DirtyWorktree | undefined): string[] =>
+  dirtyWorktree
+    ? Array.from(
+        new Set([
+          ...dirtyWorktree.stagedFiles,
+          ...dirtyWorktree.modifiedFiles,
+          ...dirtyWorktree.untrackedFiles
+        ])
+      ).sort()
+    : [];
+
+const buildRollbackDetails = (
+  inspection: PatchInspection
+): Pick<
+  NonNullable<PatchApplyResult["recovery"]>,
+  "rollbackActions" | "rollbackCommands"
+> => {
+  const restoreTargets = inspection.files
+    .filter((file) => file.changeType !== "add")
+    .map((file) => file.path);
+  const cleanTargets = inspection.files
+    .filter((file) => file.changeType === "add")
+    .map((file) => file.path);
+  const rollbackActions: NonNullable<PatchApplyResult["recovery"]>["rollbackActions"] = [];
+  const rollbackCommands: string[] = [];
+
+  if (restoreTargets.length > 0) {
+    rollbackActions.push({
+      command: "git",
+      args: ["restore", "--worktree", "--", ...restoreTargets]
+    });
+    rollbackCommands.push(
+      `git restore --worktree -- ${restoreTargets.join(" ")}`
+    );
+  }
+
+  if (cleanTargets.length > 0) {
+    rollbackActions.push({
+      command: "git",
+      args: ["clean", "-f", "--", ...cleanTargets]
+    });
+    rollbackCommands.push(`git clean -f -- ${cleanTargets.join(" ")}`);
+  }
+
+  return {
+    rollbackActions: rollbackActions.length > 0 ? rollbackActions : undefined,
+    rollbackCommands
+  };
+};
+
+const buildRecovery = (input: {
+  dirtyWorktree: DirtyWorktree | undefined;
+  inspection: PatchInspection;
+  validationReport: ValidationReport | undefined;
+}): PatchApplyResult["recovery"] => {
+  const failedChecks =
+    input.validationReport?.checks
+      .filter((check) => check.status === "failure")
+      .map((check) => check.name) ?? [];
+  const dirtyFilesBeforeApply = listDirtyFiles(input.dirtyWorktree);
+  const preApplyDirty = dirtyFilesBeforeApply.length > 0;
+  const safeToRunRollbackCommands = !preApplyDirty;
+  const rollbackDetails = safeToRunRollbackCommands
+    ? buildRollbackDetails(input.inspection)
+    : {
+        rollbackActions: undefined,
+        rollbackCommands: []
+      };
+  const manualRecoveryGuide = safeToRunRollbackCommands
+    ? [
+        `Review failed validation checks: ${failedChecks.join(", ") || "unknown"}.`,
+        "The worktree was clean before patch application, so direct rollback guidance is included below.",
+        rollbackDetails.rollbackCommands.length > 0
+          ? `Run the rollback commands in order: ${rollbackDetails.rollbackCommands.join(" ; ")}`
+          : "No direct rollback commands were generated; inspect touched files manually.",
+        "Rerun deterministic validation after restoring the touched files."
+      ]
+    : [
+        `Review failed validation checks: ${failedChecks.join(", ") || "unknown"}.`,
+        "The worktree was already dirty before patch application, so automatic rollback commands are intentionally omitted.",
+        `Compare the pre-apply dirty files with the touched patch files before restoring anything: ${dirtyFilesBeforeApply.join(", ") || "none"}.`,
+        "Use git diff, git status, and selective restore/cleanup commands to recover only the patch-introduced changes."
+      ];
+
+  return {
+    validationFailed: true,
+    touchedFiles: input.inspection.files.map((file) => file.path),
+    failedChecks,
+    preApplyDirty,
+    dirtyFilesBeforeApply,
+    safeToRunRollbackCommands,
+    rollbackActions: rollbackDetails.rollbackActions,
+    rollbackCommands: rollbackDetails.rollbackCommands,
+    manualRecoveryGuide
+  };
+};
 
 const buildResult = ({
   mode,
@@ -42,6 +149,7 @@ const buildResult = ({
   inspection,
   dirtyWorktree,
   validationReport,
+  recovery,
   warnings = [],
   errors = []
 }: {
@@ -51,6 +159,7 @@ const buildResult = ({
   inspection: PatchInspection;
   mode: PatchApplyResult["mode"];
   proposal: PatchProposal;
+  recovery?: PatchApplyResult["recovery"];
   validationReport?: ValidationReport;
   warnings?: string[];
 }): PatchApplyResult =>
@@ -62,6 +171,7 @@ const buildResult = ({
     inspection,
     dirtyWorktree,
     validationReport,
+    recovery,
     warnings,
     errors
   });
@@ -72,6 +182,7 @@ const auditPatchAction = async (
   proposal: PatchProposal,
   inspection: PatchInspection,
   dirtyWorktree: DirtyWorktree | undefined,
+  recovery: PatchApplyResult["recovery"] | undefined,
   warnings: string[],
   errors: string[]
 ): Promise<void> => {
@@ -93,6 +204,7 @@ const auditPatchAction = async (
       dirtyWorktree,
       inspection,
       patchId: proposal.id,
+      recovery,
       touchedFiles: inspection.files.map((file) => file.path)
     }
   }, true);
@@ -123,6 +235,7 @@ export async function applyPatchProposal(
       proposal,
       inspection,
       dirtyWorktree,
+      undefined,
       result.warnings,
       result.errors
     );
@@ -146,6 +259,7 @@ export async function applyPatchProposal(
       proposal,
       inspection,
       dirtyWorktree,
+      undefined,
       result.warnings,
       result.errors
     );
@@ -176,7 +290,9 @@ export async function applyPatchProposal(
         proposal,
         inspection,
         dirtyWorktree,
-        errors: [checkResult.stderr || "git apply --check failed."]
+        errors: [
+          checkResult.stderr || checkResult.stdout || "git apply --check failed."
+        ]
       });
       await auditPatchAction(
         context,
@@ -184,6 +300,7 @@ export async function applyPatchProposal(
         proposal,
         inspection,
         dirtyWorktree,
+        undefined,
         result.warnings,
         result.errors
       );
@@ -204,6 +321,7 @@ export async function applyPatchProposal(
       proposal,
       inspection,
       dirtyWorktree,
+      undefined,
       result.warnings,
       result.errors
     );
@@ -225,6 +343,7 @@ export async function applyPatchProposal(
       proposal,
       inspection,
       dirtyWorktree,
+      undefined,
       result.warnings,
       result.errors
     );
@@ -239,22 +358,23 @@ export async function applyPatchProposal(
 
   if (applyResult.code !== 0) {
     const result = buildResult({
-      mode: "blocked",
-      applied: false,
-      proposal,
-      inspection,
-      dirtyWorktree,
-      errors: [applyResult.stderr || "git apply failed."]
-    });
-    await auditPatchAction(
-      context,
-      "blocked",
-      proposal,
-      inspection,
-      dirtyWorktree,
-      result.warnings,
-      result.errors
-    );
+        mode: "blocked",
+        applied: false,
+        proposal,
+        inspection,
+        dirtyWorktree,
+        errors: [applyResult.stderr || applyResult.stdout || "git apply failed."]
+      });
+      await auditPatchAction(
+        context,
+        "blocked",
+        proposal,
+        inspection,
+        dirtyWorktree,
+        undefined,
+        result.warnings,
+        result.errors
+      );
     return result;
   }
 
@@ -273,6 +393,14 @@ export async function applyPatchProposal(
     validationReport && !validationReport.ok
       ? [...dirtyWarnings, "Patch applied but validation failed; manual review required."]
       : dirtyWarnings;
+  const recovery =
+    validationReport && !validationReport.ok
+      ? buildRecovery({
+          dirtyWorktree,
+          inspection,
+          validationReport
+        })
+      : undefined;
   const result = buildResult({
     mode: "execute",
     applied: true,
@@ -280,6 +408,7 @@ export async function applyPatchProposal(
     inspection,
     dirtyWorktree,
     validationReport,
+    recovery,
     warnings
   });
   await auditPatchAction(
@@ -288,6 +417,7 @@ export async function applyPatchProposal(
     proposal,
     inspection,
     dirtyWorktree,
+    recovery,
     result.warnings,
     result.errors
   );

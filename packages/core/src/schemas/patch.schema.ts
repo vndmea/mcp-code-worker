@@ -48,6 +48,23 @@ export const DirtyWorktreeSchema = z.object({
   rawStatus: z.array(z.string())
 });
 
+export const PatchRollbackActionSchema = z.object({
+  command: z.literal("git"),
+  args: z.array(z.string()).min(1)
+});
+
+export const PatchRecoverySchema = z.object({
+  validationFailed: z.boolean(),
+  touchedFiles: z.array(z.string()),
+  failedChecks: z.array(z.string()),
+  preApplyDirty: z.boolean(),
+  dirtyFilesBeforeApply: z.array(z.string()),
+  safeToRunRollbackCommands: z.boolean(),
+  rollbackActions: z.array(PatchRollbackActionSchema).optional(),
+  rollbackCommands: z.array(z.string()),
+  manualRecoveryGuide: z.array(z.string())
+});
+
 export const PatchApplyResultSchema = z.object({
   mode: z.enum(["dry-run", "execute", "blocked"]),
   applied: z.boolean(),
@@ -56,6 +73,7 @@ export const PatchApplyResultSchema = z.object({
   inspection: PatchInspectionSchema,
   dirtyWorktree: DirtyWorktreeSchema.optional(),
   validationReport: ValidationReportSchema.optional(),
+  recovery: PatchRecoverySchema.optional(),
   warnings: z.array(z.string()),
   errors: z.array(z.string())
 });
@@ -64,4 +82,6 @@ export type PatchFileChange = z.infer<typeof PatchFileChangeSchema>;
 export type PatchProposal = z.infer<typeof PatchProposalSchema>;
 export type PatchInspection = z.infer<typeof PatchInspectionSchema>;
 export type DirtyWorktree = z.infer<typeof DirtyWorktreeSchema>;
+export type PatchRollbackAction = z.infer<typeof PatchRollbackActionSchema>;
+export type PatchRecovery = z.infer<typeof PatchRecoverySchema>;
 export type PatchApplyResult = z.infer<typeof PatchApplyResultSchema>;

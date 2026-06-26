@@ -294,6 +294,37 @@ describe("patch lifecycle tools", () => {
     expect(result.warnings).toContain(
       "Patch applied but validation failed; manual review required."
     );
+    expect(result.recovery?.failedChecks).toContain("lint");
+    expect(result.recovery?.safeToRunRollbackCommands).toBe(true);
+    expect(result.recovery?.rollbackCommands).toContain(
+      "git restore --worktree -- demo.ts"
+    );
     expect(contents.stdout).toContain("// comment");
+  }, 15_000);
+
+  it("omits direct rollback commands when validation fails after allowing a dirty worktree", async () => {
+    const rootDir = await createGitRoot();
+    const proposal = await createValidProposal(rootDir);
+    await writeFile(join(rootDir, "notes.txt"), "local change\n", "utf8");
+
+    const result = await applyPatchProposal(
+      createContext(rootDir, true),
+      proposal,
+      {
+        allowWrite: true,
+        allowDirtyWorktree: true,
+        confirmApply: true,
+        dryRun: false,
+        runValidation: {
+          lint: true
+        }
+      }
+    );
+
+    expect(result.mode).toBe("execute");
+    expect(result.recovery?.preApplyDirty).toBe(true);
+    expect(result.recovery?.safeToRunRollbackCommands).toBe(false);
+    expect(result.recovery?.rollbackCommands).toHaveLength(0);
+    expect(result.recovery?.dirtyFilesBeforeApply).toContain("notes.txt");
   }, 15_000);
 });
