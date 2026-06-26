@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createExecutionContextFromEnv,
+  getAoWorkspaceAuditDir,
   listAuditEvents,
   sanitizeAuditMetadata,
   writeAuditEvent
@@ -94,7 +95,7 @@ describe("audit log", () => {
 
   it("lists latest audit events first and skips invalid JSONL lines", async () => {
     const rootDir = await createRootDir();
-    const auditDir = join(rootDir, ".ao", "audit");
+    const auditDir = getAoWorkspaceAuditDir(rootDir);
     await mkdir(auditDir, { recursive: true });
     await writeFile(
       join(auditDir, "2026-06-24.jsonl"),

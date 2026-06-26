@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -38,7 +38,7 @@ const createRegistration = (
 
 const writeRegistry = async (rootDir: string, value: unknown): Promise<void> => {
   const registryPath = getWorkerRegistryPath(rootDir);
-  await mkdir(join(rootDir, ".ao"), { recursive: true });
+  await mkdir(dirname(registryPath), { recursive: true });
   await writeFile(registryPath, JSON.stringify(value, null, 2), "utf8");
 };
 
@@ -54,7 +54,7 @@ describe("worker registry store", () => {
   it("reports invalid JSON and invalid schema", async () => {
     const rootDir = await createRootDir();
     const registryPath = getWorkerRegistryPath(rootDir);
-    await mkdir(join(rootDir, ".ao"), { recursive: true });
+    await mkdir(dirname(registryPath), { recursive: true });
     await writeFile(registryPath, "{", "utf8");
 
     expect((await readWorkerRegistry(rootDir)).error).toBeDefined();

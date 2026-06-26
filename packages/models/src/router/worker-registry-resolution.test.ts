@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -17,9 +17,10 @@ const writeRegistry = async (
   rootDir: string,
   workers: Array<Record<string, unknown>>
 ): Promise<void> => {
-  await mkdir(join(rootDir, ".ao"), { recursive: true });
+  const registryPath = getWorkerRegistryPath(rootDir);
+  await mkdir(dirname(registryPath), { recursive: true });
   await writeFile(
-    getWorkerRegistryPath(rootDir),
+    registryPath,
     JSON.stringify({ version: 1, workers }, null, 2),
     "utf8"
   );

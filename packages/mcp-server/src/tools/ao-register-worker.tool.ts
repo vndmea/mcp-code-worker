@@ -40,7 +40,11 @@ export const aoRegisterWorkerTool: AoToolDefinition<
         provider: args.provider,
         model: args.model
       });
-    const existing = await getWorkerRegistration(context.rootDir, workerId);
+    const existing = await getWorkerRegistration(
+      context.rootDir,
+      workerId,
+      context.aoStorageDir
+    );
     const now = new Date().toISOString();
     const result = await saveWorkerRegistration(
       context,

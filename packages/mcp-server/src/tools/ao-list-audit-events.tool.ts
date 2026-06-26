@@ -17,6 +17,10 @@ export const aoListAuditEventsTool: AoToolDefinition<
   inputSchema,
   execute: async (args) => {
     const context = await resolveExecutionContext();
-    return listAuditEvents(context.rootDir, args.limit ?? 50);
+    return listAuditEvents(
+      context.rootDir,
+      args.limit ?? 50,
+      context.aoStorageDir
+    );
   }
 };

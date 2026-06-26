@@ -1,13 +1,19 @@
 import { execFile as execFileCallback } from "node:child_process";
 import { mkdir, mkdtemp, readFile, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
 import { describe, expect, it } from "vitest";
 
 import { buildCli } from "@agent-orchestrator/cli";
-import { PatchProposalSchema } from "@agent-orchestrator/core";
+import {
+  getAoConfigPath,
+  getAoWorkspaceAuditDir,
+  getAoWorkspaceFilePath,
+  getAoWorkspaceRunsDir,
+  PatchProposalSchema
+} from "@agent-orchestrator/core";
 
 const execFile = promisify(execFileCallback);
 
@@ -48,20 +54,20 @@ const parseLastJson = <T>(output: string[]): T =>
   JSON.parse(output.at(-1) ?? "{}") as T;
 
 const writeProfiles = async (rootDir: string, profiles: unknown[]): Promise<void> => {
-  const aoDir = join(rootDir, ".ao");
-  await mkdir(aoDir, { recursive: true });
+  const profilePath = getAoWorkspaceFilePath(rootDir, "worker-profiles.json");
+  await mkdir(dirname(profilePath), { recursive: true });
   await writeFile(
-    join(aoDir, "worker-profiles.json"),
+    profilePath,
     JSON.stringify(profiles, null, 2),
     "utf8"
   );
 };
 
 const writeRegistry = async (rootDir: string, workers: unknown[]): Promise<void> => {
-  const aoDir = join(rootDir, ".ao");
-  await mkdir(aoDir, { recursive: true });
+  const registryPath = getAoWorkspaceFilePath(rootDir, "workers.json");
+  await mkdir(dirname(registryPath), { recursive: true });
   await writeFile(
-    join(aoDir, "workers.json"),
+    registryPath,
     JSON.stringify({ version: 1, workers }, null, 2),
     "utf8"
   );
@@ -111,9 +117,10 @@ const writeWorkspaceFixture = async (rootDir: string): Promise<void> => {
 };
 
 const writeAoConfig = async (rootDir: string, config: Record<string, unknown>): Promise<void> => {
-  await mkdir(join(rootDir, ".ao"), { recursive: true });
+  const configPath = getAoConfigPath(rootDir);
+  await mkdir(dirname(configPath), { recursive: true });
   await writeFile(
-    join(rootDir, ".ao", "config.json"),
+    configPath,
     JSON.stringify(
       {
         version: 1,
@@ -460,7 +467,7 @@ describe("cli parsing", () => {
       ).toBe(true);
 
       const savedConfig = JSON.parse(
-        await readFile(join(rootDir, ".ao", "config.json"), "utf8")
+        await readFile(getAoConfigPath(rootDir), "utf8")
       ) as {
         workerModel?: { model?: string };
         validation?: {
@@ -471,12 +478,12 @@ describe("cli parsing", () => {
         };
       };
       const savedRegistry = JSON.parse(
-        await readFile(join(rootDir, ".ao", "workers.json"), "utf8")
+        await readFile(getAoWorkspaceFilePath(rootDir, "workers.json"), "utf8")
       ) as {
         workers: Array<{ workerId: string }>;
       };
       const savedProfiles = JSON.parse(
-        await readFile(join(rootDir, ".ao", "worker-profiles.json"), "utf8")
+        await readFile(getAoWorkspaceFilePath(rootDir, "worker-profiles.json"), "utf8")
       ) as Array<{ workerId: string }>;
 
       expect(savedConfig.workerModel?.model).toBe("setup-worker");
@@ -641,7 +648,7 @@ describe("cli parsing", () => {
       ]);
 
       let savedProfiles = JSON.parse(
-        await readFile(join(rootDir, ".ao", "worker-profiles.json"), "utf8")
+        await readFile(getAoWorkspaceFilePath(rootDir, "worker-profiles.json"), "utf8")
       ) as Array<{
         routingPolicy?: { allowPatchGeneration?: boolean };
         supportedTaskTypes?: string[];
@@ -664,7 +671,7 @@ describe("cli parsing", () => {
       ]);
 
       savedProfiles = JSON.parse(
-        await readFile(join(rootDir, ".ao", "worker-profiles.json"), "utf8")
+        await readFile(getAoWorkspaceFilePath(rootDir, "worker-profiles.json"), "utf8")
       ) as Array<{
         routingPolicy?: { allowPatchGeneration?: boolean };
         supportedTaskTypes?: string[];
@@ -869,7 +876,7 @@ describe("cli parsing", () => {
         "LITELLM_API_KEY"
       ]);
       expect(output.at(-1)).toContain("\"mode\": \"dry-run\"");
-      expect(output.at(-1)).toContain(".ao/config.json");
+      expect(output.at(-1)).toContain("config.json");
 
       await cli.parseAsync([
         "node",
@@ -884,7 +891,7 @@ describe("cli parsing", () => {
         "--allow-write"
       ]);
       expect(output.at(-1)).toContain("\"mode\": \"execute\"");
-      expect(output.at(-1)).toContain(".ao/config.json");
+      expect(output.at(-1)).toContain("config.json");
     });
   });
 
@@ -974,10 +981,12 @@ describe("cli parsing", () => {
   it("cleans up old runs and audit logs without touching registry files", async () => {
     await withTempCwd(async (rootDir) => {
       const oldTime = new Date(Date.now() - 40 * 86_400_000);
-      await mkdir(join(rootDir, ".ao", "runs", "task-old"), { recursive: true });
-      await mkdir(join(rootDir, ".ao", "audit"), { recursive: true });
+      const runsDir = getAoWorkspaceRunsDir(rootDir);
+      const auditDir = getAoWorkspaceAuditDir(rootDir);
+      await mkdir(join(runsDir, "task-old"), { recursive: true });
+      await mkdir(auditDir, { recursive: true });
       await writeFile(
-        join(rootDir, ".ao", "runs", "task-old", "session.json"),
+        join(runsDir, "task-old", "session.json"),
         JSON.stringify({
           taskId: "task-old",
           goal: "old",
@@ -994,17 +1003,17 @@ describe("cli parsing", () => {
         "utf8"
       );
       await writeFile(
-        join(rootDir, ".ao", "audit", "2026-05-01.jsonl"),
+        join(auditDir, "2026-05-01.jsonl"),
         "",
         "utf8"
       );
       await writeFile(
-        join(rootDir, ".ao", "workers.json"),
+        getAoWorkspaceFilePath(rootDir, "workers.json"),
         JSON.stringify({ version: 1, workers: [] }, null, 2),
         "utf8"
       );
-      await utimes(join(rootDir, ".ao", "runs", "task-old"), oldTime, oldTime);
-      await utimes(join(rootDir, ".ao", "audit", "2026-05-01.jsonl"), oldTime, oldTime);
+      await utimes(join(runsDir, "task-old"), oldTime, oldTime);
+      await utimes(join(auditDir, "2026-05-01.jsonl"), oldTime, oldTime);
       const { io, output } = createIo();
       const cli = buildCli(io);
 

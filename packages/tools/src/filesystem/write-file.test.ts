@@ -22,7 +22,7 @@ describe("writeRepositoryFile", () => {
 
     await expect(
       writeRepositoryFile("../outside.txt", "blocked", context)
-    ).rejects.toThrow("Write path escapes the repository root.");
+    ).rejects.toThrow("Write path escapes the allowed roots.");
   });
 
   it("returns dry-run for safe paths by default", async () => {

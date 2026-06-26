@@ -12,6 +12,7 @@ import type {
   WorkerEvaluationSummary
 } from "@agent-orchestrator/core";
 import {
+  getAoWorkspaceDir,
   WorkerCapabilityProfileSchema,
   WorkerBenchmarkResultSchema,
   resolveExecutionContext,
@@ -324,11 +325,11 @@ export const applyBenchmarkCapabilityUpdate = (
 export const getWorkerBenchmarkArtifactPath = (
   rootDir: string,
   workerId: string,
-  suite: string
+  suite: string,
+  aoStorageDir?: string
 ): string =>
   join(
-    rootDir,
-    ".ao",
+    aoStorageDir ?? getAoWorkspaceDir(rootDir),
     "worker-benchmarks",
     workerId.replace(/[^a-z0-9._-]+/giu, "_"),
     `${suite}.json`
@@ -342,7 +343,8 @@ export const saveWorkerBenchmarkArtifact = async (
   const artifactPath = getWorkerBenchmarkArtifactPath(
     context.rootDir,
     result.workerId,
-    result.suiteName
+    result.suiteName,
+    context.aoStorageDir
   );
   const evaluation = context.writePolicy.evaluate(artifactPath, explicitAllowWrite);
 

@@ -85,15 +85,15 @@ const formatWorkerInterviewResult = (result: {
   }
 
   if (result.persistence) {
-    if (result.persistence.mode === "execute") {
-      lines.push(`profile saved: ${result.persistence.path ?? "persisted"}`);
-    } else if (result.persistence.mode === "dry-run") {
-      lines.push(
-        `dry-run: profile would be saved to ${result.persistence.path ?? ".ao/worker-profiles.json"}`
-      );
-    } else {
-      lines.push(result.persistence.reason ?? "profile was not persisted");
-    }
+      if (result.persistence.mode === "execute") {
+        lines.push(`profile saved: ${result.persistence.path ?? "persisted"}`);
+      } else if (result.persistence.mode === "dry-run") {
+        lines.push(
+          `dry-run: profile would be saved to ${result.persistence.path ?? "the ao workspace profile store"}`
+        );
+      } else {
+        lines.push(result.persistence.reason ?? "profile was not persisted");
+      }
   }
 
   if (result.warnings.length > 0) {
@@ -181,7 +181,11 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
             provider: options.provider,
             model: options.model
           });
-        const existing = await getWorkerRegistration(context.rootDir, workerId);
+        const existing = await getWorkerRegistration(
+          context.rootDir,
+          workerId,
+          context.aoStorageDir
+        );
         const now = new Date().toISOString();
         const result = await saveWorkerRegistration(
           context,
@@ -244,7 +248,10 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
     .description("List registered worker models.")
     .action(async () => {
       const context = await resolveExecutionContext();
-      const registrations = await listWorkerRegistrations(context.rootDir);
+      const registrations = await listWorkerRegistrations(
+        context.rootDir,
+        context.aoStorageDir
+      );
       writeOutput(io, registrations, formatWorkerList("worker registry", registrations));
     });
 
@@ -254,7 +261,11 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
     .argument("<workerId>", "Worker registry id")
     .action(async (workerId: string) => {
       const context = await resolveExecutionContext();
-      const registration = await getWorkerRegistration(context.rootDir, workerId);
+      const registration = await getWorkerRegistration(
+        context.rootDir,
+        workerId,
+        context.aoStorageDir
+      );
 
       if (!registration) {
         throw new Error(`No worker registration found for ${workerId}`);
@@ -283,7 +294,11 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
         const hasModelOverride =
           Boolean(options.provider) || Boolean(options.model) || Boolean(options.baseUrl);
         const registeredWorker = options.worker
-          ? await getWorkerRegistration(context.rootDir, options.worker)
+          ? await getWorkerRegistration(
+              context.rootDir,
+              options.worker,
+              context.aoStorageDir
+            )
           : null;
         const resolved = registeredWorker
           ? await resolveWorkerModel({
@@ -367,7 +382,11 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
         const hasModelOverride =
           Boolean(options.provider) || Boolean(options.model) || Boolean(options.baseUrl);
         const registeredWorker = options.worker
-          ? await getWorkerRegistration(context.rootDir, options.worker)
+          ? await getWorkerRegistration(
+              context.rootDir,
+              options.worker,
+              context.aoStorageDir
+            )
           : null;
         const resolved = registeredWorker
           ? await resolveWorkerModel({
@@ -395,7 +414,11 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
         const persistence = options.save
           ? await saveWorkerBenchmarkArtifact(context, result, true)
           : null;
-        const existingProfile = await getWorkerProfile(context.rootDir, result.workerId);
+        const existingProfile = await getWorkerProfile(
+          context.rootDir,
+          result.workerId,
+          context.aoStorageDir
+        );
         if (options.updateProfileCapabilities && !existingProfile) {
           throw new Error(
             `No persisted worker profile found for ${result.workerId}; run 'ao worker interview --save' first.`
@@ -442,7 +465,10 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
     .description("List known worker capability profiles.")
     .action(async () => {
       const context = await resolveExecutionContext();
-      const profiles = await listWorkerProfiles(context.rootDir);
+      const profiles = await listWorkerProfiles(
+        context.rootDir,
+        context.aoStorageDir
+      );
       writeOutput(io, profiles, formatWorkerList("worker profiles", profiles));
     });
 
@@ -454,7 +480,11 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
       const context = await resolveExecutionContext();
       const resolvedWorkerId =
         workerId ?? ModelRouter.deriveWorkerId(context.workerModel);
-      const profile = await getWorkerProfile(context.rootDir, resolvedWorkerId);
+      const profile = await getWorkerProfile(
+        context.rootDir,
+        resolvedWorkerId,
+        context.aoStorageDir
+      );
 
       if (!profile) {
         throw new Error(`No worker profile found for ${resolvedWorkerId}`);

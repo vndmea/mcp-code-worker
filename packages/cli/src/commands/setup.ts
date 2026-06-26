@@ -1,11 +1,14 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { dirname, join, relative } from "node:path";
+import { dirname } from "node:path";
 
 import type { Command } from "commander";
 
 import {
   AgentError,
   AoConfigSchema,
+  getAoConfigPath,
+  getAoWorkspaceAuditDirFromStorageDir,
+  getAoWorkspaceRunsDirFromStorageDir,
   loadAoConfig,
   resolveExecutionContext,
   runDoctor,
@@ -27,7 +30,7 @@ import {
 } from "@agent-orchestrator/models";
 
 import type { CliIo } from "../index.js";
-import { writeOutput } from "../output.js";
+import { formatDisplayPath, writeOutput } from "../output.js";
 
 type SetupStepStatus =
   | "blocked"
@@ -98,7 +101,7 @@ const unique = (values: Array<string | undefined>): string[] =>
   Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 
 const relativePath = (rootDir: string, path: string): string =>
-  relative(rootDir, path).replaceAll("\\", "/");
+  formatDisplayPath(rootDir, path);
 
 const mergeModelConfig = (
   existing: AoConfig["leaderModel"],
@@ -348,7 +351,7 @@ const formatSetupResult = (result: SetupResult): string[] => {
 export const registerSetupCommand = (program: Command, io: CliIo): void => {
   program
     .command("setup")
-    .description("Guide and optionally apply the local setup steps needed before ao task workflows feel reliable.")
+    .description("Guide and optionally apply the user-scoped setup steps needed before ao task workflows feel reliable.")
     .option("--leader-provider <provider>", "Leader provider")
     .option("--leader-model <model>", "Leader model")
     .option("--leader-base-url <url>", "Leader base URL")
@@ -358,13 +361,13 @@ export const registerSetupCommand = (program: Command, io: CliIo): void => {
     .option("--worker-base-url <url>", "Worker base URL")
     .option("--worker-api-key-env-var <name>", "Worker API key env var")
     .option("--worker-id <workerId>", "Explicit worker id used for register/interview")
-    .option("--register-worker", "Register the configured worker in .ao/workers.json", false)
+    .option("--register-worker", "Register the configured worker in the ao workspace registry", false)
     .option("--interview-worker", "Run worker onboarding interview and persist the profile when allowed", false)
     .option("--typecheck-script <name>", "Add or replace the typecheck script mapping", collect, [])
     .option("--lint-script <name>", "Add or replace the lint script mapping", collect, [])
     .option("--test-script <name>", "Add or replace the test script mapping", collect, [])
     .option("--disable-validation-auto-discover", "Turn off validation script auto-discovery", false)
-    .option("--allow-write", "Persist .ao setup changes", false)
+    .option("--allow-write", "Persist ao workspace setup changes", false)
     .action(async (options: SetupOptions) => {
       const context = await resolveExecutionContext({
         cliOverrides: {
@@ -375,14 +378,26 @@ export const registerSetupCommand = (program: Command, io: CliIo): void => {
       const steps: SetupStepResult[] = [];
       const configResult = await loadAoConfig(context.rootDir);
       const desiredConfig = buildDesiredConfig(configResult.config, options);
-      const registryState = await readWorkerRegistry(context.rootDir);
-      const profileState = await readPersistedWorkerProfiles(context.rootDir);
-      const aoDir = join(context.rootDir, ".ao");
-      const auditDir = join(aoDir, "audit");
-      const runsDir = join(aoDir, "runs");
-      const configPath = join(aoDir, "config.json");
-      const registryPath = getWorkerRegistryPath(context.rootDir);
-      const profilesPath = getWorkerProfileStorePath(context.rootDir);
+      const registryState = await readWorkerRegistry(
+        context.rootDir,
+        context.aoStorageDir
+      );
+      const profileState = await readPersistedWorkerProfiles(
+        context.rootDir,
+        context.aoStorageDir
+      );
+      const aoDir = context.aoStorageDir;
+      const auditDir = getAoWorkspaceAuditDirFromStorageDir(aoDir);
+      const runsDir = getAoWorkspaceRunsDirFromStorageDir(aoDir);
+      const configPath = getAoConfigPath(context.rootDir);
+      const registryPath = getWorkerRegistryPath(
+        context.rootDir,
+        context.aoStorageDir
+      );
+      const profilesPath = getWorkerProfileStorePath(
+        context.rootDir,
+        context.aoStorageDir
+      );
 
       const aoDirResult = await ensureDirectory(context, aoDir, options.allowWrite);
       const auditDirResult = await ensureDirectory(context, auditDir, options.allowWrite);
@@ -392,8 +407,8 @@ export const registerSetupCommand = (program: Command, io: CliIo): void => {
         id: "workspace-scaffold",
         status: options.allowWrite ? "completed" : "dry-run",
         summary: options.allowWrite
-          ? "Ensured .ao workspace directories exist for audit logs and task runs."
-          : "Would ensure .ao workspace directories exist for audit logs and task runs.",
+          ? "Ensured user-scoped ao workspace directories exist for audit logs and task runs."
+          : "Would ensure user-scoped ao workspace directories exist for audit logs and task runs.",
         details: {
           aoDir: relativePath(context.rootDir, aoDirResult.path),
           auditDir: relativePath(context.rootDir, auditDirResult.path),
@@ -415,9 +430,9 @@ export const registerSetupCommand = (program: Command, io: CliIo): void => {
         summary:
           configWrite.changed
             ? configWrite.mode === "execute"
-              ? "Updated .ao/config.json with the requested model and validation settings."
-              : "Would update .ao/config.json with the requested model and validation settings."
-            : ".ao/config.json already matches the requested model and validation settings.",
+              ? "Updated the ao workspace config with the requested model and validation settings."
+              : "Would update the ao workspace config with the requested model and validation settings."
+            : "The ao workspace config already matches the requested model and validation settings.",
         details: {
           replacedInvalidConfig: Boolean(configResult.error),
           leaderModel: desiredConfig.leaderModel,

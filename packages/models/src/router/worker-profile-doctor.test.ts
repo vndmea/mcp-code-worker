@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -15,18 +15,20 @@ const createRootDir = async (): Promise<string> =>
   mkdtemp(join(tmpdir(), "ao-worker-doctor-"));
 
 const writeRegistry = async (rootDir: string, value: unknown): Promise<void> => {
-  await mkdir(join(rootDir, ".ao"), { recursive: true });
+  const registryPath = getWorkerRegistryPath(rootDir);
+  await mkdir(dirname(registryPath), { recursive: true });
   await writeFile(
-    getWorkerRegistryPath(rootDir),
+    registryPath,
     typeof value === "string" ? value : JSON.stringify(value, null, 2),
     "utf8"
   );
 };
 
 const writeProfiles = async (rootDir: string, value: unknown): Promise<void> => {
-  await mkdir(join(rootDir, ".ao"), { recursive: true });
+  const profilesPath = getWorkerProfileStorePath(rootDir);
+  await mkdir(dirname(profilesPath), { recursive: true });
   await writeFile(
-    getWorkerProfileStorePath(rootDir),
+    profilesPath,
     typeof value === "string" ? value : JSON.stringify(value, null, 2),
     "utf8"
   );

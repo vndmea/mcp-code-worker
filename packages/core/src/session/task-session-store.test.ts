@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createExecutionContextFromEnv,
+  getAoWorkspaceRunsDir,
   createTaskSession,
   getTaskArtifactPath,
   getTaskSessionPath,
@@ -119,9 +120,10 @@ describe("task session store", () => {
       },
       true
     );
-    await mkdir(join(rootDir, ".ao", "runs", "broken"), { recursive: true });
+    const runsDir = getAoWorkspaceRunsDir(rootDir);
+    await mkdir(join(runsDir, "broken"), { recursive: true });
     await writeFile(
-      join(rootDir, ".ao", "runs", "broken", "session.json"),
+      join(runsDir, "broken", "session.json"),
       "{\"taskId\":42}",
       "utf8"
     );

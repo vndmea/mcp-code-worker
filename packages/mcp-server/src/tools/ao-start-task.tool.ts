@@ -38,7 +38,7 @@ export const aoStartTaskTool: AoToolDefinition<
   ReturnType<typeof formatTaskSessionWorkflowOutput>
 > = {
   name: "ao_start_task",
-  description: "Recommended high-level coding task entrypoint. Start a local task session, persist reviewable artifacts under .ao/runs when allowed, and return next recommended actions.",
+  description: "Recommended high-level coding task entrypoint. Start a local task session, persist reviewable artifacts in user-scoped ao storage when allowed, and return next recommended actions.",
   inputSchema,
   execute: async (args) => {
     const context = await resolveExecutionContext({

@@ -26,7 +26,11 @@ export const aoListTasksTool: AoToolDefinition<
   inputSchema,
   execute: async (args) => {
     const context = await resolveExecutionContext();
-    const sessions = await listStoredTaskSessions(context.rootDir, args.limit ?? 50);
+    const sessions = await listStoredTaskSessions(
+      context.rootDir,
+      args.limit ?? 50,
+      context.aoStorageDir
+    );
     return formatTaskSessionListOutput(sessions, resolveWorkflowOutputOptions(args));
   }
 };

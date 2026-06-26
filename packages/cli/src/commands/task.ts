@@ -117,7 +117,7 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
     .option("--allow-write", "Allow repository writes for patch apply", false)
     .option("--allow-dirty-worktree", "Allow patch apply when the git worktree is dirty", false)
     .option("--confirm-apply", "Confirm patch application", false)
-    .option("--allow-write-session", "Persist session files under .ao/runs", false)
+    .option("--allow-write-session", "Persist session files under user-scoped ao workspace storage", false)
     .option("--summary", "Print a summary instead of the full workflow output", false)
     .option("--full", "Force the full workflow output", false)
     .option("--max-bytes <bytes>", "Limit preview fields in summary output", Number)
@@ -210,7 +210,11 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
       }
     ) => {
       const context = await resolveExecutionContext();
-      const session = await getTaskSessionStatus(context.rootDir, taskId);
+      const session = await getTaskSessionStatus(
+        context.rootDir,
+        taskId,
+        context.aoStorageDir
+      );
       const formatted = formatTaskSessionStatusOutput(
         session,
         resolveWorkflowOutputOptions(options)
@@ -237,7 +241,7 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
     .option("--allow-write", "Allow repository writes for patch apply", false)
     .option("--allow-dirty-worktree", "Allow patch apply when the git worktree is dirty", false)
     .option("--confirm-apply", "Confirm patch application", false)
-    .option("--allow-write-session", "Persist session files under .ao/runs", false)
+    .option("--allow-write-session", "Persist session files under user-scoped ao workspace storage", false)
     .option("--summary", "Print a summary instead of the full workflow output", false)
     .option("--full", "Force the full workflow output", false)
     .option("--max-bytes <bytes>", "Limit preview fields in summary output", Number)
@@ -320,7 +324,11 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
       }
     ) => {
       const context = await resolveExecutionContext();
-      const report = await getTaskSessionReport(context.rootDir, taskId);
+      const report = await getTaskSessionReport(
+        context.rootDir,
+        taskId,
+        context.aoStorageDir
+      );
 
       if (options.summary || options.full) {
         writeJson(io, formatTaskSessionReportOutput(report, resolveWorkflowOutputOptions(options)));
@@ -348,7 +356,8 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
       const limit = Number.parseInt(options.limit, 10);
       const sessions = await listStoredTaskSessions(
         context.rootDir,
-        Number.isNaN(limit) ? 50 : limit
+        Number.isNaN(limit) ? 50 : limit,
+        context.aoStorageDir
       );
       const formatted = formatTaskSessionListOutput(
         sessions,

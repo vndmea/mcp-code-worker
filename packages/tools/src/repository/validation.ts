@@ -163,7 +163,7 @@ export const runRepositoryValidation = async (
 
     if (resolution.source === "auto-discovered") {
       warnings.push(
-        `Validation for ${check.name} auto-discovered script ${resolution.scriptName}. Consider persisting a mapping in .ao/config.json.`
+        `Validation for ${check.name} auto-discovered script ${resolution.scriptName}. Consider persisting a mapping in the ao workspace config.`
       );
     }
   }

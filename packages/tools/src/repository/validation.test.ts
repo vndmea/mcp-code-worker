@@ -4,7 +4,10 @@ import { dirname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { createExecutionContextFromEnv } from "@agent-orchestrator/core";
+import {
+  createExecutionContextFromEnv,
+  getAoConfigPath
+} from "@agent-orchestrator/core";
 import { runRepositoryValidation } from "@agent-orchestrator/tools";
 
 const createRootDir = async (): Promise<string> =>
@@ -69,12 +72,13 @@ describe("runRepositoryValidation", () => {
 
   it("uses validation script mappings from ao config", async () => {
     const rootDir = await createRootDir();
-    await mkdir(join(rootDir, ".ao"), { recursive: true });
+    const configPath = getAoConfigPath(rootDir);
+    await mkdir(dirname(configPath), { recursive: true });
     await writePackage(rootDir, "package.json", {
       "check-types": "node -e \"process.exit(0)\""
     });
     await writeFile(
-      join(rootDir, ".ao", "config.json"),
+      configPath,
       JSON.stringify(
         {
           version: 1,

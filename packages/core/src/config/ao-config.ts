@@ -1,11 +1,12 @@
 import { readFile } from "node:fs/promises";
-import { isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 
 import type {
   ExecutionContext,
   ExecutionContextOverrides
 } from "../runtime/execution-context.js";
 import { createExecutionContextFromEnv } from "../runtime/execution-context.js";
+import { getAoWorkspaceFilePath } from "../storage/ao-paths.js";
 import { AoConfigSchema, type AoConfig, type AoModelConfig } from "../schemas/config.schema.js";
 
 export interface LoadAoConfigResult {
@@ -21,8 +22,10 @@ export interface ResolveExecutionContextOptions {
   rootDir?: string;
 }
 
-const getAoConfigPath = (rootDir: string): string =>
-  join(rootDir, ".ao", "config.json");
+export const getAoConfigPath = (
+  rootDir: string,
+  env: NodeJS.ProcessEnv = process.env
+): string => getAoWorkspaceFilePath(rootDir, "config.json", env);
 
 const buildDefaultConfig = (): AoConfig =>
   AoConfigSchema.parse({
@@ -83,9 +86,10 @@ const mergeModelConfig = (
 };
 
 export async function loadAoConfig(
-  rootDir: string
+  rootDir: string,
+  env: NodeJS.ProcessEnv = process.env
 ): Promise<LoadAoConfigResult> {
-  const path = getAoConfigPath(rootDir);
+  const path = getAoConfigPath(rootDir, env);
 
   try {
     const contents = await readFile(path, "utf8");
@@ -127,7 +131,7 @@ export async function resolveExecutionContext(
   const env = options.env ?? process.env;
   const cliOverrides = options.cliOverrides ?? {};
   const rootDir = resolveRootDir(env, options);
-  const configResult = await loadAoConfig(rootDir);
+  const configResult = await loadAoConfig(rootDir, env);
   const baseContext = createExecutionContextFromEnv(env, {
     ...cliOverrides,
     rootDir

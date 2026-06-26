@@ -1,3 +1,6 @@
+import { homedir } from "node:os";
+import { relative, resolve } from "node:path";
+
 import type { WorkflowOutputOptions } from "@agent-orchestrator/graph";
 
 import type { CliIo } from "./index.js";
@@ -63,3 +66,36 @@ export const formatList = (
   values: string[],
   emptyMessage: string
 ): string => (values.length > 0 ? values.join(", ") : emptyMessage);
+
+export const formatDisplayPath = (
+  rootDir: string,
+  targetPath: string
+): string => {
+  const normalizedRootDir = resolve(rootDir);
+  const normalizedTargetPath = resolve(targetPath);
+  const relativeToRoot = relative(normalizedRootDir, normalizedTargetPath);
+
+  if (
+    relativeToRoot === "" ||
+    (!relativeToRoot.startsWith("..") &&
+      !relativeToRoot.includes(`..\\`) &&
+      !relativeToRoot.includes("../"))
+  ) {
+    return relativeToRoot.replaceAll("\\", "/") || ".";
+  }
+
+  const homeDir = resolve(homedir());
+  const relativeToHome = relative(homeDir, normalizedTargetPath);
+
+  if (
+    relativeToHome === "" ||
+    (!relativeToHome.startsWith("..") &&
+      !relativeToHome.includes(`..\\`) &&
+      !relativeToHome.includes("../"))
+  ) {
+    const homeRelativePath = relativeToHome.replaceAll("\\", "/");
+    return homeRelativePath.length > 0 ? `~/${homeRelativePath}` : "~";
+  }
+
+  return normalizedTargetPath.replaceAll("\\", "/");
+};

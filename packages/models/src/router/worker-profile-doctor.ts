@@ -8,8 +8,14 @@ export const createWorkerProfileDoctorChecks = async (
   context: ExecutionContext
 ): Promise<DoctorCheck[]> => {
   const checks: DoctorCheck[] = [];
-  const persisted = await readPersistedWorkerProfiles(context.rootDir);
-  const registry = await readWorkerRegistry(context.rootDir);
+  const persisted = await readPersistedWorkerProfiles(
+    context.rootDir,
+    context.aoStorageDir
+  );
+  const registry = await readWorkerRegistry(
+    context.rootDir,
+    context.aoStorageDir
+  );
 
   if (!persisted.exists) {
     checks.push({

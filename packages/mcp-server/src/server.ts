@@ -112,13 +112,15 @@ export const formatUserFacingToolErrorMessage = (error: unknown): string => {
 
   if (
     (normalizedMessage.includes("config.json") ||
-      normalizedMessage.includes(".ao/") ||
+      normalizedMessage.includes("/.ao/") ||
+      normalizedMessage.includes("\\.ao\\") ||
+      normalizedMessage.includes("workspaces") ||
       normalizedMessage.includes("configuration")) &&
     (normalizedMessage.includes("invalid") ||
       normalizedMessage.includes("missing") ||
       normalizedMessage.includes("parse"))
   ) {
-    return `The service is connected, but ao found a local configuration problem in this workspace. Technical details: ${message}`;
+    return `The service is connected, but ao found a workspace or user-scoped storage configuration problem. Technical details: ${message}`;
   }
 
   if (

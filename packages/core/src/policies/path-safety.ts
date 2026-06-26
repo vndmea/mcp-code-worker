@@ -12,6 +12,7 @@ export interface FileWriteEvaluation {
 
 export interface EvaluateFileWritePathOptions {
   allowWrite: boolean;
+  additionalRootDirs?: string[];
   dryRun: boolean;
   explicitAllowWrite?: boolean;
   rootDir: string;
@@ -77,17 +78,26 @@ export const evaluateFileWritePath = (
   options: EvaluateFileWritePathOptions
 ): FileWriteEvaluation => {
   const rootDir = resolve(options.rootDir);
+  const allowedRoots = [
+    rootDir,
+    ...(options.additionalRootDirs ?? []).map((value) => resolve(value))
+  ];
   const normalizedPath = isAbsolute(path)
     ? resolve(path)
     : resolve(rootDir, path);
-  const rootRealPath = resolveRealOrSelf(rootDir);
-  const relativePath = relative(rootDir, normalizedPath);
+  const matchedRootDir = allowedRoots.find((candidateRoot) =>
+    isWithinRoot(candidateRoot, normalizedPath)
+  );
+
+  if (!matchedRootDir) {
+    return block(path, normalizedPath, "Write path escapes the allowed roots.");
+  }
+
+  const existingAllowedRoot = resolveNearestExistingAncestor(matchedRootDir);
+  const rootRealPath = resolveRealOrSelf(existingAllowedRoot);
+  const relativePath = relative(matchedRootDir, normalizedPath);
   const topLevelSegment = relativePath.split(/[\\/]/u).filter(Boolean)[0];
   const fileName = basename(normalizedPath).toLowerCase();
-
-  if (!isWithinRoot(rootDir, normalizedPath)) {
-    return block(path, normalizedPath, "Write path escapes the repository root.");
-  }
 
   if (topLevelSegment === ".git") {
     return block(path, normalizedPath, "Writes to .git internals are blocked.");
@@ -108,7 +118,7 @@ export const evaluateFileWritePath = (
     return block(
       path,
       normalizedPath,
-      "Write path escapes the repository root via a symlink."
+      "Write path escapes an allowed root via a symlink."
     );
   }
 
@@ -119,11 +129,11 @@ export const evaluateFileWritePath = (
         const targetRealPath = resolveRealOrSelf(normalizedPath);
         if (!isWithinRoot(rootRealPath, targetRealPath)) {
           return block(
-            path,
-            normalizedPath,
-            "Write path resolves outside the repository root via a symlink."
-          );
-        }
+          path,
+          normalizedPath,
+          "Write path resolves outside an allowed root via a symlink."
+        );
+      }
       }
     } catch {
       return block(

@@ -1,16 +1,20 @@
 import { readdir, realpath, rm, stat } from "node:fs/promises";
-import { basename, join, relative, resolve } from "node:path";
+import { basename, relative, resolve } from "node:path";
 
 import type { Command } from "commander";
 
 import {
+  getAoWorkspaceAuditDir,
+  getAoWorkspaceAuditDirFromStorageDir,
+  getAoWorkspaceRunsDir,
+  getAoWorkspaceRunsDirFromStorageDir,
   loadAoConfig,
   resolveExecutionContext,
   writeAuditEvent
 } from "@agent-orchestrator/core";
 
 import type { CliIo } from "../index.js";
-import { writeOutput } from "../output.js";
+import { formatDisplayPath, writeOutput } from "../output.js";
 
 interface CleanupResult {
   deleted: string[];
@@ -62,11 +66,10 @@ const isPathInsideDirectory = (directory: string, candidate: string): boolean =>
 };
 
 export const resolveCleanupTargetPath = async (
-  rootDir: string,
-  target: CleanupResult["target"],
+  targetDirectory: string,
   candidatePath: string
 ): Promise<CleanupTargetValidation> => {
-  const allowedDirectory = resolve(rootDir, ".ao", target);
+  const allowedDirectory = resolve(targetDirectory);
   const normalizedCandidatePath = resolve(candidatePath);
   const resolvedCandidatePath = await realpath(candidatePath).catch(
     () => normalizedCandidatePath
@@ -75,7 +78,7 @@ export const resolveCleanupTargetPath = async (
 
   if (PROTECTED_AO_FILES.has(candidateName)) {
     return {
-      warning: `Skipped protected .ao file ${candidateName}.`
+      warning: `Skipped protected ao workspace file ${candidateName}.`
     };
   }
 
@@ -96,9 +99,17 @@ export const resolveCleanupTargetPath = async (
 const listCleanupTargets = async (
   rootDir: string,
   target: CleanupResult["target"],
-  olderThanDays: number
+  olderThanDays: number,
+  aoStorageDir?: string
 ): Promise<{ targets: string[]; warnings: string[] }> => {
-  const targetDir = join(rootDir, ".ao", target);
+  const targetDir =
+    target === "runs"
+      ? aoStorageDir
+        ? getAoWorkspaceRunsDirFromStorageDir(aoStorageDir)
+        : getAoWorkspaceRunsDir(rootDir)
+      : aoStorageDir
+        ? getAoWorkspaceAuditDirFromStorageDir(aoStorageDir)
+        : getAoWorkspaceAuditDir(rootDir);
   const cutoff = Date.now() - olderThanDays * 86_400_000;
 
   try {
@@ -107,7 +118,7 @@ const listCleanupTargets = async (
     const warnings: string[] = [];
 
     for (const entry of entries) {
-      const path = join(targetDir, entry.name);
+      const path = resolve(targetDir, entry.name);
       const details = await stat(path);
       const age = details.mtime.getTime();
 
@@ -123,7 +134,7 @@ const listCleanupTargets = async (
         continue;
       }
 
-      const validated = await resolveCleanupTargetPath(rootDir, target, path);
+      const validated = await resolveCleanupTargetPath(targetDir, path);
       if (validated.deletePath) {
         selected.push(validated.deletePath);
         continue;
@@ -195,14 +206,15 @@ const registerCleanupSubcommand = (
         const cleanupTargets = await listCleanupTargets(
           context.rootDir,
           target,
-          Number.isNaN(retentionDays) ? config.config.sessions.retentionDays : retentionDays
+          Number.isNaN(retentionDays) ? config.config.sessions.retentionDays : retentionDays,
+          context.aoStorageDir
         );
         const deletion = await deleteTargets(cleanupTargets.targets, options.allowWrite);
         const result: CleanupResult = {
           mode: options.allowWrite ? "execute" : "dry-run",
           target,
-          deleted: deletion.deleted.map((path) => relative(context.rootDir, path).replaceAll("\\", "/")),
-          wouldDelete: deletion.wouldDelete.map((path) => relative(context.rootDir, path).replaceAll("\\", "/")),
+          deleted: deletion.deleted.map((path) => formatDisplayPath(context.rootDir, path)),
+          wouldDelete: deletion.wouldDelete.map((path) => formatDisplayPath(context.rootDir, path)),
           warnings: cleanupTargets.warnings
         };
 
@@ -232,7 +244,9 @@ const registerCleanupSubcommand = (
 };
 
 export const registerCleanupCommand = (program: Command, io: CliIo): void => {
-  const cleanup = program.command("cleanup").description("Remove aged local .ao run and audit artifacts.");
+  const cleanup = program
+    .command("cleanup")
+    .description("Remove aged user-scoped ao run and audit artifacts.");
 
   registerCleanupSubcommand(cleanup, io, "runs");
   registerCleanupSubcommand(cleanup, io, "audit");

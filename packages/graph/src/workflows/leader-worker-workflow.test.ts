@@ -1,10 +1,14 @@
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { AgentError, createExecutionContextFromEnv } from "@agent-orchestrator/core";
+import {
+  AgentError,
+  createExecutionContextFromEnv,
+  getAoWorkspaceFilePath
+} from "@agent-orchestrator/core";
 import { LeaderAgent, runLeaderWorkerWorkflow } from "@agent-orchestrator/graph";
 
 const createRootDir = async (): Promise<string> =>
@@ -49,20 +53,20 @@ const createProfile = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const writeProfiles = async (rootDir: string, profiles: unknown[]): Promise<void> => {
-  const aoDir = join(rootDir, ".ao");
-  await mkdir(aoDir, { recursive: true });
+  const profilePath = getAoWorkspaceFilePath(rootDir, "worker-profiles.json");
+  await mkdir(dirname(profilePath), { recursive: true });
   await writeFile(
-    join(aoDir, "worker-profiles.json"),
+    profilePath,
     JSON.stringify(profiles, null, 2),
     "utf8"
   );
 };
 
 const writeRegistry = async (rootDir: string, workers: unknown[]): Promise<void> => {
-  const aoDir = join(rootDir, ".ao");
-  await mkdir(aoDir, { recursive: true });
+  const registryPath = getAoWorkspaceFilePath(rootDir, "workers.json");
+  await mkdir(dirname(registryPath), { recursive: true });
   await writeFile(
-    join(aoDir, "workers.json"),
+    registryPath,
     JSON.stringify({ version: 1, workers }, null, 2),
     "utf8"
   );

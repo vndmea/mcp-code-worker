@@ -39,7 +39,11 @@ export const aoInterviewWorkerTool: AoToolDefinition<
     const hasModelOverride =
       Boolean(args.provider) || Boolean(args.model) || Boolean(args.baseURL);
     const registeredWorker = args.workerId
-      ? await getWorkerRegistration(context.rootDir, args.workerId)
+      ? await getWorkerRegistration(
+          context.rootDir,
+          args.workerId,
+          context.aoStorageDir
+        )
       : null;
     const resolved = registeredWorker
       ? await resolveWorkerModel({

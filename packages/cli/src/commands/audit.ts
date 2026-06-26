@@ -17,7 +17,8 @@ export const registerAuditCommand = (program: Command, io: CliIo): void => {
       const limit = Number.parseInt(options.limit, 10);
       const events = await listAuditEvents(
         context.rootDir,
-        Number.isNaN(limit) ? 50 : limit
+        Number.isNaN(limit) ? 50 : limit,
+        context.aoStorageDir
       );
 
       writeOutput(

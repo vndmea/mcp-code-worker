@@ -1,18 +1,22 @@
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import {
+  getAoConfigPath,
   loadAoConfig,
   resolveExecutionContext
 } from "@agent-orchestrator/core";
 
-const createWorkspace = async (): Promise<string> => {
-  const rootDir = await mkdtemp(join(tmpdir(), "ao-config-"));
-  await mkdir(join(rootDir, ".ao"), { recursive: true });
-  return rootDir;
+const createWorkspace = async (): Promise<string> =>
+  mkdtemp(join(tmpdir(), "ao-config-"));
+
+const writeConfig = async (rootDir: string, value: unknown): Promise<void> => {
+  const configPath = getAoConfigPath(rootDir);
+  await mkdir(dirname(configPath), { recursive: true });
+  await writeFile(configPath, JSON.stringify(value, null, 2), "utf8");
 };
 
 describe("ao config", () => {
@@ -27,32 +31,24 @@ describe("ao config", () => {
 
   it("loads valid config and resolves apiKeyEnvVar through runtime env", async () => {
     const rootDir = await createWorkspace();
-    await writeFile(
-      join(rootDir, ".ao", "config.json"),
-      JSON.stringify(
-        {
-          version: 1,
-          leaderModel: {
-            provider: "litellm",
-            model: "qwen3-coder",
-            apiKeyEnvVar: "TEST_LEADER_KEY"
-          },
-          workerModel: {
-            provider: "litellm",
-            model: "qwen3-coder-mini",
-            apiKeyEnvVar: "TEST_WORKER_KEY"
-          },
-          safety: {
-            dryRun: false,
-            allowWrite: true,
-            allowedCommands: ["git", "pnpm"]
-          }
-        },
-        null,
-        2
-      ),
-      "utf8"
-    );
+    await writeConfig(rootDir, {
+      version: 1,
+      leaderModel: {
+        provider: "litellm",
+        model: "qwen3-coder",
+        apiKeyEnvVar: "TEST_LEADER_KEY"
+      },
+      workerModel: {
+        provider: "litellm",
+        model: "qwen3-coder-mini",
+        apiKeyEnvVar: "TEST_WORKER_KEY"
+      },
+      safety: {
+        dryRun: false,
+        allowWrite: true,
+        allowedCommands: ["git", "pnpm"]
+      }
+    });
 
     const result = await loadAoConfig(rootDir);
     const context = await resolveExecutionContext({
@@ -76,22 +72,14 @@ describe("ao config", () => {
 
   it("returns clear errors for invalid config and falls back to defaults", async () => {
     const rootDir = await createWorkspace();
-    await writeFile(
-      join(rootDir, ".ao", "config.json"),
-      JSON.stringify(
-        {
-          version: 1,
-          leaderModel: {
-            provider: "litellm",
-            model: "qwen3-coder",
-            apiKeyEnvVar: "bad-name"
-          }
-        },
-        null,
-        2
-      ),
-      "utf8"
-    );
+    await writeConfig(rootDir, {
+      version: 1,
+      leaderModel: {
+        provider: "litellm",
+        model: "qwen3-coder",
+        apiKeyEnvVar: "bad-name"
+      }
+    });
 
     const result = await loadAoConfig(rootDir);
 
@@ -102,30 +90,22 @@ describe("ao config", () => {
 
   it("applies precedence cli overrides > env > config > defaults", async () => {
     const rootDir = await createWorkspace();
-    await writeFile(
-      join(rootDir, ".ao", "config.json"),
-      JSON.stringify(
-        {
-          version: 1,
-          leaderModel: {
-            provider: "litellm",
-            model: "config-leader"
-          },
-          workerModel: {
-            provider: "litellm",
-            model: "config-worker"
-          },
-          safety: {
-            dryRun: false,
-            allowWrite: false,
-            allowedCommands: ["git"]
-          }
-        },
-        null,
-        2
-      ),
-      "utf8"
-    );
+    await writeConfig(rootDir, {
+      version: 1,
+      leaderModel: {
+        provider: "litellm",
+        model: "config-leader"
+      },
+      workerModel: {
+        provider: "litellm",
+        model: "config-worker"
+      },
+      safety: {
+        dryRun: false,
+        allowWrite: false,
+        allowedCommands: ["git"]
+      }
+    });
 
     const context = await resolveExecutionContext({
       rootDir,
@@ -183,22 +163,14 @@ describe("ao config", () => {
 
   it("resolves context budget from config", async () => {
     const rootDir = await createWorkspace();
-    await writeFile(
-      join(rootDir, ".ao", "config.json"),
-      JSON.stringify(
-        {
-          version: 1,
-          context: {
-            maxFileBytes: 128,
-            maxTotalBytes: 512,
-            ignoredPaths: ["generated", "tmp/cache"]
-          }
-        },
-        null,
-        2
-      ),
-      "utf8"
-    );
+    await writeConfig(rootDir, {
+      version: 1,
+      context: {
+        maxFileBytes: 128,
+        maxTotalBytes: 512,
+        ignoredPaths: ["generated", "tmp/cache"]
+      }
+    });
 
     const context = await resolveExecutionContext({ rootDir });
 

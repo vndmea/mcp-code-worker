@@ -18,6 +18,10 @@ export const aoGetWorkerRegistrationTool: AoToolDefinition<
   inputSchema,
   execute: async (args) => {
     const context = await resolveExecutionContext();
-    return getWorkerRegistration(context.rootDir, args.workerId);
+    return getWorkerRegistration(
+      context.rootDir,
+      args.workerId,
+      context.aoStorageDir
+    );
   }
 };

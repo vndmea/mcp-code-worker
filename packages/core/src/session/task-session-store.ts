@@ -4,6 +4,10 @@ import { dirname, join } from "node:path";
 
 import { AgentError } from "../errors/agent-error.js";
 import type { ExecutionContext } from "../runtime/execution-context.js";
+import {
+  getAoWorkspaceRunsDir,
+  getAoWorkspaceRunsDirFromStorageDir
+} from "../storage/ao-paths.js";
 import { TaskSessionSchema, type TaskSession } from "../schemas/task-session.schema.js";
 import { writeAuditEvent } from "../audit/audit-log.js";
 
@@ -56,28 +60,36 @@ const ensureArtifactName = (artifactName: string): string => {
   return artifactName;
 };
 
-export const getTaskRunsDirectory = (rootDir: string): string =>
-  join(rootDir, ".ao", "runs");
+export const getTaskRunsDirectory = (
+  rootDir: string,
+  aoStorageDir?: string
+): string =>
+  aoStorageDir
+    ? getAoWorkspaceRunsDirFromStorageDir(aoStorageDir)
+    : getAoWorkspaceRunsDir(rootDir);
 
 export const getTaskSessionDirectory = (
   rootDir: string,
-  taskId: string
+  taskId: string,
+  aoStorageDir?: string
 ): string =>
-  join(getTaskRunsDirectory(rootDir), ensureTaskId(taskId));
+  join(getTaskRunsDirectory(rootDir, aoStorageDir), ensureTaskId(taskId));
 
 export const getTaskSessionPath = (
   rootDir: string,
-  taskId: string
+  taskId: string,
+  aoStorageDir?: string
 ): string =>
-  join(getTaskSessionDirectory(rootDir, taskId), "session.json");
+  join(getTaskSessionDirectory(rootDir, taskId, aoStorageDir), "session.json");
 
 export const getTaskArtifactPath = (
   rootDir: string,
   taskId: string,
-  artifactName: string
+  artifactName: string,
+  aoStorageDir?: string
 ): string =>
   join(
-    getTaskSessionDirectory(rootDir, taskId),
+    getTaskSessionDirectory(rootDir, taskId, aoStorageDir),
     ensureArtifactName(artifactName)
   );
 
@@ -183,7 +195,11 @@ export async function createTaskSession(
   explicitAllowWrite = false
 ): Promise<{ mode: "execute" | "dry-run"; path: string; session: TaskSession }> {
   const session = createTaskSessionValue(input);
-  const path = getTaskSessionPath(context.rootDir, session.taskId);
+  const path = getTaskSessionPath(
+    context.rootDir,
+    session.taskId,
+    context.aoStorageDir
+  );
   const result = await writeManagedFile(
     context,
     path,
@@ -208,9 +224,10 @@ export async function createTaskSession(
 
 export async function readTaskSession(
   rootDir: string,
-  taskId: string
+  taskId: string,
+  aoStorageDir?: string
 ): Promise<TaskSession | null> {
-  const path = getTaskSessionPath(rootDir, taskId);
+  const path = getTaskSessionPath(rootDir, taskId, aoStorageDir);
 
   try {
     const contents = await readFile(path, "utf8");
@@ -235,7 +252,11 @@ export async function updateTaskSession(
     taskId: ensureTaskId(session.taskId),
     updatedAt: new Date().toISOString()
   });
-  const path = getTaskSessionPath(context.rootDir, nextSession.taskId);
+  const path = getTaskSessionPath(
+    context.rootDir,
+    nextSession.taskId,
+    context.aoStorageDir
+  );
   const result = await writeManagedFile(
     context,
     path,
@@ -268,7 +289,12 @@ export async function writeTaskArtifact(
 ): Promise<TaskSessionWriteResult> {
   const safeTaskId = ensureTaskId(taskId);
   const safeArtifactName = ensureArtifactName(artifactName);
-  const path = getTaskArtifactPath(context.rootDir, safeTaskId, safeArtifactName);
+  const path = getTaskArtifactPath(
+    context.rootDir,
+    safeTaskId,
+    safeArtifactName,
+    context.aoStorageDir
+  );
   const content =
     typeof artifact === "string"
       ? artifact
@@ -298,9 +324,10 @@ export async function writeTaskArtifact(
 }
 
 export async function scanTaskSessions(
-  rootDir: string
+  rootDir: string,
+  aoStorageDir?: string
 ): Promise<ScanTaskSessionsResult> {
-  const runsDir = getTaskRunsDirectory(rootDir);
+  const runsDir = getTaskRunsDirectory(rootDir, aoStorageDir);
 
   try {
     const entries = await readdir(runsDir, { withFileTypes: true });
@@ -312,7 +339,7 @@ export async function scanTaskSessions(
         continue;
       }
 
-      const path = getTaskSessionPath(rootDir, entry.name);
+      const path = getTaskSessionPath(rootDir, entry.name, aoStorageDir);
 
       try {
         const contents = await readFile(path, "utf8");
@@ -344,18 +371,20 @@ export async function scanTaskSessions(
 
 export async function listTaskSessions(
   rootDir: string,
-  limit = 50
+  limit = 50,
+  aoStorageDir?: string
 ): Promise<TaskSession[]> {
-  const result = await scanTaskSessions(rootDir);
+  const result = await scanTaskSessions(rootDir, aoStorageDir);
   return result.sessions.slice(0, limit);
 }
 
 export async function readTaskArtifact<T = unknown>(
   rootDir: string,
   taskId: string,
-  artifactName: string
+  artifactName: string,
+  aoStorageDir?: string
 ): Promise<TaskArtifactReadResult<T>> {
-  const path = getTaskArtifactPath(rootDir, taskId, artifactName);
+  const path = getTaskArtifactPath(rootDir, taskId, artifactName, aoStorageDir);
 
   try {
     const contents = await readFile(path, "utf8");

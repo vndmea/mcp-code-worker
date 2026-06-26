@@ -23,6 +23,6 @@ export const aoGetWorkerProfileTool: AoToolDefinition<
     const context = await resolveExecutionContext();
     const workerId =
       args.workerId ?? ModelRouter.deriveWorkerId(context.workerModel);
-    return getWorkerProfile(context.rootDir, workerId);
+    return getWorkerProfile(context.rootDir, workerId, context.aoStorageDir);
   }
 };

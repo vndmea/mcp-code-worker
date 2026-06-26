@@ -16,6 +16,6 @@ export const aoListWorkersTool: AoToolDefinition<
   inputSchema,
   execute: async () => {
     const context = await resolveExecutionContext();
-    return listWorkerProfiles(context.rootDir);
+    return listWorkerProfiles(context.rootDir, context.aoStorageDir);
   }
 };

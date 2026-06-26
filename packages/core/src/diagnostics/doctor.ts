@@ -1,4 +1,4 @@
-import { access, stat } from "node:fs/promises";
+import { access, mkdir, stat } from "node:fs/promises";
 import { constants } from "node:fs";
 import { join } from "node:path";
 
@@ -15,6 +15,10 @@ import {
   type ValidationCheckName,
   type ValidationScriptResolution
 } from "../validation/validation-scripts.js";
+import {
+  getAoWorkspaceAuditDirFromStorageDir,
+  getAoWorkspaceRunsDirFromStorageDir
+} from "../storage/ao-paths.js";
 
 export interface DoctorCheck {
   message: string;
@@ -62,7 +66,7 @@ const WHY_THIS_MATTERS: Record<string, string> = {
   "worker-model":
     "The worker model handles scoped execution steps such as review, validation guidance, and patch generation.",
   "ao-dir":
-    "The .ao directory stores local runs, audit logs, and task artifacts that make sessions resumable.",
+    "The user-scoped ao workspace directory stores local runs, audit logs, configuration, and task artifacts outside the repository.",
   "execution-mode":
     "Repository writes and session writes are separate concerns; this check explains the repository-side default only.",
   "allowed-commands":
@@ -113,6 +117,15 @@ const checkExists = async (path: string): Promise<boolean> => {
 const canWrite = async (path: string): Promise<boolean> => {
   try {
     await access(path, constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const canCreateDirectory = async (path: string): Promise<boolean> => {
+  try {
+    await mkdir(path, { recursive: true });
     return true;
   } catch {
     return false;
@@ -283,24 +296,22 @@ export const runDoctor = async (
     }
   });
 
-  const aoDir = join(context.rootDir, ".ao");
-  const aoDirExists = rootDirExists ? await checkExists(aoDir) : false;
+  const aoDir = context.aoStorageDir;
+  const aoDirExists = await checkExists(aoDir);
   const aoDirWritable = aoDirExists
     ? await canWrite(aoDir)
-    : rootDirExists
-      ? await canWrite(context.rootDir)
-      : false;
+    : await canCreateDirectory(aoDir);
 
   addCheck(checks, {
     name: "ao-dir",
     status: aoDirWritable ? "pass" : "fail",
     message: aoDirExists
       ? aoDirWritable
-        ? ".ao directory is writable."
-        : ".ao directory exists but is not writable."
+        ? "User-scoped ao workspace directory is writable."
+        : "User-scoped ao workspace directory exists but is not writable."
       : aoDirWritable
-        ? ".ao directory does not exist, but the repository root is writable so it can be created."
-        : ".ao directory does not exist and the repository root is not writable.",
+        ? "User-scoped ao workspace directory does not exist yet, but it can be created."
+        : "User-scoped ao workspace directory does not exist and its parent is not writable.",
     metadata: {
       aoDir,
       exists: aoDirExists
@@ -334,10 +345,10 @@ export const runDoctor = async (
     name: "ao-config",
     status: config.error ? "fail" : config.exists ? "pass" : "warning",
     message: config.error
-      ? `.ao/config.json is invalid: ${config.error}`
+      ? `ao workspace config is invalid: ${config.error}`
       : config.exists
-        ? ".ao/config.json is present and readable."
-        : ".ao/config.json is missing. Defaults and environment variables will still work.",
+        ? "ao workspace config is present and readable."
+        : "ao workspace config is missing. Defaults and environment variables will still work.",
     metadata: {
       path: config.path
     }
@@ -396,14 +407,12 @@ export const runDoctor = async (
     }
   });
 
-  const runsDir = join(aoDir, "runs");
-  const runsDirExists = rootDirExists ? await checkExists(runsDir) : false;
-  const sessionScan = rootDirExists
-    ? await scanTaskSessions(context.rootDir)
-    : {
-        sessions: [],
-        invalidSessions: []
-      };
+  const runsDir = getAoWorkspaceRunsDirFromStorageDir(context.aoStorageDir);
+  const runsDirExists = await checkExists(runsDir);
+  const sessionScan = await scanTaskSessions(
+    context.rootDir,
+    context.aoStorageDir
+  );
   const failedSessions = sessionScan.sessions.filter(
     (session) => session.status === "failed" || session.status === "blocked"
   );
@@ -412,8 +421,8 @@ export const runDoctor = async (
     name: "runs-dir",
     status: runsDirExists ? "pass" : "warning",
     message: runsDirExists
-      ? `.ao/runs is present with ${sessionScan.sessions.length} valid session(s).`
-      : ".ao/runs is not present yet. It can be created when task sessions are persisted.",
+      ? `ao session storage is present with ${sessionScan.sessions.length} valid session(s).`
+      : "ao session storage is not present yet. It can be created when task sessions are persisted.",
     metadata: {
       runsDir,
       exists: runsDirExists
@@ -439,11 +448,13 @@ export const runDoctor = async (
     }
   });
 
-  const auditDir = join(aoDir, "audit");
-  const auditDirExists = rootDirExists ? await checkExists(auditDir) : false;
-  const recentAuditEvents = rootDirExists
-    ? await listAuditEvents(context.rootDir, 5)
-    : [];
+  const auditDir = getAoWorkspaceAuditDirFromStorageDir(context.aoStorageDir);
+  const auditDirExists = await checkExists(auditDir);
+  const recentAuditEvents = await listAuditEvents(
+    context.rootDir,
+    5,
+    context.aoStorageDir
+  );
   addCheck(checks, {
     name: "audit-log",
     status: auditDirExists ? "pass" : "warning",

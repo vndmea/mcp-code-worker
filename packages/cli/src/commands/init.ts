@@ -1,16 +1,19 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { dirname, join, relative } from "node:path";
+import { dirname, join } from "node:path";
 
 import type { Command } from "commander";
 
 import {
   AoConfigSchema,
+  getAoConfigPath,
+  getAoWorkspaceAuditDirFromStorageDir,
+  getAoWorkspaceRunsDirFromStorageDir,
   resolveExecutionContext,
   writeAuditEvent
 } from "@agent-orchestrator/core";
 
 import type { CliIo } from "../index.js";
-import { writeOutput } from "../output.js";
+import { formatDisplayPath, writeOutput } from "../output.js";
 
 interface InitResult {
   created: string[];
@@ -23,8 +26,8 @@ interface InitResult {
 const formatInitResult = (result: InitResult): string[] => {
   const lines: string[] = [
     result.mode === "execute"
-      ? "Initialized local .ao workspace."
-      : "Dry-run: local .ao workspace would be initialized."
+      ? "Initialized user-scoped ao workspace storage."
+      : "Dry-run: user-scoped ao workspace storage would be initialized."
   ];
 
   if (result.created.length > 0) {
@@ -102,19 +105,19 @@ const ensureDirectory = async (
   allowWrite: boolean,
   result: InitResult
 ): Promise<void> => {
-  const relativePath = relative(rootDir, path).replaceAll("\\", "/");
+  const displayPath = formatDisplayPath(rootDir, path);
 
   if (await exists(path)) {
     return;
   }
 
   if (!allowWrite) {
-    result.wouldCreate.push(relativePath);
+    result.wouldCreate.push(displayPath);
     return;
   }
 
   await mkdir(path, { recursive: true });
-  result.created.push(relativePath);
+  result.created.push(displayPath);
 };
 
 const ensureJsonFile = async (
@@ -127,7 +130,7 @@ const ensureJsonFile = async (
     result: InitResult;
   }
 ): Promise<void> => {
-  const relativePath = relative(rootDir, path).replaceAll("\\", "/");
+  const displayPath = formatDisplayPath(rootDir, path);
   const fileExists = await exists(path);
 
   if (fileExists && !options.force) {
@@ -135,19 +138,19 @@ const ensureJsonFile = async (
   }
 
   if (!options.allowWrite) {
-    options.result.wouldCreate.push(relativePath);
+    options.result.wouldCreate.push(displayPath);
     return;
   }
 
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, JSON.stringify(value, null, 2), "utf8");
-  options.result.created.push(relativePath);
+  options.result.created.push(displayPath);
 };
 
 export const registerInitCommand = (program: Command, io: CliIo): void => {
   program
     .command("init")
-    .description("Create a local .ao workspace scaffold and starter config.")
+    .description("Create user-scoped ao workspace storage and starter config.")
     .option("--leader-provider <provider>", "Leader provider")
     .option("--leader-model <model>", "Leader model")
     .option("--leader-base-url <url>", "Leader base URL")
@@ -177,12 +180,12 @@ export const registerInitCommand = (program: Command, io: CliIo): void => {
             dryRun: !options.allowWrite
           }
         });
-        const aoDir = join(context.rootDir, ".ao");
-        const configPath = join(aoDir, "config.json");
+        const aoDir = context.aoStorageDir;
+        const configPath = getAoConfigPath(context.rootDir);
         const registryPath = join(aoDir, "workers.json");
         const profilesPath = join(aoDir, "worker-profiles.json");
-        const auditDir = join(aoDir, "audit");
-        const runsDir = join(aoDir, "runs");
+        const auditDir = getAoWorkspaceAuditDirFromStorageDir(aoDir);
+        const runsDir = getAoWorkspaceRunsDirFromStorageDir(aoDir);
         const result: InitResult = {
           mode: options.allowWrite ? "execute" : "dry-run",
           created: [],
@@ -232,7 +235,7 @@ export const registerInitCommand = (program: Command, io: CliIo): void => {
         if (await exists(configPath) && !options.force) {
           const existing = JSON.parse(await readFile(configPath, "utf8")) as unknown;
           AoConfigSchema.parse(existing);
-          result.warnings.push("Existing .ao/config.json was preserved.");
+          result.warnings.push("Existing ao workspace config was preserved.");
         }
 
         if (options.allowWrite && result.created.length > 0) {
@@ -243,7 +246,7 @@ export const registerInitCommand = (program: Command, io: CliIo): void => {
               action: "init",
               mode: "execute",
               inputSummary: "ao init",
-              outputSummary: "Local .ao workspace initialized.",
+              outputSummary: "User-scoped ao workspace storage initialized.",
               warnings: result.warnings,
               errors: [],
               metadata: {

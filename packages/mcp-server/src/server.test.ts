@@ -1,7 +1,7 @@
 import { execFile as execFileCallback } from "node:child_process";
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
 import { describe, expect, it } from "vitest";
@@ -9,6 +9,8 @@ import { z } from "zod";
 
 import {
   AgentError,
+  getAoConfigPath,
+  getAoWorkspaceFilePath,
   PatchProposalSchema,
   type TaskSession
 } from "@agent-orchestrator/core";
@@ -64,10 +66,10 @@ const withTempCwd = async (
 };
 
 const writeProfiles = async (rootDir: string, profiles: unknown[]): Promise<void> => {
-  const aoDir = join(rootDir, ".ao");
-  await mkdir(aoDir, { recursive: true });
+  const profilePath = getAoWorkspaceFilePath(rootDir, "worker-profiles.json");
+  await mkdir(dirname(profilePath), { recursive: true });
   await writeFile(
-    join(aoDir, "worker-profiles.json"),
+    profilePath,
     JSON.stringify(profiles, null, 2),
     "utf8"
   );
@@ -149,9 +151,10 @@ const writeWorkspaceFixture = async (rootDir: string): Promise<void> => {
 };
 
 const writeAoConfig = async (rootDir: string, config: Record<string, unknown>): Promise<void> => {
-  await mkdir(join(rootDir, ".ao"), { recursive: true });
+  const configPath = getAoConfigPath(rootDir);
+  await mkdir(dirname(configPath), { recursive: true });
   await writeFile(
-    join(rootDir, ".ao", "config.json"),
+    configPath,
     JSON.stringify(
       {
         version: 1,
@@ -385,7 +388,7 @@ describe("mcp tool registration", () => {
       });
 
       expect(result.persistence?.mode).toBe("execute");
-      expect(result.persistence?.path).toContain(".ao");
+      expect(result.persistence?.path).toContain("workspaces");
       expect(result.patchGenerationQualified).toBe(true);
       expect(result.capabilityUpdateApplied).toBe(true);
       expect(result.profilePersistence?.mode).toBe("execute");

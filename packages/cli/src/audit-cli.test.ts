@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { buildCli } from "@agent-orchestrator/cli";
+import { getAoWorkspaceAuditDir } from "@agent-orchestrator/core";
 
 const createIo = () => {
   const output: string[] = [];
@@ -52,7 +53,7 @@ describe("audit cli", () => {
 
   it("lists audit events and respects limit", async () => {
     await withTempCwd(async (rootDir) => {
-      const auditDir = join(rootDir, ".ao", "audit");
+      const auditDir = getAoWorkspaceAuditDir(rootDir);
       await mkdir(auditDir, { recursive: true });
       await writeFile(
         join(auditDir, "2026-06-25.jsonl"),

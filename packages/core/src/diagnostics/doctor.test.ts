@@ -4,7 +4,13 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { createExecutionContextFromEnv, runDoctor } from "@agent-orchestrator/core";
+import {
+  createExecutionContextFromEnv,
+  getAoConfigPath,
+  getAoWorkspaceAuditDir,
+  getAoWorkspaceRunsDir,
+  runDoctor
+} from "@agent-orchestrator/core";
 
 const createWorkspace = async (): Promise<string> =>
   mkdtemp(join(tmpdir(), "ao-doctor-"));
@@ -24,9 +30,10 @@ describe("doctor", () => {
 
   it("fails on invalid config and warns about invalid task sessions", async () => {
     const rootDir = await createWorkspace();
-    await mkdir(join(rootDir, ".ao", "runs", "broken"), { recursive: true });
+    const runsDir = getAoWorkspaceRunsDir(rootDir);
+    await mkdir(join(runsDir, "broken"), { recursive: true });
     await writeFile(
-      join(rootDir, ".ao", "config.json"),
+      getAoConfigPath(rootDir),
       JSON.stringify({
         version: 1,
         leaderModel: {
@@ -38,7 +45,7 @@ describe("doctor", () => {
       "utf8"
     );
     await writeFile(
-      join(rootDir, ".ao", "runs", "broken", "session.json"),
+      join(runsDir, "broken", "session.json"),
       "{\"taskId\":42}",
       "utf8"
     );
@@ -60,10 +67,10 @@ describe("doctor", () => {
 
   it("passes after init-like setup with retained directories", async () => {
     const rootDir = await createWorkspace();
-    await mkdir(join(rootDir, ".ao", "runs"), { recursive: true });
-    await mkdir(join(rootDir, ".ao", "audit"), { recursive: true });
+    await mkdir(getAoWorkspaceRunsDir(rootDir), { recursive: true });
+    await mkdir(getAoWorkspaceAuditDir(rootDir), { recursive: true });
     await writeFile(
-      join(rootDir, ".ao", "config.json"),
+      getAoConfigPath(rootDir),
       JSON.stringify(
         {
           version: 1,

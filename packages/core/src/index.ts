@@ -9,6 +9,7 @@ export * from "./policies/write-policy.js";
 export * from "./runtime/execution-context.js";
 export * from "./runtime/workspace-binding.js";
 export * from "./runtime/workflow-runtime.js";
+export * from "./storage/ao-paths.js";
 export * from "./session/task-report.js";
 export * from "./session/task-session-store.js";
 export * from "./schemas/agent-result.schema.js";

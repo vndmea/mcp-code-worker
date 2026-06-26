@@ -16,6 +16,6 @@ export const aoListWorkerRegistryTool: AoToolDefinition<
   inputSchema,
   execute: async () => {
     const context = await resolveExecutionContext();
-    return listWorkerRegistrations(context.rootDir);
+    return listWorkerRegistrations(context.rootDir, context.aoStorageDir);
   }
 };

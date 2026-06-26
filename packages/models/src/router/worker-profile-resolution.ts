@@ -76,7 +76,11 @@ export const resolveWorkerProfile = async ({
 }: ResolveWorkerProfileInput): Promise<ResolveWorkerProfileResult> => {
   const effectiveModelConfig = modelConfig ?? context.workerModel;
   const resolvedWorkerId = workerId ?? deriveWorkerProfileId(effectiveModelConfig);
-  const profile = await getWorkerProfile(context.rootDir, resolvedWorkerId);
+  const profile = await getWorkerProfile(
+    context.rootDir,
+    resolvedWorkerId,
+    context.aoStorageDir
+  );
 
   if (!profile) {
     return failIfRequired(

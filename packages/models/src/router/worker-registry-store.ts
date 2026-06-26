@@ -1,8 +1,10 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 
 import {
   AgentError,
+  getAoWorkspaceFilePath,
+  getAoWorkspaceFilePathFromStorageDir,
   WorkerRegistrationSchema,
   WorkerRegistrySchema,
   writeAuditEvent,
@@ -11,8 +13,6 @@ import {
   type WorkerRegistration
 } from "@agent-orchestrator/core";
 
-const REGISTRY_PATH = [".ao", "workers.json"];
-
 export interface WorkerRegistryReadResult {
   error?: string;
   exists: boolean;
@@ -20,16 +20,22 @@ export interface WorkerRegistryReadResult {
   workers: WorkerRegistration[];
 }
 
-export const getWorkerRegistryPath = (rootDir: string): string =>
-  join(rootDir, ...REGISTRY_PATH);
+export const getWorkerRegistryPath = (
+  rootDir: string,
+  aoStorageDir?: string
+): string =>
+  aoStorageDir
+    ? getAoWorkspaceFilePathFromStorageDir(aoStorageDir, "workers.json")
+    : getAoWorkspaceFilePath(rootDir, "workers.json");
 
 export const deriveWorkerRegistrationId = (config: ModelConfig): string =>
   `${config.provider}:${config.model}`;
 
 export const readWorkerRegistry = async (
-  rootDir: string
+  rootDir: string,
+  aoStorageDir?: string
 ): Promise<WorkerRegistryReadResult> => {
-  const path = getWorkerRegistryPath(rootDir);
+  const path = getWorkerRegistryPath(rootDir, aoStorageDir);
 
   try {
     const contents = await readFile(path, "utf8");
@@ -64,17 +70,19 @@ export const readWorkerRegistry = async (
 };
 
 export const listWorkerRegistrations = async (
-  rootDir: string
+  rootDir: string,
+  aoStorageDir?: string
 ): Promise<WorkerRegistration[]> => {
-  const result = await readWorkerRegistry(rootDir);
+  const result = await readWorkerRegistry(rootDir, aoStorageDir);
   return result.workers;
 };
 
 export const getWorkerRegistration = async (
   rootDir: string,
-  workerId: string
+  workerId: string,
+  aoStorageDir?: string
 ): Promise<WorkerRegistration | null> => {
-  const workers = await listWorkerRegistrations(rootDir);
+  const workers = await listWorkerRegistrations(rootDir, aoStorageDir);
   return workers.find((worker) => worker.workerId === workerId) ?? null;
 };
 
@@ -98,7 +106,7 @@ export const saveWorkerRegistration = async (
   explicitAllowWrite = false
 ): Promise<{ mode: "execute" | "dry-run"; path: string }> => {
   const parsed = parseRegistration(registration);
-  const path = getWorkerRegistryPath(context.rootDir);
+  const path = getWorkerRegistryPath(context.rootDir, context.aoStorageDir);
   const evaluation = context.writePolicy.evaluate(path, explicitAllowWrite);
 
   if (!evaluation.allowed || evaluation.mode === "blocked") {
@@ -141,7 +149,10 @@ export const saveWorkerRegistration = async (
     };
   }
 
-  const existing = await readWorkerRegistry(context.rootDir);
+  const existing = await readWorkerRegistry(
+    context.rootDir,
+    context.aoStorageDir
+  );
   assertReadableRegistry(existing);
 
   const merged = new Map(existing.workers.map((worker) => [worker.workerId, worker]));
@@ -185,7 +196,7 @@ export const removeWorkerRegistration = async (
   workerId: string,
   explicitAllowWrite = false
 ): Promise<{ mode: "execute" | "dry-run"; path: string; removed: boolean }> => {
-  const path = getWorkerRegistryPath(context.rootDir);
+  const path = getWorkerRegistryPath(context.rootDir, context.aoStorageDir);
   const evaluation = context.writePolicy.evaluate(path, explicitAllowWrite);
 
   if (!evaluation.allowed || evaluation.mode === "blocked") {
@@ -229,7 +240,10 @@ export const removeWorkerRegistration = async (
     };
   }
 
-  const existing = await readWorkerRegistry(context.rootDir);
+  const existing = await readWorkerRegistry(
+    context.rootDir,
+    context.aoStorageDir
+  );
   assertReadableRegistry(existing);
 
   const nextWorkers = existing.workers.filter(

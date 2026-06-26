@@ -1,10 +1,14 @@
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { AgentError, createExecutionContextFromEnv } from "@agent-orchestrator/core";
+import {
+  AgentError,
+  createExecutionContextFromEnv,
+  getAoWorkspaceFilePath
+} from "@agent-orchestrator/core";
 import { resolveWorkerProfile } from "@agent-orchestrator/models";
 
 const createProfile = (overrides: Record<string, unknown> = {}) => ({
@@ -42,10 +46,10 @@ const createRootDir = async (): Promise<string> =>
   mkdtemp(join(tmpdir(), "ao-worker-profile-"));
 
 const writeProfiles = async (rootDir: string, profiles: unknown[]): Promise<void> => {
-  const aoDir = join(rootDir, ".ao");
-  await mkdir(aoDir, { recursive: true });
+  const profilePath = getAoWorkspaceFilePath(rootDir, "worker-profiles.json");
+  await mkdir(dirname(profilePath), { recursive: true });
   await writeFile(
-    join(aoDir, "worker-profiles.json"),
+    profilePath,
     JSON.stringify(profiles, null, 2),
     "utf8"
   );

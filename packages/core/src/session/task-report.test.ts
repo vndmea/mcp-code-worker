@@ -41,7 +41,7 @@ describe("task session report", () => {
 
     expect(report).toContain("# Task Session Report");
     expect(report).toContain("Task ID: task-1");
-    expect(report).toContain("Validation passed across 1 check(s).");
+    expect(report).toContain("Validation passed across 1 executed check(s).");
     expect(report).toContain("No recovery guidance recorded.");
   });
 

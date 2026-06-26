@@ -1,10 +1,12 @@
 import { isAbsolute, resolve } from "node:path";
 
+import { getAoWorkspaceDir } from "../storage/ao-paths.js";
 import type { ModelConfig } from "../types/workflow.js";
 import { SafetyPolicy } from "../policies/safety-policy.js";
 import { WritePolicy } from "../policies/write-policy.js";
 
 export interface ExecutionContext {
+  aoStorageDir: string;
   rootDir: string;
   dryRun: boolean;
   allowWrite: boolean;
@@ -87,6 +89,7 @@ export const createExecutionContextFromEnv = (
   const rootDir = normalizeRootDir(
     overrides.rootDir ?? env.AO_ROOT_DIR ?? process.cwd()
   );
+  const aoStorageDir = getAoWorkspaceDir(rootDir, env);
   const dryRun = overrides.dryRun ?? parseBoolean(env.AO_DRY_RUN, true);
   const allowWrite =
     overrides.allowWrite ?? parseBoolean(env.AO_ALLOW_WRITE, false);
@@ -130,12 +133,14 @@ export const createExecutionContextFromEnv = (
     dryRun
   });
   const writePolicy = new WritePolicy({
+    additionalRootDirs: [aoStorageDir],
     allowWrite,
     dryRun,
     rootDir
   });
 
   return {
+    aoStorageDir,
     rootDir,
     dryRun,
     allowWrite,

@@ -3,6 +3,10 @@ import { appendFile, mkdir, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { ExecutionContext } from "../runtime/execution-context.js";
+import {
+  getAoWorkspaceAuditDir,
+  getAoWorkspaceAuditDirFromStorageDir
+} from "../storage/ao-paths.js";
 
 export type AuditActor =
   | "leader"
@@ -67,11 +71,23 @@ const sanitizeValue = (value: unknown, seen: WeakSet<object>): unknown => {
   );
 };
 
-const getAuditDirectory = (rootDir: string): string =>
-  join(rootDir, ".ao", "audit");
+const getAuditDirectory = (
+  rootDir: string,
+  aoStorageDir?: string
+): string =>
+  aoStorageDir
+    ? getAoWorkspaceAuditDirFromStorageDir(aoStorageDir)
+    : getAoWorkspaceAuditDir(rootDir);
 
-const getAuditPath = (rootDir: string, timestamp: Date): string =>
-  join(getAuditDirectory(rootDir), `${timestamp.toISOString().slice(0, 10)}.jsonl`);
+const getAuditPath = (
+  rootDir: string,
+  timestamp: Date,
+  aoStorageDir?: string
+): string =>
+  join(
+    getAuditDirectory(rootDir, aoStorageDir),
+    `${timestamp.toISOString().slice(0, 10)}.jsonl`
+  );
 
 const isAuditEvent = (value: unknown): value is AuditEvent =>
   isRecord(value) &&
@@ -105,7 +121,7 @@ export async function writeAuditEvent(
   explicitAllowWrite = false
 ): Promise<WriteAuditEventResult> {
   const now = new Date();
-  const path = getAuditPath(context.rootDir, now);
+  const path = getAuditPath(context.rootDir, now, context.aoStorageDir);
   const evaluation = context.writePolicy.evaluate(path, explicitAllowWrite);
 
   if (evaluation.mode !== "execute") {
@@ -126,7 +142,9 @@ export async function writeAuditEvent(
   };
 
   try {
-    await mkdir(getAuditDirectory(context.rootDir), { recursive: true });
+    await mkdir(getAuditDirectory(context.rootDir, context.aoStorageDir), {
+      recursive: true
+    });
     await appendFile(path, `${JSON.stringify(payload)}\n`, "utf8");
 
     return {
@@ -145,9 +163,10 @@ export async function writeAuditEvent(
 
 export const listAuditEvents = async (
   rootDir: string,
-  limit = 50
+  limit = 50,
+  aoStorageDir?: string
 ): Promise<AuditEvent[]> => {
-  const auditDirectory = getAuditDirectory(rootDir);
+  const auditDirectory = getAuditDirectory(rootDir, aoStorageDir);
 
   try {
     const files = (await readdir(auditDirectory))

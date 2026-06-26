@@ -26,7 +26,11 @@ export const aoGetTaskReportTool: AoToolDefinition<
   inputSchema,
   execute: async (args) => {
     const context = await resolveExecutionContext();
-    const report = await getTaskSessionReport(context.rootDir, args.taskId);
+    const report = await getTaskSessionReport(
+      context.rootDir,
+      args.taskId,
+      context.aoStorageDir
+    );
     return formatTaskSessionReportOutput(report, resolveWorkflowOutputOptions(args));
   }
 };

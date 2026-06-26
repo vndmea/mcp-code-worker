@@ -26,7 +26,11 @@ export const aoGetTaskStatusTool: AoToolDefinition<
   inputSchema,
   execute: async (args) => {
     const context = await resolveExecutionContext();
-    const session = await getTaskSessionStatus(context.rootDir, args.taskId);
+    const session = await getTaskSessionStatus(
+      context.rootDir,
+      args.taskId,
+      context.aoStorageDir
+    );
     return formatTaskSessionStatusOutput(session, resolveWorkflowOutputOptions(args));
   }
 };

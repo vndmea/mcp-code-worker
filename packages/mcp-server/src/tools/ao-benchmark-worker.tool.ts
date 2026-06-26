@@ -49,7 +49,11 @@ export const aoBenchmarkWorkerTool: AoToolDefinition<
     const hasModelOverride =
       Boolean(args.provider) || Boolean(args.model) || Boolean(args.baseURL);
     const registeredWorker = args.workerId
-      ? await getWorkerRegistration(context.rootDir, args.workerId)
+      ? await getWorkerRegistration(
+          context.rootDir,
+          args.workerId,
+          context.aoStorageDir
+        )
       : null;
     const resolved = registeredWorker
       ? await resolveWorkerModel({
@@ -77,7 +81,11 @@ export const aoBenchmarkWorkerTool: AoToolDefinition<
     const persistence = args.persistArtifact
       ? await saveWorkerBenchmarkArtifact(context, result, true)
       : undefined;
-    const existingProfile = await getWorkerProfile(context.rootDir, result.workerId);
+    const existingProfile = await getWorkerProfile(
+      context.rootDir,
+      result.workerId,
+      context.aoStorageDir
+    );
 
     if (args.updateProfileCapabilities && !existingProfile) {
       throw new Error(

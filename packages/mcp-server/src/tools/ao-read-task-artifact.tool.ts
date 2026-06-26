@@ -31,12 +31,16 @@ export const aoReadTaskArtifactTool: AoToolDefinition<
 > = {
   name: "ao_read_task_artifact",
   description:
-    "Read one persisted task artifact from .ao/runs using a session-scoped artifact name.",
+    "Read one persisted task artifact from user-scoped ao storage using a session-scoped artifact name.",
   inputSchema,
   execute: async (args) => {
     const context = await resolveExecutionContext();
     const rootDir = context.rootDir;
-    const session = await readTaskSession(rootDir, args.taskId);
+    const session = await readTaskSession(
+      rootDir,
+      args.taskId,
+      context.aoStorageDir
+    );
 
     if (!session) {
       throw new AgentError(
@@ -59,7 +63,12 @@ export const aoReadTaskArtifactTool: AoToolDefinition<
       );
     }
 
-    const artifact = await readTaskArtifact(rootDir, args.taskId, args.artifactName);
+    const artifact = await readTaskArtifact(
+      rootDir,
+      args.taskId,
+      args.artifactName,
+      context.aoStorageDir
+    );
     const serialized =
       typeof artifact.value === "string"
         ? artifact.value

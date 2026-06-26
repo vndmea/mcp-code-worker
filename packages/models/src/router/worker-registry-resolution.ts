@@ -42,7 +42,8 @@ export const resolveWorkerModel = async ({
   const resolvedWorkerId = workerId ?? defaultWorkerId;
   const registration = await getWorkerRegistration(
     context.rootDir,
-    resolvedWorkerId
+    resolvedWorkerId,
+    context.aoStorageDir
   );
 
   if (registration) {
