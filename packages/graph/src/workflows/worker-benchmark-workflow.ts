@@ -6,13 +6,16 @@ import { z } from "zod";
 import type {
   ExecutionContext,
   ModelConfig,
+  WorkerCapabilityProfile,
   WorkerBenchmarkFixtureResult,
   WorkerBenchmarkResult,
   WorkerEvaluationSummary
 } from "@agent-orchestrator/core";
 import {
+  WorkerCapabilityProfileSchema,
   WorkerBenchmarkResultSchema,
-  resolveExecutionContext
+  resolveExecutionContext,
+  writeAuditEvent
 } from "@agent-orchestrator/core";
 import { ModelRouter, invokeStructured } from "@agent-orchestrator/models";
 
@@ -41,6 +44,10 @@ export interface WorkerBenchmarkWorkflowInput {
 }
 
 export type WorkerBenchmarkWorkflowOutput = WorkerBenchmarkResult;
+
+export interface BenchmarkCapabilityUpdateOptions {
+  updateProfileCapabilities?: boolean;
+}
 
 const clampScore = (value: number): number =>
   Math.max(0, Math.min(1, Number(value.toFixed(2))));
@@ -220,6 +227,73 @@ const buildEvaluationSummary = (
   };
 };
 
+const hasPassingFixture = (
+  result: WorkerBenchmarkResult,
+  fixtureId: string
+): boolean =>
+  result.fixtureResults.some((fixture) => fixture.fixtureId === fixtureId && fixture.passed);
+
+export const qualifiesPatchGenerationCapability = (
+  result: WorkerBenchmarkResult
+): boolean =>
+  result.suiteName === CODING_V1_SUITE_NAME &&
+  result.evaluationSummary.confidenceBand === "high" &&
+  result.evaluationSummary.passedCount === result.evaluationSummary.sampleCount &&
+  hasPassingFixture(result, "scope-control") &&
+  hasPassingFixture(result, "validation-honesty");
+
+export const applyBenchmarkCapabilityUpdate = (
+  profile: WorkerCapabilityProfile,
+  benchmarkResult: WorkerBenchmarkResult,
+  options: BenchmarkCapabilityUpdateOptions = {}
+): {
+  capabilityUpdateApplied: boolean;
+  patchGenerationQualified: boolean;
+  profile: WorkerCapabilityProfile;
+} => {
+  const updateProfileCapabilities = options.updateProfileCapabilities ?? false;
+  const patchGenerationQualified = qualifiesPatchGenerationCapability(benchmarkResult);
+  const nextSupportedTaskTypes = new Set(profile.supportedTaskTypes);
+  const nextUnsupportedTaskTypes = new Set(profile.unsupportedTaskTypes);
+  let nextRoutingPolicy = profile.routingPolicy;
+
+  if (updateProfileCapabilities) {
+    if (patchGenerationQualified) {
+      nextSupportedTaskTypes.add("patch-generation");
+      nextUnsupportedTaskTypes.delete("patch-generation");
+    } else {
+      nextSupportedTaskTypes.delete("patch-generation");
+      nextUnsupportedTaskTypes.add("patch-generation");
+    }
+
+    nextRoutingPolicy = {
+      ...profile.routingPolicy,
+      allowPatchGeneration: patchGenerationQualified
+    };
+  }
+
+  const nextProfile = WorkerCapabilityProfileSchema.parse({
+    ...profile,
+    supportedTaskTypes: Array.from(nextSupportedTaskTypes),
+    unsupportedTaskTypes: Array.from(nextUnsupportedTaskTypes),
+    routingPolicy: nextRoutingPolicy,
+    evaluationSummary: benchmarkResult.evaluationSummary
+  });
+
+  const capabilityUpdateApplied =
+    updateProfileCapabilities &&
+    (nextProfile.routingPolicy.allowPatchGeneration !==
+      profile.routingPolicy.allowPatchGeneration ||
+      nextProfile.supportedTaskTypes.join("|") !== profile.supportedTaskTypes.join("|") ||
+      nextProfile.unsupportedTaskTypes.join("|") !== profile.unsupportedTaskTypes.join("|"));
+
+  return {
+    profile: nextProfile,
+    patchGenerationQualified,
+    capabilityUpdateApplied
+  };
+};
+
 export const getWorkerBenchmarkArtifactPath = (
   rootDir: string,
   workerId: string,
@@ -245,19 +319,45 @@ export const saveWorkerBenchmarkArtifact = async (
   );
   const evaluation = context.writePolicy.evaluate(artifactPath, explicitAllowWrite);
 
-  if (evaluation.mode === "dry-run") {
-    return {
-      mode: "dry-run",
-      path: artifactPath
-    };
+  const persistence =
+    evaluation.mode === "dry-run"
+      ? {
+          mode: "dry-run" as const,
+          path: evaluation.normalizedPath
+        }
+      : {
+          mode: "execute" as const,
+          path: evaluation.normalizedPath
+        };
+
+  if (evaluation.mode !== "dry-run") {
+    await mkdir(dirname(artifactPath), { recursive: true });
+    await writeFile(artifactPath, JSON.stringify(result, null, 2), "utf8");
   }
 
-  await mkdir(dirname(artifactPath), { recursive: true });
-  await writeFile(artifactPath, JSON.stringify(result, null, 2), "utf8");
-  return {
-    mode: "execute",
-    path: artifactPath
-  };
+  await writeAuditEvent(
+    context,
+    {
+      actor: "workflow",
+      action: "worker-benchmark",
+      mode: persistence.mode,
+      workflow: "worker-benchmark-workflow",
+      inputSummary: `${result.workerId} ${result.suiteName}`,
+      outputSummary: `Benchmark ${result.evaluationSummary.passedCount}/${result.evaluationSummary.sampleCount}`,
+      warnings: result.evaluationSummary.knownFailureModes,
+      errors: [],
+      metadata: {
+        workerId: result.workerId,
+        suiteName: result.suiteName,
+        suiteVersion: result.suiteVersion,
+        persistencePath: persistence.path,
+        confidenceBand: result.evaluationSummary.confidenceBand
+      }
+    },
+    explicitAllowWrite
+  );
+
+  return persistence;
 };
 
 export const runWorkerBenchmarkWorkflow = async (

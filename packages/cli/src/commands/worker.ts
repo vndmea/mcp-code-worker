@@ -2,6 +2,7 @@ import type { Command } from "commander";
 
 import { resolveExecutionContext } from "@agent-orchestrator/core";
 import {
+  applyBenchmarkCapabilityUpdate,
   runWorkerBenchmarkWorkflow,
   runWorkerInterviewWorkflow,
   saveWorkerBenchmarkArtifact
@@ -214,6 +215,11 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
     .option("--model <model>", "Override worker model")
     .option("--base-url <url>", "Override worker base URL")
     .option("--save", "Persist the resulting benchmark artifact", false)
+    .option(
+      "--update-profile-capabilities",
+      "Update persisted worker capabilities from benchmark results",
+      false
+    )
     .action(
       async (options: {
         baseUrl?: string;
@@ -221,10 +227,14 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
         provider?: string;
         save: boolean;
         suite: string;
+        updateProfileCapabilities: boolean;
         worker?: string;
       }) => {
         if (options.suite !== "coding-v1") {
           throw new Error(`Unsupported benchmark suite: ${options.suite}`);
+        }
+        if (options.updateProfileCapabilities && !options.save) {
+          throw new Error("--update-profile-capabilities requires --save.");
         }
 
         const context = await resolveExecutionContext();
@@ -260,14 +270,21 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
           ? await saveWorkerBenchmarkArtifact(context, result, true)
           : null;
         const existingProfile = await getWorkerProfile(context.rootDir, result.workerId);
+        if (options.updateProfileCapabilities && !existingProfile) {
+          throw new Error(
+            `No persisted worker profile found for ${result.workerId}; run 'ao worker interview --save' first.`
+          );
+        }
+        const profileUpdate = existingProfile
+          ? applyBenchmarkCapabilityUpdate(existingProfile, result, {
+              updateProfileCapabilities: options.updateProfileCapabilities
+            })
+          : null;
         const profilePersistence =
-          options.save && existingProfile
+          options.save && profileUpdate
             ? await saveWorkerProfile(
                 context,
-                {
-                  ...existingProfile,
-                  evaluationSummary: result.evaluationSummary
-                },
+                profileUpdate.profile,
                 true
               )
             : null;
@@ -276,6 +293,9 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
           JSON.stringify(
             {
               ...result,
+              capabilityUpdateApplied: profileUpdate?.capabilityUpdateApplied ?? false,
+              patchGenerationQualified:
+                profileUpdate?.patchGenerationQualified ?? false,
               persistence,
               profilePersistence
             },

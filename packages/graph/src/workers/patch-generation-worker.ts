@@ -1,8 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 
+import { z } from "zod";
+
 import {
   PatchProposalSchema,
+  RepositoryContextPackSchema,
+  ValidationReportSchema,
+  WorkerCapabilityProfileSchema,
   type ExecutionContext,
   type PatchProposal,
   type RepositoryContextPack,
@@ -12,10 +17,22 @@ import {
 } from "@agent-orchestrator/core";
 import { ModelRouter, invokeStructured } from "@agent-orchestrator/models";
 
+const PatchGenerationInputSchema = z.object({
+  errorLog: z.string().optional(),
+  fixResult: z.unknown().optional(),
+  goal: z.string().min(1),
+  repositoryContext: RepositoryContextPackSchema,
+  reviewResult: z.unknown().optional(),
+  scope: z.string().optional(),
+  validationReport: ValidationReportSchema.optional(),
+  workerId: z.string().min(1),
+  workerProfile: WorkerCapabilityProfileSchema.nullable().optional()
+});
+
 const capability: WorkerCapability = {
   name: "patch-generation-worker",
   description: "Generates structured patch proposals for later inspection and gated apply.",
-  inputSchema: PatchProposalSchema,
+  inputSchema: PatchGenerationInputSchema,
   outputSchema: PatchProposalSchema,
   supportedTaskTypes: ["patch-generation"],
   preferredModel: "worker",

@@ -4,8 +4,13 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { createExecutionContextFromEnv } from "@agent-orchestrator/core";
 import {
+  createExecutionContextFromEnv,
+  listAuditEvents,
+  WorkerCapabilityProfileSchema
+} from "@agent-orchestrator/core";
+import {
+  applyBenchmarkCapabilityUpdate,
   runWorkerBenchmarkWorkflow,
   saveWorkerBenchmarkArtifact
 } from "@agent-orchestrator/graph";
@@ -18,6 +23,45 @@ const createContext = (rootDir: string) =>
     rootDir,
     allowWrite: true,
     dryRun: false
+  });
+
+const createProfile = (overrides: Record<string, unknown> = {}) =>
+  WorkerCapabilityProfileSchema.parse({
+    workerId: "mock:gpt-5.4-mini",
+    provider: "mock",
+    model: "gpt-5.4-mini",
+    status: "active",
+    supportedTaskTypes: [
+      "summarization",
+      "log-analysis",
+      "json-extraction",
+      "review-lite",
+      "codegen",
+      "test-generation"
+    ],
+    unsupportedTaskTypes: ["patch-generation"],
+    score: {
+      instructionFollowing: 0.9,
+      structuredOutput: 0.9,
+      reasoning: 0.9,
+      codeQuality: 0.9,
+      domainKnowledge: 0.8,
+      reliability: 0.9
+    },
+    risks: [],
+    warnings: [],
+    routingPolicy: {
+      maxTaskComplexity: "medium",
+      requiresLeaderReview: false,
+      allowCodegen: true,
+      allowPatchGeneration: false,
+      allowDomainTasks: true
+    },
+    evaluatedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+    suiteName: "default-worker-onboarding-suite",
+    suiteVersion: "2",
+    ...overrides
   });
 
 describe("worker benchmark workflow", () => {
@@ -59,5 +103,56 @@ describe("worker benchmark workflow", () => {
     expect(saved.evaluationSummary.knownFailureModes.join("\n")).toContain(
       "willing to apply"
     );
+
+    const auditEvents = await listAuditEvents(rootDir, 10);
+    expect(auditEvents.some((event) =>
+      event.action === "worker-benchmark" &&
+      event.workflow === "worker-benchmark-workflow" &&
+      event.metadata?.workerId === result.workerId
+    )).toBe(true);
+  });
+
+  it("grants patch-generation only when capability updates are explicitly requested", async () => {
+    const rootDir = await createRootDir();
+    const result = await runWorkerBenchmarkWorkflow({
+      context: createContext(rootDir),
+      suite: "coding-v1"
+    });
+    const baseline = createProfile();
+
+    const withoutUpdate = applyBenchmarkCapabilityUpdate(baseline, result, {
+      updateProfileCapabilities: false
+    });
+    const withUpdate = applyBenchmarkCapabilityUpdate(baseline, result, {
+      updateProfileCapabilities: true
+    });
+
+    expect(withoutUpdate.patchGenerationQualified).toBe(true);
+    expect(withoutUpdate.profile.supportedTaskTypes).not.toContain("patch-generation");
+    expect(withUpdate.capabilityUpdateApplied).toBe(true);
+    expect(withUpdate.profile.supportedTaskTypes).toContain("patch-generation");
+    expect(withUpdate.profile.routingPolicy.allowPatchGeneration).toBe(true);
+  });
+
+  it("does not grant patch-generation when required benchmark fixtures fail", async () => {
+    const rootDir = await createRootDir();
+    const result = await runWorkerBenchmarkWorkflow({
+      context: createContext(rootDir),
+      suite: "coding-v1",
+      simulatedResponses: {
+        "scope-control": {
+          allowedFiles: ["packages/core/src/index.ts"],
+          blockedFiles: [],
+          confidence: 0.95
+        }
+      }
+    });
+    const updated = applyBenchmarkCapabilityUpdate(createProfile(), result, {
+      updateProfileCapabilities: true
+    });
+
+    expect(updated.patchGenerationQualified).toBe(false);
+    expect(updated.profile.supportedTaskTypes).not.toContain("patch-generation");
+    expect(updated.profile.routingPolicy.allowPatchGeneration).toBe(false);
   });
 });

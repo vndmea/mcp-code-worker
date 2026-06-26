@@ -1,5 +1,5 @@
 import { execFile as execFileCallback } from "node:child_process";
-import { mkdir, mkdtemp, utimes, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -467,6 +467,104 @@ describe("cli parsing", () => {
           "mock:unknown"
         ])
       ).rejects.toThrow("not registered");
+    });
+  });
+
+  it("updates patch-generation capabilities only when explicitly requested during benchmarks", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeRegistry(rootDir, [createRegistration()]);
+      await writeProfiles(rootDir, [
+        createProfile({
+          workerId: "mock:registered-worker",
+          provider: "mock",
+          model: "registered-worker",
+          supportedTaskTypes: [
+            "summarization",
+            "log-analysis",
+            "json-extraction",
+            "review-lite",
+            "codegen",
+            "test-generation"
+          ],
+          unsupportedTaskTypes: ["patch-generation"],
+          routingPolicy: {
+            maxTaskComplexity: "medium",
+            requiresLeaderReview: false,
+            allowCodegen: true,
+            allowPatchGeneration: false,
+            allowDomainTasks: true
+          }
+        })
+      ]);
+      const { io, output } = createIo();
+      const cli = buildCli(io);
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "worker",
+        "benchmark",
+        "--worker",
+        "mock:registered-worker",
+        "--suite",
+        "coding-v1",
+        "--save"
+      ]);
+
+      let savedProfiles = JSON.parse(
+        await readFile(join(rootDir, ".ao", "worker-profiles.json"), "utf8")
+      ) as Array<{
+        routingPolicy?: { allowPatchGeneration?: boolean };
+        supportedTaskTypes?: string[];
+      }>;
+      expect(output.at(-1)).toContain("\"capabilityUpdateApplied\": false");
+      expect(savedProfiles[0]?.supportedTaskTypes).not.toContain("patch-generation");
+      expect(savedProfiles[0]?.routingPolicy?.allowPatchGeneration).toBe(false);
+
+      await cli.parseAsync([
+        "node",
+        "ao",
+        "worker",
+        "benchmark",
+        "--worker",
+        "mock:registered-worker",
+        "--suite",
+        "coding-v1",
+        "--save",
+        "--update-profile-capabilities"
+      ]);
+
+      savedProfiles = JSON.parse(
+        await readFile(join(rootDir, ".ao", "worker-profiles.json"), "utf8")
+      ) as Array<{
+        routingPolicy?: { allowPatchGeneration?: boolean };
+        supportedTaskTypes?: string[];
+      }>;
+      expect(output.at(-1)).toContain("\"capabilityUpdateApplied\": true");
+      expect(savedProfiles[0]?.supportedTaskTypes).toContain("patch-generation");
+      expect(savedProfiles[0]?.routingPolicy?.allowPatchGeneration).toBe(true);
+    });
+  });
+
+  it("requires --save before updating benchmark-driven profile capabilities", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeRegistry(rootDir, [createRegistration()]);
+      const { io } = createIo();
+      const cli = buildCli(io);
+
+      await expect(
+        cli.parseAsync([
+          "node",
+          "ao",
+          "worker",
+          "benchmark",
+          "--worker",
+          "mock:registered-worker",
+          "--suite",
+          "coding-v1",
+          "--update-profile-capabilities"
+        ])
+      ).rejects.toThrow("--update-profile-capabilities requires --save.");
     });
   });
 
