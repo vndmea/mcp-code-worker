@@ -176,6 +176,35 @@ describe("resolveWorkerProfile", () => {
     expect(result.freshness.usable).toBe(false);
   });
 
+  it("treats provider-failure blocked profiles as needing re-interview", async () => {
+    const rootDir = await createRootDir();
+    await writeProfiles(rootDir, [
+      createProfile({
+        status: "blocked",
+        supportedTaskTypes: [],
+        unsupportedTaskTypes: ["summarization", "codegen"],
+        warnings: [
+          "summarization: Attempt 1: provider invocation failed: connection refused"
+        ]
+      })
+    ]);
+    const context = createExecutionContextFromEnv(undefined, {
+      rootDir,
+      workerModel: {
+        provider: "mock",
+        model: "worker-model"
+      }
+    });
+
+    const result = await resolveWorkerProfile({
+      context
+    });
+
+    expect(result.source).toBe("provider-error");
+    expect(result.freshness.usable).toBe(false);
+    expect(result.freshness.reason).toContain("completed interview");
+  });
+
   it("throws when requireProfile is true and no usable profile exists", async () => {
     const rootDir = await createRootDir();
     const context = createExecutionContextFromEnv(undefined, {

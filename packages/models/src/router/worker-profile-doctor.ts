@@ -106,7 +106,8 @@ export const createWorkerProfileDoctorChecks = async (
         message: registeredResolution.freshness.reason,
         metadata: {
           source: registeredResolution.source,
-          workerId: registration.workerId
+          workerId: registration.workerId,
+          shouldReinterview: registeredResolution.freshness.shouldReinterview
         }
       });
     }
@@ -122,7 +123,8 @@ export const createWorkerProfileDoctorChecks = async (
     message: resolution.freshness.reason,
     metadata: {
       source: resolution.source,
-      workerId: resolution.workerId
+      workerId: resolution.workerId,
+      shouldReinterview: resolution.freshness.shouldReinterview
     }
   });
 

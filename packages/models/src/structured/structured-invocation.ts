@@ -27,6 +27,11 @@ export interface StructuredInvocationSuccess<T> {
   errors: string[];
 }
 
+export type StructuredInvocationFailureKind =
+  | "provider-invocation"
+  | "json-parse"
+  | "schema-validation";
+
 export interface StructuredInvocationFailure {
   ok: false;
   data?: undefined;
@@ -35,6 +40,7 @@ export interface StructuredInvocationFailure {
   attempts: number;
   usage?: ModelInvocationResult["usage"];
   errors: string[];
+  failureKind: StructuredInvocationFailureKind;
 }
 
 export type StructuredInvocationResult<T> =
@@ -70,6 +76,7 @@ export async function invokeStructured<T>(
   let rawText = "";
   let raw: unknown;
   let usage: ModelInvocationResult["usage"];
+  let failureKind: StructuredInvocationFailureKind = "provider-invocation";
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
@@ -90,12 +97,14 @@ export async function invokeStructured<T>(
       try {
         parsed = tryParseJson(result.text);
       } catch (error) {
+        failureKind = "json-parse";
         errors.push(`Attempt ${attempt}: failed to parse JSON: ${formatUnknownError(error)}`);
         continue;
       }
 
       const schemaResult = options.schema.safeParse(parsed);
       if (!schemaResult.success) {
+        failureKind = "schema-validation";
         errors.push(
           `Attempt ${attempt}: schema validation failed: ${formatZodError(schemaResult.error).join("; ")}`
         );
@@ -119,7 +128,8 @@ export async function invokeStructured<T>(
         raw,
         attempts: attempt,
         usage,
-        errors
+        errors,
+        failureKind: "provider-invocation"
       };
     }
   }
@@ -130,6 +140,7 @@ export async function invokeStructured<T>(
     raw,
     attempts: maxAttempts,
     usage,
-    errors
+    errors,
+    failureKind
   };
 }

@@ -16,6 +16,10 @@ export type WorkerInterviewTaskType =
   | "code-understanding"
   | "codegen"
   | "confidence-calibration";
+export type WorkerInterviewFailureKind =
+  | "provider-invocation"
+  | "json-parse"
+  | "schema-validation";
 export type WorkerStatus = "active" | "limited" | "blocked";
 
 export type LeaderDecisionType =
@@ -61,6 +65,19 @@ export interface WorkerRoutingPolicy {
   allowDomainTasks: boolean;
 }
 
+export interface WorkerInterviewDiagnostics {
+  outcome: "completed" | "provider-error";
+  providerInvocationFailures: number;
+  failedTaskCount: number;
+  recommendedActions: string[];
+}
+
+export interface WorkerInterviewPersistenceAdvice {
+  canPersist: boolean;
+  reason: string;
+  recommendedActions: string[];
+}
+
 export interface WorkerCapabilityProfile {
   workerId: string;
   provider: string;
@@ -77,6 +94,7 @@ export interface WorkerCapabilityProfile {
   suiteName?: string;
   suiteVersion?: string;
   evaluationSummary?: WorkerEvaluationSummary;
+  interviewDiagnostics?: WorkerInterviewDiagnostics;
 }
 
 export interface WorkerEvaluationSummary {
@@ -104,6 +122,7 @@ export interface WorkerInterviewTaskResult {
   score: number;
   findings: string[];
   rawOutput: unknown;
+  failureKind?: WorkerInterviewFailureKind;
 }
 
 export interface WorkerInterviewResult {
@@ -112,6 +131,8 @@ export interface WorkerInterviewResult {
   status: WorkerStatus;
   taskResults: WorkerInterviewTaskResult[];
   warnings: string[];
+  interviewDiagnostics: WorkerInterviewDiagnostics;
+  persistenceAdvice: WorkerInterviewPersistenceAdvice;
 }
 
 export interface WorkerEvaluationSuite {

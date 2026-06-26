@@ -82,6 +82,7 @@ ao task resume <taskId> --apply-patch --allow-write --confirm-apply
 - `--update-profile-capabilities` is the explicit capability reconciliation switch. It updates persisted `supportedTaskTypes` and `routingPolicy.allowPatchGeneration` only when the benchmark qualifies the worker for `patch-generation`.
 - Run `ao worker interview --save` before trying to update profile capabilities from benchmark results.
 - Benchmark results alone do not bypass patch inspection, dry-run apply, `allowWrite`, or `confirmApply`.
+- If interview output contains provider invocation failures, `--save` is skipped on purpose and the command returns re-interview guidance instead of persisting a misleading blocked profile.
 
 Benchmark artifacts are persisted under:
 

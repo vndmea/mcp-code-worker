@@ -125,6 +125,7 @@ describe("invokeStructured", () => {
 
     expect(result.ok).toBe(false);
     expect(result.errors[0]).toContain("failed to parse JSON");
+    expect(result.ok || result.failureKind).toBe("json-parse");
   });
 
   it("returns a schema failure for mismatched JSON", async () => {
@@ -149,6 +150,22 @@ describe("invokeStructured", () => {
     expect(result.ok).toBe(false);
     expect(result.errors[0]).toContain("schema validation failed");
     expect(result.errors[0]).toContain("count");
+    expect(result.ok || result.failureKind).toBe("schema-validation");
+  });
+
+  it("classifies provider invocation failures", async () => {
+    const provider = new SequenceProvider([new Error("connection refused")]);
+
+    const result = await invokeStructured({
+      provider,
+      config,
+      schema,
+      prompt: "Trigger provider failure"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]).toContain("provider invocation failed");
+    expect(result.ok || result.failureKind).toBe("provider-invocation");
   });
 
   it("retries on parse or validation failure", async () => {

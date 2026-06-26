@@ -305,6 +305,8 @@ export const runLeaderWorkerWorkflow = async (
           ? `Worker profile for ${resolution.workerId} was missing; ran a fresh interview for this invocation.`
           : resolution.source === "stale"
             ? `Worker profile for ${resolution.workerId} was stale; ran a fresh interview for this invocation.`
+            : resolution.source === "provider-error"
+              ? `Worker profile for ${resolution.workerId} looked like a provider/configuration failure; ran a fresh interview for this invocation.`
             : `Worker profile for ${resolution.workerId} was incompatible with the current worker model; ran a fresh interview for this invocation.`;
 
       return {

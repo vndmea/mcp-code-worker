@@ -112,6 +112,8 @@ curl https://api.deepseek.com/chat/completions \
 
 If you get `Not Found`, test both base URLs, verify the model name, and confirm that `apiKeyEnvVar` points to an environment variable that is actually populated.
 
+If interview output reports provider invocation failures, do not treat the resulting blocked status as a completed onboarding result. `ao worker interview --save` now skips persistence in that case and returns recovery actions instead.
+
 ## Example: LiteLLM / Local Worker
 
 ```bash
@@ -167,6 +169,7 @@ For each internal trial run, keep:
 - `.ao/runs/<taskId>/report.md`
 - patch proposal / inspection artifact paths
 - sanitized failure reason if the run failed
+- any returned re-interview guidance when provider invocation failed
 
 Do not keep:
 

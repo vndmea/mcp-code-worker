@@ -8,6 +8,9 @@ import type {
   ExecutionContext,
   ModelConfig,
   WorkerCapabilityProfile,
+  WorkerInterviewDiagnostics,
+  WorkerInterviewFailureKind,
+  WorkerInterviewPersistenceAdvice,
   WorkerEvaluationScore,
   WorkerEvaluationSuite,
   WorkerInterviewResult,
@@ -567,6 +570,19 @@ const createTaskResult = async (
   const provider = router.route("worker").provider;
   const mockResponse =
     simulatedResponses[runtimeTask.task.type] ?? runtimeTask.mockResponse;
+
+  if (mockResponse instanceof Error) {
+    return {
+      taskId: runtimeTask.task.id,
+      type: runtimeTask.task.type,
+      passed: false,
+      score: 0,
+      findings: [`Attempt 1: provider invocation failed: ${mockResponse.message}`],
+      rawOutput: null,
+      failureKind: "provider-invocation"
+    };
+  }
+
   const invocation = await invokeStructured({
     provider,
     config: modelConfig,
@@ -585,7 +601,8 @@ const createTaskResult = async (
       findings: invocation.errors.length > 0
         ? invocation.errors
         : ["Worker interview execution failed."],
-      rawOutput: invocation.raw ?? invocation.rawText
+      rawOutput: invocation.raw ?? invocation.rawText,
+      failureKind: invocation.failureKind as WorkerInterviewFailureKind
     };
   }
 
@@ -608,6 +625,50 @@ const addDays = (isoDate: string, days: number): string => {
   return new Date(base + days * 86_400_000).toISOString();
 };
 
+const providerFailureRecoveryActions = [
+  "Verify the worker base URL and model name.",
+  "Confirm the configured API key environment variable is populated.",
+  "Run a direct provider health check before retrying the interview.",
+  "Re-run `ao worker interview --save` after connectivity is stable."
+];
+
+const buildInterviewDiagnostics = (
+  taskResults: WorkerInterviewTaskResult[]
+): WorkerInterviewDiagnostics => {
+  const providerInvocationFailures = taskResults.filter(
+    (result) => result.failureKind === "provider-invocation"
+  ).length;
+
+  return {
+    outcome: providerInvocationFailures > 0 ? "provider-error" : "completed",
+    providerInvocationFailures,
+    failedTaskCount: taskResults.filter((result) => !result.passed).length,
+    recommendedActions:
+      providerInvocationFailures > 0
+        ? providerFailureRecoveryActions
+        : [
+            "Persist the interview result only after reviewing the warnings.",
+            "Run the coding benchmark before enabling patch generation."
+          ]
+  };
+};
+
+const buildPersistenceAdvice = (
+  workerId: string,
+  diagnostics: WorkerInterviewDiagnostics
+): WorkerInterviewPersistenceAdvice =>
+  diagnostics.outcome === "provider-error"
+    ? {
+        canPersist: false,
+        reason: `Worker interview for ${workerId} hit provider invocation failures. Fix provider connectivity before persisting a profile.`,
+        recommendedActions: diagnostics.recommendedActions
+      }
+    : {
+        canPersist: true,
+        reason: `Worker profile ${workerId} is eligible to persist.`,
+        recommendedActions: diagnostics.recommendedActions
+      };
+
 const buildCapabilityProfile = (
   workerId: string,
   modelConfig: ModelConfig,
@@ -615,6 +676,7 @@ const buildCapabilityProfile = (
   runtimeTasks: InterviewTaskRuntimeDefinition[]
 ): WorkerCapabilityProfile => {
   const scoreByType = new Map(taskResults.map((result) => [result.type, result.score]));
+  const interviewDiagnostics = buildInterviewDiagnostics(taskResults);
   const structuredOutput = average([
     scoreByType.get("instruction-following") ?? 0,
     scoreByType.get("structured-output") ?? 0,
@@ -666,6 +728,12 @@ const buildCapabilityProfile = (
     .filter((result) => !result.passed || result.findings.length > 0)
     .flatMap((result) => result.findings.map((finding) => `${result.type}: ${finding}`));
 
+  if (interviewDiagnostics.outcome === "provider-error") {
+    warnings.push(
+      "Interview hit provider invocation failures. Do not persist this profile until provider access is verified."
+    );
+  }
+
   const risks = [...warnings];
 
   const status =
@@ -704,7 +772,8 @@ const buildCapabilityProfile = (
     evaluatedAt: new Date().toISOString(),
     expiresAt: addDays(new Date().toISOString(), 30),
     suiteName: WORKER_EVALUATION_SUITE_NAME,
-    suiteVersion: WORKER_EVALUATION_SUITE_VERSION
+    suiteVersion: WORKER_EVALUATION_SUITE_VERSION,
+    interviewDiagnostics
   };
 
   return WorkerCapabilityProfileSchema.parse(profile);
@@ -791,7 +860,15 @@ export const runWorkerInterviewWorkflow = async (
   const taskResults = state.toolResults.map(
     (result) => result.output as WorkerInterviewTaskResult
   );
-  const profile = state.workerCapabilityProfile ?? buildCapabilityProfile(workerId, modelConfig, taskResults, runtimeTasks);
+  const profile =
+    state.workerCapabilityProfile ??
+    buildCapabilityProfile(workerId, modelConfig, taskResults, runtimeTasks);
+  const interviewDiagnostics =
+    profile.interviewDiagnostics ?? buildInterviewDiagnostics(taskResults);
+  const persistenceAdvice = buildPersistenceAdvice(
+    workerId,
+    interviewDiagnostics
+  );
 
   return {
     workerId,
@@ -799,6 +876,8 @@ export const runWorkerInterviewWorkflow = async (
     status: profile.status,
     taskResults,
     warnings: state.warnings,
+    interviewDiagnostics,
+    persistenceAdvice,
     suite: {
       name: WORKER_EVALUATION_SUITE_NAME,
       tasks: runtimeTasks.map((item) => item.task)

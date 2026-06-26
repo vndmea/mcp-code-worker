@@ -19,6 +19,12 @@ export const WorkerInterviewTaskTypeSchema = z.enum([
   "confidence-calibration"
 ]);
 
+export const WorkerInterviewFailureKindSchema = z.enum([
+  "provider-invocation",
+  "json-parse",
+  "schema-validation"
+]);
+
 export const WorkerStatusSchema = z.enum(["active", "limited", "blocked"]);
 
 export const WorkerEvaluationScoreSchema = z.object({
@@ -48,6 +54,19 @@ export const WorkerEvaluationSummarySchema = z.object({
   knownFailureModes: z.array(z.string())
 });
 
+export const WorkerInterviewDiagnosticsSchema = z.object({
+  outcome: z.enum(["completed", "provider-error"]),
+  providerInvocationFailures: z.number().int().nonnegative(),
+  failedTaskCount: z.number().int().nonnegative(),
+  recommendedActions: z.array(z.string())
+});
+
+export const WorkerInterviewPersistenceAdviceSchema = z.object({
+  canPersist: z.boolean(),
+  reason: z.string().min(1),
+  recommendedActions: z.array(z.string())
+});
+
 export const WorkerCapabilityProfileSchema = z.object({
   workerId: z.string().min(1),
   provider: z.string().min(1),
@@ -63,7 +82,8 @@ export const WorkerCapabilityProfileSchema = z.object({
   expiresAt: z.string().datetime().optional(),
   suiteName: z.string().min(1).optional(),
   suiteVersion: z.string().min(1).optional(),
-  evaluationSummary: WorkerEvaluationSummarySchema.optional()
+  evaluationSummary: WorkerEvaluationSummarySchema.optional(),
+  interviewDiagnostics: WorkerInterviewDiagnosticsSchema.optional()
 });
 
 export const WorkerInterviewTaskSchema = z.object({
@@ -80,7 +100,8 @@ export const WorkerInterviewTaskResultSchema = z.object({
   passed: z.boolean(),
   score: z.number().min(0).max(1),
   findings: z.array(z.string()),
-  rawOutput: z.unknown()
+  rawOutput: z.unknown(),
+  failureKind: WorkerInterviewFailureKindSchema.optional()
 });
 
 export const WorkerInterviewResultSchema = z.object({
@@ -88,7 +109,9 @@ export const WorkerInterviewResultSchema = z.object({
   profile: WorkerCapabilityProfileSchema,
   status: WorkerStatusSchema,
   taskResults: z.array(WorkerInterviewTaskResultSchema),
-  warnings: z.array(z.string())
+  warnings: z.array(z.string()),
+  interviewDiagnostics: WorkerInterviewDiagnosticsSchema,
+  persistenceAdvice: WorkerInterviewPersistenceAdviceSchema
 });
 
 export const WorkerEvaluationSuiteSchema = z.object({

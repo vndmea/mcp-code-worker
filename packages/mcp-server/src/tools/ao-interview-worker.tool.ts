@@ -21,7 +21,13 @@ const inputSchema = z.object({
 export const aoInterviewWorkerTool: AoToolDefinition<
   typeof inputSchema.shape,
   Awaited<ReturnType<typeof runWorkerInterviewWorkflow>> & {
-    persistence?: { mode: "execute" | "dry-run"; path: string };
+    persistence?:
+      | { mode: "execute" | "dry-run"; path: string }
+      | {
+          mode: "skipped";
+          reason: string;
+          recommendedActions: string[];
+        };
   }
 > = {
   name: "ao_interview_worker",
@@ -58,7 +64,13 @@ export const aoInterviewWorkerTool: AoToolDefinition<
       modelConfig
     });
     const persistence = args.persistProfile
-      ? await saveWorkerProfile(context, result.profile, true)
+      ? result.persistenceAdvice.canPersist
+        ? await saveWorkerProfile(context, result.profile, true)
+        : {
+            mode: "skipped" as const,
+            reason: result.persistenceAdvice.reason,
+            recommendedActions: result.persistenceAdvice.recommendedActions
+          }
       : undefined;
 
     return {

@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { createExecutionContextFromEnv } from "@agent-orchestrator/core";
 import {
   createWorkerProfileDoctorChecks,
+  getWorkerProfileStorePath,
   getWorkerRegistryPath
 } from "@agent-orchestrator/models";
 
@@ -17,6 +18,15 @@ const writeRegistry = async (rootDir: string, value: unknown): Promise<void> => 
   await mkdir(join(rootDir, ".ao"), { recursive: true });
   await writeFile(
     getWorkerRegistryPath(rootDir),
+    typeof value === "string" ? value : JSON.stringify(value, null, 2),
+    "utf8"
+  );
+};
+
+const writeProfiles = async (rootDir: string, value: unknown): Promise<void> => {
+  await mkdir(join(rootDir, ".ao"), { recursive: true });
+  await writeFile(
+    getWorkerProfileStorePath(rootDir),
     typeof value === "string" ? value : JSON.stringify(value, null, 2),
     "utf8"
   );
@@ -88,6 +98,66 @@ describe("worker profile doctor checks", () => {
     expect(
       checks.some(
         (check) => check.name === "worker-registry" && check.status === "fail"
+      )
+    ).toBe(true);
+  });
+
+  it("flags provider-error style blocked profiles for re-interview", async () => {
+    const rootDir = await createRootDir();
+    await writeRegistry(rootDir, {
+      version: 1,
+      workers: [createRegistration()]
+    });
+    await writeProfiles(rootDir, [
+      {
+        workerId: "mock:registered-worker",
+        provider: "mock",
+        model: "registered-worker",
+        status: "blocked",
+        supportedTaskTypes: [],
+        unsupportedTaskTypes: ["summarization"],
+        score: {
+          instructionFollowing: 0,
+          structuredOutput: 0,
+          reasoning: 0,
+          codeQuality: 0,
+          domainKnowledge: 0,
+          reliability: 0
+        },
+        risks: [
+          "summarization: Attempt 1: provider invocation failed: connection refused"
+        ],
+        warnings: [
+          "summarization: Attempt 1: provider invocation failed: connection refused"
+        ],
+        routingPolicy: {
+          maxTaskComplexity: "low",
+          requiresLeaderReview: true,
+          allowCodegen: false,
+          allowPatchGeneration: false,
+          allowDomainTasks: false
+        },
+        evaluatedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+        suiteName: "default-worker-onboarding-suite",
+        suiteVersion: "1"
+      }
+    ]);
+    const context = createExecutionContextFromEnv(undefined, {
+      rootDir,
+      workerModel: {
+        provider: "mock",
+        model: "registered-worker"
+      }
+    });
+    const checks = await createWorkerProfileDoctorChecks(context);
+
+    expect(
+      checks.some(
+        (check) =>
+          check.name === "registered-worker-profile" &&
+          check.metadata?.source === "provider-error" &&
+          check.metadata?.shouldReinterview === true
       )
     ).toBe(true);
   });

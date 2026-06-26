@@ -210,7 +210,9 @@ const extractCodeBulletList = (markdown: string, heading: string): string[] => {
     throw new Error(`Heading not found: ${heading}`);
   }
 
-  return sectionMatch[1]
+  const sectionBody = sectionMatch[1] ?? "";
+
+  return sectionBody
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line.startsWith("- `") && line.endsWith("`"))

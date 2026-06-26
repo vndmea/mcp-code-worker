@@ -190,7 +190,13 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
         });
 
         const saveResult = options.save
-          ? await saveWorkerProfile(context, result.profile, true)
+          ? result.persistenceAdvice.canPersist
+            ? await saveWorkerProfile(context, result.profile, true)
+            : {
+                mode: "skipped" as const,
+                reason: result.persistenceAdvice.reason,
+                recommendedActions: result.persistenceAdvice.recommendedActions
+              }
           : null;
 
         io.write(

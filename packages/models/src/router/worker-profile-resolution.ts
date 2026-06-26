@@ -25,11 +25,12 @@ export interface WorkerProfileFreshness {
 export interface ResolveWorkerProfileResult {
   freshness: WorkerProfileFreshness;
   profile: WorkerCapabilityProfile | null;
-  source: "persisted" | "missing" | "stale" | "incompatible";
+  source: "persisted" | "missing" | "stale" | "incompatible" | "provider-error";
   workerId: string;
 }
 
 const knownStatuses = new Set<WorkerStatus>(["active", "limited", "blocked"]);
+const providerFailureWarningPattern = /provider invocation failed/iu;
 
 const buildFailure = (
   workerId: string,
@@ -60,6 +61,12 @@ const failIfRequired = (
 
   return result;
 };
+
+const hasProviderFailureSignal = (profile: WorkerCapabilityProfile): boolean =>
+  profile.interviewDiagnostics?.outcome === "provider-error" ||
+  [...profile.warnings, ...profile.risks].some((message) =>
+    providerFailureWarningPattern.test(message)
+  );
 
 export const resolveWorkerProfile = async ({
   context,
@@ -117,6 +124,18 @@ export const resolveWorkerProfile = async ({
         profile,
         "incompatible",
         `Persisted worker profile ${resolvedWorkerId} has an unknown status.`
+      ),
+      requireProfile
+    );
+  }
+
+  if (hasProviderFailureSignal(profile)) {
+    return failIfRequired(
+      buildFailure(
+        resolvedWorkerId,
+        profile,
+        "provider-error",
+        `Persisted worker profile ${resolvedWorkerId} looks like a provider/configuration failure rather than a completed interview. Re-run 'ao worker interview --save' after checking base URL, API key, and network access.`
       ),
       requireProfile
     );

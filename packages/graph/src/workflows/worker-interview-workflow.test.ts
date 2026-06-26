@@ -38,6 +38,20 @@ describe("worker interview workflow", () => {
     expect(result.warnings.join("\n")).toContain("structured-output");
   });
 
+  it("marks provider invocation failures as non-persistable interview results", async () => {
+    const result = await runWorkerInterviewWorkflow({
+      context: createContext(),
+      simulatedResponses: {
+        summarization: new Error("connection refused")
+      }
+    });
+
+    expect(result.interviewDiagnostics.outcome).toBe("provider-error");
+    expect(result.persistenceAdvice.canPersist).toBe(false);
+    expect(result.persistenceAdvice.reason).toContain("provider invocation failures");
+    expect(result.taskResults.some((task) => task.failureKind === "provider-invocation")).toBe(true);
+  });
+
   it("limits routing when code generation quality is too low", async () => {
     const interview = await runWorkerInterviewWorkflow({
       context: createContext(),

@@ -116,7 +116,8 @@ describe("patch proposal workflow", () => {
         rawText: "",
         raw: undefined,
         attempts: 1,
-        errors: ["schema validation failed"]
+        errors: ["schema validation failed"],
+        failureKind: "schema-validation"
       });
 
     const result = await runPatchProposalWorkflow({
