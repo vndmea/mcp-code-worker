@@ -68,6 +68,32 @@ export const formatZodError = (error: z.ZodError): string[] =>
 const formatUnknownError = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
+const truncateForRetryPrompt = (text: string, maxChars = 1_200): string =>
+  text.length <= maxChars ? text : `${text.slice(0, maxChars)}...`;
+
+const buildRepairPrompt = (
+  originalPrompt: string,
+  errorMessage: string,
+  rawText: string
+): string => {
+  const previousResponse = rawText.trim().length > 0
+    ? truncateForRetryPrompt(extractJsonCandidate(rawText))
+    : "No valid JSON body was produced.";
+
+  return [
+    originalPrompt,
+    "",
+    "Your previous response did not satisfy the required JSON schema.",
+    `Validation issue: ${errorMessage}`,
+    "Previous response:",
+    previousResponse,
+    "",
+    "Retry now and return only corrected JSON.",
+    "Do not include markdown, explanations, percentages, or quoted numbers.",
+    "Use JSON arrays for array fields and JSON numbers for numeric fields."
+  ].join("\n");
+};
+
 export async function invokeStructured<T>(
   options: StructuredInvocationOptions<T>
 ): Promise<StructuredInvocationResult<T>> {
@@ -77,11 +103,12 @@ export async function invokeStructured<T>(
   let raw: unknown;
   let usage: ModelInvocationResult["usage"];
   let failureKind: StructuredInvocationFailureKind = "provider-invocation";
+  let currentPrompt = options.prompt;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const result = await options.provider.invoke(options.config, {
-        prompt: options.prompt,
+        prompt: currentPrompt,
         systemPrompt: options.systemPrompt,
         responseFormat: "json",
         responseSchema: options.schema,
@@ -98,16 +125,23 @@ export async function invokeStructured<T>(
         parsed = tryParseJson(result.text);
       } catch (error) {
         failureKind = "json-parse";
-        errors.push(`Attempt ${attempt}: failed to parse JSON: ${formatUnknownError(error)}`);
+        const message = `Attempt ${attempt}: failed to parse JSON: ${formatUnknownError(error)}`;
+        errors.push(message);
+        if (attempt < maxAttempts) {
+          currentPrompt = buildRepairPrompt(options.prompt, message, result.text);
+        }
         continue;
       }
 
       const schemaResult = options.schema.safeParse(parsed);
       if (!schemaResult.success) {
         failureKind = "schema-validation";
-        errors.push(
-          `Attempt ${attempt}: schema validation failed: ${formatZodError(schemaResult.error).join("; ")}`
-        );
+        const message =
+          `Attempt ${attempt}: schema validation failed: ${formatZodError(schemaResult.error).join("; ")}`;
+        errors.push(message);
+        if (attempt < maxAttempts) {
+          currentPrompt = buildRepairPrompt(options.prompt, message, result.text);
+        }
         continue;
       }
 

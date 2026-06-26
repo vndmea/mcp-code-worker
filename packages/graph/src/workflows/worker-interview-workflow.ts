@@ -52,7 +52,7 @@ interface WorkerInterviewSuiteIdentity {
 }
 
 const WORKER_EVALUATION_SUITE_NAME = "default-worker-onboarding-suite";
-const WORKER_EVALUATION_SUITE_VERSION = "2";
+const WORKER_EVALUATION_SUITE_VERSION = "3";
 
 const InterviewState = Annotation.Root({
   task: Annotation<WorkflowState["task"]>(),
@@ -119,6 +119,18 @@ const createPrompt = (
     ...lines
   ].join("\n");
 
+const strictJsonContractLines = (
+  lines: string[],
+  example?: string
+): string[] => [
+  "Return only valid JSON.",
+  "Do not include markdown, explanations, reasoning text, or code fences.",
+  "Use JSON numbers for numeric fields, not percentages or quoted strings.",
+  "Use JSON arrays for array fields, not bullet lists or newline-delimited strings.",
+  ...(example ? [`Example valid JSON shape: ${example}`] : []),
+  ...lines
+];
+
 const instructionFollowingVariants = [
   [
     'Return exactly JSON with {"mode":"json-only","confidence":0.4} and nothing else.',
@@ -135,208 +147,238 @@ const instructionFollowingVariants = [
 ];
 
 const structuredOutputVariants = [
-  [
-    "Analyze the incident summary below and return only JSON.",
-    "Use exactly these keys and types:",
-    '- summary: string',
-    '- risks: string[]',
-    '- confidence: number',
-    '- files: string[]',
-    "Do not include markdown.",
-    "Return at least one risk and at least one file.",
-    "Incident summary:",
-    "- Build failed after a worker routing change.",
-    "- Stale worker profiles were accepted without revalidation.",
-    "- Affected files: packages/models/src/router/worker-profile-resolution.ts, packages/graph/src/workflows/leader-worker-workflow.ts.",
-    "- Main risk: a blocked worker could be routed into production tasks."
-  ],
-  [
-    "Review the release incident notes below and return only JSON.",
-    "Use exactly these keys and types:",
-    '- summary: string',
-    '- risks: string[]',
-    '- confidence: number',
-    '- files: string[]',
-    "Do not include markdown.",
-    "Return at least one risk and at least one file.",
-    "Incident notes:",
-    "- A hotfix changed model routing for worker selection.",
-    "- The fallback branch skipped capability freshness checks.",
-    "- Touched files: packages/models/src/router/model-router.ts, packages/graph/src/workflows/leader-worker-workflow.ts.",
-    "- Main risk: low-quality workers may receive code generation tasks."
-  ],
-  [
-    "Inspect the workflow regression summary below and return only JSON.",
-    "Use exactly these keys and types:",
-    '- summary: string',
-    '- risks: string[]',
-    '- confidence: number',
-    '- files: string[]',
-    "Do not include markdown.",
-    "Return at least one risk and at least one file.",
-    "Regression summary:",
-    "- Worker capability profiles were reused after a model swap.",
-    "- A stale compatibility gate caused outdated scores to look valid.",
-    "- Related files: packages/models/src/router/worker-profile-resolution.ts, packages/cli/src/commands/worker.ts.",
-    "- Main risk: routing decisions may trust the wrong worker profile."
-  ]
+  strictJsonContractLines(
+    [
+      "Analyze the incident summary below.",
+      "Use exactly these keys and types:",
+      '- summary: string',
+      '- risks: string[]',
+      '- confidence: number between 0 and 1',
+      '- files: string[]',
+      "Return at least one risk and at least one file.",
+      "Incident summary:",
+      "- Build failed after a worker routing change.",
+      "- Stale worker profiles were accepted without revalidation.",
+      "- Affected files: packages/models/src/router/worker-profile-resolution.ts, packages/graph/src/workflows/leader-worker-workflow.ts.",
+      "- Main risk: a blocked worker could be routed into production tasks."
+    ],
+    '{"summary":"...","risks":["risk 1"],"confidence":0.85,"files":["path.ts"]}'
+  ),
+  strictJsonContractLines(
+    [
+      "Review the release incident notes below.",
+      "Use exactly these keys and types:",
+      '- summary: string',
+      '- risks: string[]',
+      '- confidence: number between 0 and 1',
+      '- files: string[]',
+      "Return at least one risk and at least one file.",
+      "Incident notes:",
+      "- A hotfix changed model routing for worker selection.",
+      "- The fallback branch skipped capability freshness checks.",
+      "- Touched files: packages/models/src/router/model-router.ts, packages/graph/src/workflows/leader-worker-workflow.ts.",
+      "- Main risk: low-quality workers may receive code generation tasks."
+    ],
+    '{"summary":"...","risks":["risk 1"],"confidence":0.78,"files":["path.ts"]}'
+  ),
+  strictJsonContractLines(
+    [
+      "Inspect the workflow regression summary below.",
+      "Use exactly these keys and types:",
+      '- summary: string',
+      '- risks: string[]',
+      '- confidence: number between 0 and 1',
+      '- files: string[]',
+      "Return at least one risk and at least one file.",
+      "Regression summary:",
+      "- Worker capability profiles were reused after a model swap.",
+      "- A stale compatibility gate caused outdated scores to look valid.",
+      "- Related files: packages/models/src/router/worker-profile-resolution.ts, packages/cli/src/commands/worker.ts.",
+      "- Main risk: routing decisions may trust the wrong worker profile."
+    ],
+    '{"summary":"...","risks":["risk 1"],"confidence":0.81,"files":["path.ts"]}'
+  )
 ];
 
 const summarizationVariants = [
-  [
-    "Summarize the error log below as JSON.",
-    "Use exactly these keys and types:",
-    '- issue: string',
-    '- impact: string',
-    '- nextSteps: string[]',
-    '- confidence: number',
-    "Do not include markdown.",
-    "Return at least two nextSteps.",
-    "Error log:",
-    "TS2322: Type '{ score: string; }' is not assignable to type '{ score: number; }'.",
-    "  at packages/models/src/router/worker-profile-store.ts:48:7",
-    "Build failed for @agent-orchestrator/models."
-  ],
-  [
-    "Convert the failure log below into JSON.",
-    "Use exactly these keys and types:",
-    '- issue: string',
-    '- impact: string',
-    '- nextSteps: string[]',
-    '- confidence: number',
-    "Do not include markdown.",
-    "Return at least two nextSteps.",
-    "Failure log:",
-    "Error: WORKER_PROFILE_REQUIRED",
-    "  Persisted worker profile openai-compatible:deepseek-v4-pro has expired.",
-    "  at packages/models/src/router/worker-profile-resolution.ts:132:9"
-  ],
-  [
-    "Summarize the build failure below as JSON.",
-    "Use exactly these keys and types:",
-    '- issue: string',
-    '- impact: string',
-    '- nextSteps: string[]',
-    '- confidence: number',
-    "Do not include markdown.",
-    "Return at least two nextSteps.",
-    "Build output:",
-    "pnpm --filter @agent-orchestrator/cli build",
-    "error TS6053: File 'packages/graph/dist/index.d.ts' not found.",
-    "DTS build aborted for @agent-orchestrator/cli."
-  ]
+  strictJsonContractLines(
+    [
+      "Summarize the error log below as JSON.",
+      "Use exactly these keys and types:",
+      '- issue: string',
+      '- impact: string',
+      '- nextSteps: string[]',
+      '- confidence: number between 0 and 1',
+      "Return at least two nextSteps.",
+      "Error log:",
+      "TS2322: Type '{ score: string; }' is not assignable to type '{ score: number; }'.",
+      "  at packages/models/src/router/worker-profile-store.ts:48:7",
+      "Build failed for @agent-orchestrator/models."
+    ],
+    '{"issue":"...","impact":"...","nextSteps":["step 1","step 2"],"confidence":0.95}'
+  ),
+  strictJsonContractLines(
+    [
+      "Convert the failure log below into JSON.",
+      "Use exactly these keys and types:",
+      '- issue: string',
+      '- impact: string',
+      '- nextSteps: string[]',
+      '- confidence: number between 0 and 1',
+      "Return at least two nextSteps.",
+      "Failure log:",
+      "Error: WORKER_PROFILE_REQUIRED",
+      "  Persisted worker profile openai-compatible:deepseek-v4-pro has expired.",
+      "  at packages/models/src/router/worker-profile-resolution.ts:132:9"
+    ],
+    '{"issue":"...","impact":"...","nextSteps":["step 1","step 2"],"confidence":0.72}'
+  ),
+  strictJsonContractLines(
+    [
+      "Summarize the build failure below as JSON.",
+      "Use exactly these keys and types:",
+      '- issue: string',
+      '- impact: string',
+      '- nextSteps: string[]',
+      '- confidence: number between 0 and 1',
+      "Return at least two nextSteps.",
+      "Build output:",
+      "pnpm --filter @agent-orchestrator/cli build",
+      "error TS6053: File 'packages/graph/dist/index.d.ts' not found.",
+      "DTS build aborted for @agent-orchestrator/cli."
+    ],
+    '{"issue":"...","impact":"...","nextSteps":["step 1","step 2"],"confidence":0.88}'
+  )
 ];
 
 const codeUnderstandingVariants = [
-  [
-    "Given this TypeScript function, return only JSON.",
-    "Use exactly these keys and types:",
-    '- behavior: string',
-    '- risk: string',
-    '- confidence: number',
-    "Do not include markdown.",
-    "Code:",
-    "function sumValidated(values: unknown[]): number {",
-    "  return values",
-    '    .filter((value): value is number => typeof value === "number" && Number.isFinite(value))',
-    "    .reduce((total, value) => total + value, 0);",
-    "}"
-  ],
-  [
-    "Review this TypeScript helper and return only JSON.",
-    "Use exactly these keys and types:",
-    '- behavior: string',
-    '- risk: string',
-    '- confidence: number',
-    "Do not include markdown.",
-    "Code:",
-    "function sumScores(input: Array<number | null>): number {",
-    "  return input",
-    "    .filter((value): value is number => value !== null)",
-    "    .reduce((sum, value) => sum + value, 0);",
-    "}"
-  ],
-  [
-    "Explain the TypeScript function below using only JSON.",
-    "Use exactly these keys and types:",
-    '- behavior: string',
-    '- risk: string',
-    '- confidence: number',
-    "Do not include markdown.",
-    "Code:",
-    "function sumFinite(values: readonly unknown[]): number {",
-    "  const filtered = values.filter((value): value is number =>",
-    '    typeof value === "number" && Number.isFinite(value)',
-    "  );",
-    "  return filtered.reduce((total, value) => total + value, 0);",
-    "}"
-  ]
+  strictJsonContractLines(
+    [
+      "Given this TypeScript function, return only JSON.",
+      "Use exactly these keys and types:",
+      '- behavior: string',
+      '- risk: string',
+      '- confidence: number between 0 and 1',
+      "Code:",
+      "function sumValidated(values: unknown[]): number {",
+      "  return values",
+      '    .filter((value): value is number => typeof value === "number" && Number.isFinite(value))',
+      "    .reduce((total, value) => total + value, 0);",
+      "}"
+    ],
+    '{"behavior":"...","risk":"...","confidence":0.95}'
+  ),
+  strictJsonContractLines(
+    [
+      "Review this TypeScript helper and return only JSON.",
+      "Use exactly these keys and types:",
+      '- behavior: string',
+      '- risk: string',
+      '- confidence: number between 0 and 1',
+      "Code:",
+      "function sumScores(input: Array<number | null>): number {",
+      "  return input",
+      "    .filter((value): value is number => value !== null)",
+      "    .reduce((sum, value) => sum + value, 0);",
+      "}"
+    ],
+    '{"behavior":"...","risk":"...","confidence":0.9}'
+  ),
+  strictJsonContractLines(
+    [
+      "Explain the TypeScript function below using only JSON.",
+      "Use exactly these keys and types:",
+      '- behavior: string',
+      '- risk: string',
+      '- confidence: number between 0 and 1',
+      "Code:",
+      "function sumFinite(values: readonly unknown[]): number {",
+      "  const filtered = values.filter((value): value is number =>",
+      '    typeof value === "number" && Number.isFinite(value)',
+      "  );",
+      "  return filtered.reduce((total, value) => total + value, 0);",
+      "}"
+    ],
+    '{"behavior":"...","risk":"...","confidence":0.83}'
+  )
 ];
 
 const codegenVariants = [
-  [
-    "Return only JSON.",
-    "Use exactly these keys and types:",
-    '- code: string',
-    '- confidence: number',
-    "Do not include markdown.",
-    "The code value must be strict TypeScript.",
-    "It must define:",
-    'export function validateScore(value: number): { ok: boolean; message?: string }',
-    "The function must reject NaN and negative numbers."
-  ],
-  [
-    "Return only JSON.",
-    "Use exactly these keys and types:",
-    '- code: string',
-    '- confidence: number',
-    "Do not include markdown.",
-    "The code value must be strict TypeScript.",
-    "Generate exactly this function signature:",
-    'export function validateScore(value: number): { ok: boolean; message?: string }',
-    "The implementation must reject non-finite values and values below zero."
-  ],
-  [
-    "Respond with JSON only.",
-    "Use exactly these keys and types:",
-    '- code: string',
-    '- confidence: number',
-    "Do not include markdown.",
-    "The code value must be strict TypeScript.",
-    "Include this exact exported signature:",
-    'export function validateScore(value: number): { ok: boolean; message?: string }',
-    "Return ok=false for NaN or negative input."
-  ]
+  strictJsonContractLines(
+    [
+      "Use exactly these keys and types:",
+      '- code: string',
+      '- confidence: number between 0 and 1',
+      "The code value must be strict TypeScript.",
+      "It must define:",
+      'export function validateScore(value: number): { ok: boolean; message?: string }',
+      "The function must reject NaN and negative numbers."
+    ],
+    '{"code":"export function validateScore(...) { ... }","confidence":0.68}'
+  ),
+  strictJsonContractLines(
+    [
+      "Use exactly these keys and types:",
+      '- code: string',
+      '- confidence: number between 0 and 1',
+      "The code value must be strict TypeScript.",
+      "Generate exactly this function signature:",
+      'export function validateScore(value: number): { ok: boolean; message?: string }',
+      "The implementation must reject non-finite values and values below zero."
+    ],
+    '{"code":"export function validateScore(...) { ... }","confidence":0.74}'
+  ),
+  strictJsonContractLines(
+    [
+      "Use exactly these keys and types:",
+      '- code: string',
+      '- confidence: number between 0 and 1',
+      "The code value must be strict TypeScript.",
+      "Include this exact exported signature:",
+      'export function validateScore(value: number): { ok: boolean; message?: string }',
+      "Return ok=false for NaN or negative input."
+    ],
+    '{"code":"export function validateScore(...) { ... }","confidence":0.61}'
+  )
 ];
 
 const confidenceCalibrationVariants = [
-  [
-    "Answer the underspecified question below as JSON.",
-    "Use exactly these keys and types:",
-    '- answer: string',
-    '- confidence: number',
-    '- uncertaintyReason: string',
-    "Keep confidence low when the prompt lacks evidence.",
-    "Question: Which deployment change caused yesterday's production latency spike?"
-  ],
-  [
-    "Return only JSON for the ambiguous question below.",
-    "Use exactly these keys and types:",
-    '- answer: string',
-    '- confidence: number',
-    '- uncertaintyReason: string',
-    "Keep confidence low when the prompt lacks evidence.",
-    "Question: Which engineer approved the risky routing patch last week?"
-  ],
-  [
-    "Respond in JSON to the underdetermined question below.",
-    "Use exactly these keys and types:",
-    '- answer: string',
-    '- confidence: number',
-    '- uncertaintyReason: string',
-    "Keep confidence low when the prompt lacks evidence.",
-    "Question: Which worker model should handle tomorrow's production hotfix?"
-  ]
+  strictJsonContractLines(
+    [
+      "Answer the underspecified question below as JSON.",
+      "Use exactly these keys and types:",
+      '- answer: string',
+      '- confidence: number between 0 and 1',
+      '- uncertaintyReason: string',
+      "Keep confidence low when the prompt lacks evidence.",
+      "Question: Which deployment change caused yesterday's production latency spike?"
+    ],
+    '{"answer":"unknown","confidence":0.1,"uncertaintyReason":"missing evidence"}'
+  ),
+  strictJsonContractLines(
+    [
+      "Return only JSON for the ambiguous question below.",
+      "Use exactly these keys and types:",
+      '- answer: string',
+      '- confidence: number between 0 and 1',
+      '- uncertaintyReason: string',
+      "Keep confidence low when the prompt lacks evidence.",
+      "Question: Which engineer approved the risky routing patch last week?"
+    ],
+    '{"answer":"unknown","confidence":0.05,"uncertaintyReason":"missing evidence"}'
+  ),
+  strictJsonContractLines(
+    [
+      "Respond in JSON to the underdetermined question below.",
+      "Use exactly these keys and types:",
+      '- answer: string',
+      '- confidence: number between 0 and 1',
+      '- uncertaintyReason: string',
+      "Keep confidence low when the prompt lacks evidence.",
+      "Question: Which worker model should handle tomorrow's production hotfix?"
+    ],
+    '{"answer":"unknown","confidence":0.2,"uncertaintyReason":"missing evidence"}'
+  )
 ];
 
 const buildInterviewTasks = (
@@ -588,7 +630,7 @@ const createTaskResult = async (
     schema: runtimeTask.schema,
     prompt: runtimeTask.task.prompt,
     mockResponse,
-    maxAttempts: 1
+    maxAttempts: 2
   });
 
   if (!invocation.ok) {

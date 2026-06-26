@@ -197,6 +197,7 @@ describe("invokeStructured", () => {
     expect(result.ok).toBe(true);
     expect(result.ok && result.data.message).toBe("retried");
     expect(result.errors).toHaveLength(1);
+    expect(provider.requests[1]?.prompt).toContain("Your previous response did not satisfy the required JSON schema.");
   });
 
   it("preserves usage details from the provider response", async () => {

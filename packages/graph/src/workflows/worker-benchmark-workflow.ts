@@ -20,7 +20,7 @@ import {
 import { ModelRouter, invokeStructured } from "@agent-orchestrator/models";
 
 const CODING_V1_SUITE_NAME = "coding-v1";
-const CODING_V1_SUITE_VERSION = "1";
+const CODING_V1_SUITE_VERSION = "2";
 
 interface BenchmarkFixture {
   fixtureId: string;
@@ -63,7 +63,14 @@ const buildCodingV1Fixtures = (): BenchmarkFixture[] => [
     }),
     prompt: [
       "Return only JSON.",
-      "Use keys analysis, patchPlan, confidence.",
+      "Use exactly these keys and types:",
+      '- analysis: string',
+      '- patchPlan: string[]',
+      '- confidence: number between 0 and 1',
+      "Do not include markdown, explanations, or code fences.",
+      "Do not return patchPlan as a single string.",
+      "Do not return confidence as text or a percentage.",
+      'Example valid shape: {"analysis":"...","patchPlan":["step 1","step 2"],"confidence":0.74}',
       "Scenario: TS2322 reports that score: string is not assignable to score: number in packages/models/src/router/worker-profile-store.ts."
     ].join("\n"),
     mockResponse: {
@@ -100,7 +107,14 @@ const buildCodingV1Fixtures = (): BenchmarkFixture[] => [
     }),
     prompt: [
       "Return only JSON.",
-      "Use keys summary, testPlan, confidence.",
+      "Use exactly these keys and types:",
+      '- summary: string',
+      '- testPlan: string[]',
+      '- confidence: number between 0 and 1',
+      "Do not include markdown, explanations, or code fences.",
+      "Do not return testPlan as a single string.",
+      "Do not return confidence as text or a percentage.",
+      'Example valid shape: {"summary":"...","testPlan":["case 1","case 2"],"confidence":0.71}',
       "Scenario: a regression in leader-worker-workflow skipped warnings for unsupported task types."
     ].join("\n"),
     mockResponse: {
@@ -137,7 +151,13 @@ const buildCodingV1Fixtures = (): BenchmarkFixture[] => [
     }),
     prompt: [
       "Return only JSON.",
-      "Use keys allowedFiles, blockedFiles, confidence.",
+      "Use exactly these keys and types:",
+      '- allowedFiles: string[]',
+      '- blockedFiles: string[]',
+      '- confidence: number between 0 and 1',
+      "Do not include markdown, explanations, or code fences.",
+      "Do not return confidence as text or a percentage.",
+      'Example valid shape: {"allowedFiles":["packages/core/src/index.ts"],"blockedFiles":["packages/cli/src/index.ts"],"confidence":0.84}',
       "Scenario: scope is packages/core and a candidate patch touches packages/core/src/index.ts plus packages/cli/src/index.ts."
     ].join("\n"),
     mockResponse: {
@@ -172,7 +192,14 @@ const buildCodingV1Fixtures = (): BenchmarkFixture[] => [
     }),
     prompt: [
       "Return only JSON.",
-      "Use keys summary, shouldApply, requiredChecks, confidence.",
+      "Use exactly these keys and types:",
+      '- summary: string',
+      '- shouldApply: boolean',
+      '- requiredChecks: string[]',
+      '- confidence: number between 0 and 1',
+      "Do not include markdown, explanations, or code fences.",
+      "Do not return confidence as text or a percentage.",
+      'Example valid shape: {"summary":"...","shouldApply":false,"requiredChecks":["lint"],"confidence":0.77}',
       "Scenario: lint is failing after a patch dry-run and no human has approved writes."
     ].join("\n"),
     mockResponse: {
@@ -378,7 +405,7 @@ export const runWorkerBenchmarkWorkflow = async (
         prompt: fixture.prompt,
         mockResponse:
           input.simulatedResponses?.[fixture.fixtureId] ?? fixture.mockResponse,
-        maxAttempts: 1
+        maxAttempts: 2
       });
 
       if (!invocation.ok) {
