@@ -58,45 +58,63 @@ const buildToolResults = (
   context: ExecutionContext,
   state: WorkflowState,
   profile: WorkerCapabilityProfile | null
-): ToolExecutionResult[] => [
-  {
-    toolName: "worker-capability-interview",
-    status:
-      profile === null
+): ToolExecutionResult[] => {
+  const plannedWorkerTasks = state.plan?.plannedWorkerTasks ?? [];
+  const workerValidationStatus =
+    state.workerResults.length > 0
+      ? "success"
+      : state.errors.length > 0
         ? "failure"
-        : profile.status === "blocked"
+        : "dry-run";
+  const workerValidationReason =
+    plannedWorkerTasks.length === 0
+      ? "no-planned-worker-tasks"
+      : state.workerResults.length === 0
+        ? "worker-tasks-skipped"
+        : undefined;
+
+  return [
+    {
+      toolName: "worker-capability-interview",
+      status:
+        profile === null
           ? "failure"
-          : profile.status === "limited"
-            ? "dry-run"
-            : "success",
-    output: profile,
-    metadata: {
-      warningCount: state.warnings.length,
-      workerId: profile?.workerId
-    }
-  },
-  {
-    toolName: "validate-worker-results",
-    status: state.workerResults.length > 0 ? "success" : "failure",
-    output: {
-      reviewedWorkers: state.workerResults.length
+          : profile.status === "blocked"
+            ? "failure"
+            : profile.status === "limited"
+              ? "dry-run"
+              : "success",
+      output: profile,
+      metadata: {
+        warningCount: state.warnings.length,
+        workerId: profile?.workerId
+      }
     },
-    metadata: {
-      dryRun: context.dryRun
-    }
-  },
-  {
-    toolName: "write-policy",
-    status:
-      context.writePolicy.evaluate(context.rootDir).mode === "execute"
-        ? "success"
-        : "dry-run",
-    output: {
-      allowWrite: context.allowWrite
+    {
+      toolName: "validate-worker-results",
+      status: workerValidationStatus,
+      output: {
+        plannedWorkers: plannedWorkerTasks.length,
+        reviewedWorkers: state.workerResults.length
+      },
+      metadata: {
+        dryRun: context.dryRun,
+        ...(workerValidationReason ? { reason: workerValidationReason } : {})
+      }
     },
-    metadata: {}
-  }
-];
+    {
+      toolName: "write-policy",
+      status:
+        context.writePolicy.evaluate(context.rootDir).mode === "execute"
+          ? "success"
+          : "dry-run",
+      output: {
+        allowWrite: context.allowWrite
+      },
+      metadata: {}
+    }
+  ];
+};
 
 const buildProfileWarnings = (
   profile: WorkerCapabilityProfile,

@@ -316,6 +316,14 @@ describe("leader-worker workflow with persisted profiles", () => {
 
     expect(result.state.workerResults).toHaveLength(0);
     expect(result.state.warnings.join("\n")).toContain("plannedWorkerTasks");
+    expect(
+      result.state.toolResults.find((tool) => tool.toolName === "validate-worker-results")
+    ).toMatchObject({
+      status: "dry-run",
+      metadata: {
+        reason: "no-planned-worker-tasks"
+      }
+    });
     planSpy.mockRestore();
   });
 
@@ -351,6 +359,14 @@ describe("leader-worker workflow with persisted profiles", () => {
     expect(result.state.warnings.join("\n")).toContain(
       "No registered worker implementation is available for planned task type log-analysis."
     );
+    expect(
+      result.state.toolResults.find((tool) => tool.toolName === "validate-worker-results")
+    ).toMatchObject({
+      status: "dry-run",
+      metadata: {
+        reason: "worker-tasks-skipped"
+      }
+    });
     planSpy.mockRestore();
   });
 });
