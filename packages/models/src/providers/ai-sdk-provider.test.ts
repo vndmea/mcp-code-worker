@@ -73,11 +73,7 @@ describe("AiSdkProvider", () => {
     });
 
     expect(generateTextMock).toHaveBeenCalledTimes(2);
-    expect(generateTextMock.mock.calls[0]?.[0]).toMatchObject({
-      output: {
-        schema: expect.anything()
-      }
-    });
+    expect(generateTextMock.mock.calls[0]?.[0]).toHaveProperty("output.schema");
     expect(generateTextMock.mock.calls[1]?.[0]).not.toHaveProperty("output");
     expect(result.text).toBe("{\"message\":\"fallback\",\"count\":2}");
     expect(result.usage).toEqual({
