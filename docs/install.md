@@ -54,4 +54,5 @@ pnpm exec ao mcp serve
 
 - MCP clients should launch the server from the repository root.
 - Use `pnpm exec ao mcp config` to print a stdio config snippet.
+- For workspace-scoped IDE use, prefer `pnpm exec ao mcp config --root ${workspaceFolder}` or set `AO_ROOT_DIR` in the MCP server environment.
 - For internal trial, prefer the workspace checkout over hardcoded developer-local absolute paths.

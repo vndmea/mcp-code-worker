@@ -6,6 +6,23 @@ The MCP layer is intentionally thin. It delegates to the same workflow functions
 
 Use `ao_start_task` as the default high-level entrypoint for coding flows, and follow `nextRecommendedActions` instead of composing patch lifecycle steps by hand.
 
+## Root Directory Resolution
+
+By default, the MCP server resolves `rootDir` from the server process cwd. When an MCP client launches `ao` from a shared tools checkout instead of the active workspace, pass an explicit root:
+
+```json
+{
+  "mcpServers": {
+    "agent-orchestrator": {
+      "command": "ao",
+      "args": ["mcp", "serve", "--root", "${workspaceFolder}"]
+    }
+  }
+}
+```
+
+You can also set `AO_ROOT_DIR` in the server environment. Explicit CLI `--root` still wins over `AO_ROOT_DIR`.
+
 ## Tool Categories
 
 - High-level orchestration: task sessions, leader-worker orchestration, plan, review, fix, patch proposal.

@@ -13,6 +13,7 @@ export interface StructuredInvocationOptions<T> {
   prompt: string;
   systemPrompt?: string;
   mockResponse?: unknown;
+  disableMockResponse?: boolean;
   metadata?: Record<string, unknown>;
   maxAttempts?: number;
 }
@@ -68,6 +69,13 @@ export const formatZodError = (error: z.ZodError): string[] =>
 const formatUnknownError = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
+const areModelMocksDisabled = (
+  env: NodeJS.ProcessEnv = process.env
+): boolean => {
+  const value = env.AO_DISABLE_MODEL_MOCKS?.trim().toLowerCase();
+  return value === "1" || value === "true" || value === "yes";
+};
+
 const truncateForRetryPrompt = (text: string, maxChars = 1_200): string =>
   text.length <= maxChars ? text : `${text.slice(0, maxChars)}...`;
 
@@ -112,7 +120,10 @@ export async function invokeStructured<T>(
         systemPrompt: options.systemPrompt,
         responseFormat: "json",
         responseSchema: options.schema,
-        mockResponse: options.mockResponse,
+        mockResponse:
+          options.disableMockResponse ?? areModelMocksDisabled()
+            ? undefined
+            : options.mockResponse,
         metadata: options.metadata
       });
 

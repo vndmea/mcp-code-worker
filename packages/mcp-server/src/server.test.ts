@@ -38,6 +38,7 @@ import {
   aoRunLeaderWorkerTool,
   aoStartTaskTool,
   aoToolDefinitions,
+  toStructuredContent,
   aoUnregisterWorkerTool,
   aoValidateRepositoryTool,
   mcpToolCatalog
@@ -281,6 +282,19 @@ describe("mcp tool registration", () => {
     expect(tools.some((tool) => tool.name === "ao_validate_repository")).toBe(true);
     expect(tools.some((tool) => tool.name === "ao_start_task")).toBe(true);
     expect(tools.some((tool) => tool.name === "ao_doctor")).toBe(true);
+  });
+
+  it("wraps array results into record-shaped structured content", () => {
+    expect(toStructuredContent([{ name: "ao_list_tools" }])).toEqual({
+      result: [{ name: "ao_list_tools" }]
+    });
+  });
+
+  it("preserves plain object results as structured content", () => {
+    expect(toStructuredContent({ ok: true, tool: "ao_doctor" })).toEqual({
+      ok: true,
+      tool: "ao_doctor"
+    });
   });
 
   it("manages worker registry through MCP tools", async () => {

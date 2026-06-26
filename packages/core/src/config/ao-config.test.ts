@@ -155,6 +155,32 @@ describe("ao config", () => {
     expect(context.allowedCommands).toEqual(["git"]);
   });
 
+  it("uses AO_ROOT_DIR when rootDir is not passed explicitly", async () => {
+    const rootDir = await createWorkspace();
+
+    const context = await resolveExecutionContext({
+      env: {
+        AO_ROOT_DIR: rootDir
+      }
+    });
+
+    expect(context.rootDir).toBe(rootDir);
+  });
+
+  it("prefers explicit rootDir over AO_ROOT_DIR", async () => {
+    const rootDir = await createWorkspace();
+    const envRootDir = await createWorkspace();
+
+    const context = await resolveExecutionContext({
+      rootDir,
+      env: {
+        AO_ROOT_DIR: envRootDir
+      }
+    });
+
+    expect(context.rootDir).toBe(rootDir);
+  });
+
   it("resolves context budget from config", async () => {
     const rootDir = await createWorkspace();
     await writeFile(

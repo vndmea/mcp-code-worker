@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 
 import type {
   ExecutionContext,
@@ -31,6 +31,20 @@ const buildDefaultConfig = (): AoConfig =>
 
 const hasEnvValue = (env: NodeJS.ProcessEnv, key: string): boolean =>
   typeof env[key] === "string" && env[key].length > 0;
+
+const normalizeRootDir = (rootDir: string): string =>
+  isAbsolute(rootDir) ? rootDir : resolve(rootDir);
+
+const resolveRootDir = (
+  env: NodeJS.ProcessEnv,
+  options: ResolveExecutionContextOptions
+): string => {
+  const cliOverrides = options.cliOverrides ?? {};
+  const configuredRootDir =
+    options.rootDir ?? cliOverrides.rootDir ?? env.AO_ROOT_DIR ?? process.cwd();
+
+  return normalizeRootDir(configuredRootDir);
+};
 
 const mergeModelConfig = (
   base: ExecutionContext["leaderModel"],
@@ -112,7 +126,7 @@ export async function resolveExecutionContext(
 ): Promise<ExecutionContext> {
   const env = options.env ?? process.env;
   const cliOverrides = options.cliOverrides ?? {};
-  const rootDir = options.rootDir ?? cliOverrides.rootDir ?? process.cwd();
+  const rootDir = resolveRootDir(env, options);
   const configResult = await loadAoConfig(rootDir);
   const baseContext = createExecutionContextFromEnv(env, {
     ...cliOverrides,

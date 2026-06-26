@@ -274,4 +274,38 @@ describe("invokeStructured", () => {
       }
     });
   });
+
+  it("can disable mock responses explicitly", async () => {
+    const provider = new SequenceProvider([
+      {
+        provider: "sequence",
+        model: "mock-model",
+        text: JSON.stringify({
+          message: "real",
+          count: 9
+        })
+      }
+    ]);
+
+    const result = await invokeStructured({
+      provider,
+      config,
+      schema,
+      prompt: "Use the real provider response",
+      mockResponse: {
+        message: "mock",
+        count: 1
+      },
+      disableMockResponse: true
+    });
+
+    expect(provider.requests[0]?.mockResponse).toBeUndefined();
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        message: "real",
+        count: 9
+      }
+    });
+  });
 });

@@ -10,8 +10,18 @@ export const registerMcpCommand = (program: Command, io: CliIo): void => {
   mcp
     .command("serve")
     .description("Start the stdio MCP server.")
-    .action(async () => {
-      await serveAoMcpServer();
+    .option(
+      "--root <path>",
+      "Resolve MCP workspace state from this root directory instead of the launch cwd."
+    )
+    .action(async (options: { root?: string }) => {
+      if (options.root) {
+        process.env.AO_ROOT_DIR = options.root;
+      }
+
+      await serveAoMcpServer({
+        rootDir: options.root
+      });
     });
 
   mcp
@@ -35,14 +45,24 @@ export const registerMcpCommand = (program: Command, io: CliIo): void => {
     .description("Print a generic local MCP stdio server config snippet.")
     .option("--command <command>", "Command to launch the server", "ao")
     .option("--args <args...>", "Arguments passed to the command")
-    .action((options: { args?: string[]; command: string }) => {
+    .option(
+      "--root <path>",
+      "Embed an explicit root directory, for example ${workspaceFolder}."
+    )
+    .action((options: { args?: string[]; command: string; root?: string }) => {
+      const args = options.args ?? ["mcp", "serve"];
+
+      if (options.root) {
+        args.push("--root", options.root);
+      }
+
       io.write(
         JSON.stringify(
           {
             mcpServers: {
               "agent-orchestrator": {
                 command: options.command,
-                args: options.args ?? ["mcp", "serve"]
+                args
               }
             }
           },

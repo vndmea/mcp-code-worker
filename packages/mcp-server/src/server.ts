@@ -67,8 +67,28 @@ export const aoToolDefinitions = [
   aoDoctorTool
 ] as const;
 
-export const createAoMcpServer = async () => {
-  const context = await resolveExecutionContext();
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const prototype = Reflect.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+export const toStructuredContent = (result: unknown): Record<string, unknown> =>
+  isPlainObject(result) ? result : { result };
+
+export interface AoMcpServerOptions {
+  rootDir?: string;
+}
+
+export const createAoMcpServer = async (
+  options: AoMcpServerOptions = {}
+) => {
+  const context = await resolveExecutionContext({
+    ...(options.rootDir ? { rootDir: options.rootDir } : {})
+  });
   const server = new McpServer({
     name: context.serverName,
     version: context.serverVersion
@@ -83,10 +103,7 @@ export const createAoMcpServer = async () => {
       },
       async (args: unknown) => {
         const result = await tool.execute(args as never);
-        const structuredContent =
-          typeof result === "object" && result !== null
-            ? (result as Record<string, unknown>)
-            : { result };
+        const structuredContent = toStructuredContent(result);
 
         return {
           content: [
@@ -104,8 +121,10 @@ export const createAoMcpServer = async () => {
   return server;
 };
 
-export const serveAoMcpServer = async (): Promise<void> => {
-  const server = await createAoMcpServer();
+export const serveAoMcpServer = async (
+  options: AoMcpServerOptions = {}
+): Promise<void> => {
+  const server = await createAoMcpServer(options);
   const transport = new StdioServerTransport();
   await server.connect(transport);
 };

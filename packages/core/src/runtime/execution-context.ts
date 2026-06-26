@@ -1,3 +1,5 @@
+import { isAbsolute, resolve } from "node:path";
+
 import type { ModelConfig } from "../types/workflow.js";
 import { SafetyPolicy } from "../policies/safety-policy.js";
 import { WritePolicy } from "../policies/write-policy.js";
@@ -53,6 +55,9 @@ const parseList = (value: string | undefined, fallback: string[]) => {
     .filter(Boolean);
 };
 
+const normalizeRootDir = (rootDir: string): string =>
+  isAbsolute(rootDir) ? rootDir : resolve(rootDir);
+
 const mergeModelConfig = (
   base: ModelConfig,
   override?: Partial<ModelConfig>
@@ -79,7 +84,9 @@ export const createExecutionContextFromEnv = (
   env: NodeJS.ProcessEnv = process.env,
   overrides: ExecutionContextOverrides = {}
 ): ExecutionContext => {
-  const rootDir = overrides.rootDir ?? process.cwd();
+  const rootDir = normalizeRootDir(
+    overrides.rootDir ?? env.AO_ROOT_DIR ?? process.cwd()
+  );
   const dryRun = overrides.dryRun ?? parseBoolean(env.AO_DRY_RUN, true);
   const allowWrite =
     overrides.allowWrite ?? parseBoolean(env.AO_ALLOW_WRITE, false);

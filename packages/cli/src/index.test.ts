@@ -259,6 +259,23 @@ describe("cli parsing", () => {
     expect(output.join("\n")).toContain("\"serve\"");
   });
 
+  it("prints an mcp config snippet with an explicit root override", async () => {
+    const { io, output } = createIo();
+    const cli = buildCli(io);
+
+    await cli.parseAsync([
+      "node",
+      "ao",
+      "mcp",
+      "config",
+      "--root",
+      "${workspaceFolder}"
+    ]);
+
+    expect(output.join("\n")).toContain("\"--root\"");
+    expect(output.join("\n")).toContain("${workspaceFolder}");
+  });
+
   it("runs worker list", async () => {
     const { io, output } = createIo();
     const cli = buildCli(io);

@@ -31,13 +31,17 @@ ao cleanup runs
 ao cleanup audit
 ao doctor
 ao mcp config
+ao mcp config --root ${workspaceFolder}
 ao mcp serve
+ao mcp serve --root ${workspaceFolder}
 ao mcp list-tools
 ```
 
 Writes remain in dry-run mode unless a command explicitly enables repository writes with `--allow-write`.
 
 `--allow-write-session` is narrower than `--allow-write`: it only permits local task artifacts under `.ao/runs`, not project file writes.
+
+For MCP clients that launch `ao` outside the active repository, use `ao mcp serve --root <workspace-path>` or set `AO_ROOT_DIR` so tools resolve `.ao/`, git state, and repository files against the intended workspace.
 
 ## Review Commands
 
