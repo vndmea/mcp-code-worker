@@ -39,6 +39,7 @@ import {
   aoListWorkerRegistryTool,
   aoProposePatchTool,
   aoRegisterWorkerTool,
+  aoRunWorkerInterviewTool,
   aoRunHostWorkerTool,
   aoStartTaskTool,
   aoToolDefinitions,
@@ -326,6 +327,8 @@ describe("mcp tool registration", () => {
 
     expect(names).toContain("ao_list_audit_events");
     expect(names).toContain("ao_register_worker");
+    expect(names).toContain("ao_run_worker_interview");
+    expect(names).toContain("ao_interview_worker");
     expect(names).toContain("ao_benchmark_worker");
     expect(names).toContain("ao_run_host_worker");
     expect(names).toContain("ao_propose_patch");
@@ -434,6 +437,24 @@ describe("mcp tool registration", () => {
       expect(result.patchGenerationQualified).toBe(true);
       expect(result.capabilityUpdateApplied).toBe(true);
       expect(result.profilePersistence?.mode).toBe("execute");
+    });
+  });
+
+  it("runs a fresh worker interview and can persist the generated profile through MCP", async () => {
+    await withTempCwd(async () => {
+      const result = await aoRunWorkerInterviewTool.execute({
+        provider: "mock",
+        model: "interview-worker",
+        persistProfile: true
+      });
+
+      expect(result.profile.workerId).toBe("mock:interview-worker");
+      expect(result.status).toBe("active");
+      expect(result.persistence?.mode).toBe("execute");
+      if (result.persistence?.mode !== "execute") {
+        throw new Error("Expected persisted worker interview profile.");
+      }
+      expect(result.persistence.path).toContain("worker-profiles.json");
     });
   });
 

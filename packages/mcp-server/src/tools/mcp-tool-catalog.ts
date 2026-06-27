@@ -141,9 +141,16 @@ export const mcpToolCatalog: McpToolCatalogEntry[] = [
     description: "Get one registered worker model."
   },
   {
+    name: "ao_run_worker_interview",
+    category: "management",
+    description:
+      "Run a fresh worker interview, generate a capability profile, and optionally persist it."
+  },
+  {
     name: "ao_interview_worker",
     category: "management",
-    description: "Evaluate a worker model, generate a capability profile, and optionally persist it."
+    description:
+      "Alias for ao_run_worker_interview. Evaluate a worker model, generate a capability profile, and optionally persist it."
   },
   {
     name: "ao_benchmark_worker",

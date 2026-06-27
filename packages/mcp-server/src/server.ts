@@ -14,7 +14,10 @@ import { aoReadTaskArtifactTool } from "./tools/ao-read-task-artifact.tool.js";
 import { aoGetWorkerRegistrationTool } from "./tools/ao-get-worker-registration.tool.js";
 import { aoGetWorkerProfileTool } from "./tools/ao-get-worker-profile.tool.js";
 import { aoInspectPatchTool } from "./tools/ao-inspect-patch.tool.js";
-import { aoInterviewWorkerTool } from "./tools/ao-interview-worker.tool.js";
+import {
+  aoInterviewWorkerTool,
+  aoRunWorkerInterviewTool
+} from "./tools/ao-interview-worker.tool.js";
 import { aoListAuditEventsTool } from "./tools/ao-list-audit-events.tool.js";
 import { aoListModelsTool } from "./tools/ao-list-models.tool.js";
 import { aoListTasksTool } from "./tools/ao-list-tasks.tool.js";
@@ -57,6 +60,7 @@ export const aoToolDefinitions = [
   aoUnregisterWorkerTool,
   aoListWorkerRegistryTool,
   aoGetWorkerRegistrationTool,
+  aoRunWorkerInterviewTool,
   aoInterviewWorkerTool,
   aoBenchmarkWorkerTool,
   aoListWorkersTool,

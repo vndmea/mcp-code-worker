@@ -95,6 +95,7 @@ By default, the MCP server stores AO-managed state under:
 - `ao_unregister_worker`
 - `ao_list_worker_registry`
 - `ao_get_worker_registration`
+- `ao_run_worker_interview`
 - `ao_interview_worker`
 - `ao_benchmark_worker`
 - `ao_list_workers`
@@ -118,8 +119,10 @@ For host-driven coding flows:
 For worker qualification over MCP, use:
 
 1. `ao_register_worker`
-2. `ao_interview_worker` with profile persistence when appropriate
+2. `ao_run_worker_interview` with `persistProfile=true` when the new profile should replace the persisted capability record
 3. `ao_benchmark_worker` with artifact persistence and optional capability promotion
+
+`ao_interview_worker` remains as an alias for `ao_run_worker_interview`; prefer the explicit `ao_run_worker_interview` name in new MCP clients.
 
 ## Artifact-Oriented Usage
 
