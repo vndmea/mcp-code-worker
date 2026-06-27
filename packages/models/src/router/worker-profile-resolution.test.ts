@@ -38,7 +38,35 @@ const createProfile = (overrides: Record<string, unknown> = {}) => ({
   evaluatedAt: new Date().toISOString(),
   expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
   suiteName: "default-worker-onboarding-suite",
-  suiteVersion: "1",
+  suiteVersion: "5",
+  admission: {
+    passed: true,
+    blockingReasons: []
+  },
+  portrait: {
+    scopeDiscipline: 0.82,
+    repoGrounding: 0.8,
+    answerDirectness: 0.8,
+    codeUnderstanding: 0.76,
+    fixPlanning: 0.75,
+    implementationPlanning: 0.62,
+    consistency: 0.84
+  },
+  taskScores: {
+    summarization: 0.79,
+    codegen: 0.42,
+    patchGeneration: 0.39,
+    testGeneration: 0.44,
+    logAnalysis: 0.78,
+    jsonExtraction: 0.77,
+    reviewLite: 0.78
+  },
+  evidence: {
+    failedCases: [],
+    repoGroundedCases: ["structured-output", "scope-discipline", "summarization"],
+    fallbackPatternCases: [],
+    genericAnswerCases: []
+  },
   ...overrides
 });
 
@@ -178,6 +206,33 @@ describe("resolveWorkerProfile", () => {
 
     expect(result.source).toBe("stale");
     expect(result.freshness.usable).toBe(false);
+  });
+
+  it("treats legacy profiles without current interview signals as stale", async () => {
+    const rootDir = await createRootDir();
+    await writeProfiles(rootDir, [
+      createProfile({
+        suiteVersion: "1",
+        admission: undefined,
+        portrait: undefined,
+        taskScores: undefined,
+        evidence: undefined
+      })
+    ]);
+    const context = createExecutionContextFromEnv(undefined, {
+      rootDir,
+      workerModel: {
+        provider: "mock",
+        model: "worker-model"
+      }
+    });
+
+    const result = await resolveWorkerProfile({
+      context
+    });
+
+    expect(result.source).toBe("stale");
+    expect(result.freshness.reason).toContain("current repo-grounded interview signals");
   });
 
   it("treats provider-failure blocked profiles as needing re-interview", async () => {

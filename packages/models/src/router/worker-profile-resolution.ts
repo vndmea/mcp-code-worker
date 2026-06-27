@@ -31,6 +31,7 @@ export interface ResolveWorkerProfileResult {
 
 const knownStatuses = new Set<WorkerStatus>(["active", "limited", "blocked"]);
 const providerFailureWarningPattern = /provider invocation failed/iu;
+const supportedSuiteVersion = "5";
 
 const buildFailure = (
   workerId: string,
@@ -67,6 +68,15 @@ const hasProviderFailureSignal = (profile: WorkerCapabilityProfile): boolean =>
   [...profile.warnings, ...profile.risks].some((message) =>
     providerFailureWarningPattern.test(message)
   );
+
+const lacksCurrentInterviewSignals = (
+  profile: WorkerCapabilityProfile
+): boolean =>
+  profile.suiteVersion !== supportedSuiteVersion ||
+  !profile.admission ||
+  !profile.portrait ||
+  !profile.taskScores ||
+  !profile.evidence;
 
 export const resolveWorkerProfile = async ({
   context,
@@ -140,6 +150,18 @@ export const resolveWorkerProfile = async ({
         profile,
         "provider-error",
         `Persisted worker profile ${resolvedWorkerId} looks like a provider/configuration failure rather than a completed interview. Re-run 'ao worker interview --save' after checking base URL, API key, and network access.`
+      ),
+      requireProfile
+    );
+  }
+
+  if (lacksCurrentInterviewSignals(profile)) {
+    return failIfRequired(
+      buildFailure(
+        resolvedWorkerId,
+        profile,
+        "stale",
+        `Persisted worker profile ${resolvedWorkerId} was created without the current repo-grounded interview signals. Re-run 'ao worker interview --save'.`
       ),
       requireProfile
     );

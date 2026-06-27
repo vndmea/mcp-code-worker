@@ -49,7 +49,35 @@ const createProfile = (overrides: Record<string, unknown> = {}) => ({
   evaluatedAt: new Date().toISOString(),
   expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
   suiteName: "default-worker-onboarding-suite",
-  suiteVersion: "1",
+  suiteVersion: "5",
+  admission: {
+    passed: true,
+    blockingReasons: []
+  },
+  portrait: {
+    scopeDiscipline: 0.83,
+    repoGrounding: 0.81,
+    answerDirectness: 0.8,
+    codeUnderstanding: 0.79,
+    fixPlanning: 0.8,
+    implementationPlanning: 0.82,
+    consistency: 0.86
+  },
+  taskScores: {
+    summarization: 0.8,
+    codegen: 0.82,
+    patchGeneration: 0.81,
+    testGeneration: 0.82,
+    logAnalysis: 0.79,
+    jsonExtraction: 0.78,
+    reviewLite: 0.8
+  },
+  evidence: {
+    failedCases: [],
+    repoGroundedCases: ["structured-output", "scope-discipline", "summarization"],
+    fallbackPatternCases: [],
+    genericAnswerCases: []
+  },
   ...overrides
 });
 
