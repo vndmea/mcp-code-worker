@@ -104,6 +104,7 @@ describe("patch proposal workflow", () => {
     expect(result.proposal.id).toBeTruthy();
     expect(result.proposal.title).not.toContain("[PLACEHOLDER]");
     expect(result.proposal.unifiedDiff).toContain("diff --git");
+    expect(result.proposal.unifiedDiff).not.toContain("manual review");
     expect(result.inspection.files.length).toBeGreaterThan(0);
   });
 

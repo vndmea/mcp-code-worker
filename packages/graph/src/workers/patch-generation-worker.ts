@@ -84,6 +84,53 @@ const pickPatchTarget = (
     [".ts", ".tsx", ".js", ".jsx", ".json", ".md"].includes(extname(file.path))
   ) ?? repositoryContext.selectedFiles[0];
 
+const buildExampleUnifiedDiff = (
+  repositoryContext: RepositoryContextPack
+): { diffText: string; path: string } => {
+  const target = pickPatchTarget(repositoryContext);
+
+  if (!target) {
+    return {
+      path: "README.md",
+      diffText: [
+        "diff --git a/README.md b/README.md",
+        "--- a/README.md",
+        "+++ b/README.md",
+        "@@ -1 +1 @@",
+        "-Placeholder line",
+        "+Updated placeholder line"
+      ].join("\n")
+    };
+  }
+
+  const firstLine = target.content.split(/\r?\n/u)[0] ?? "";
+
+  if (!firstLine) {
+    return {
+      path: target.path,
+      diffText: [
+        `diff --git a/${target.path} b/${target.path}`,
+        `--- a/${target.path}`,
+        `+++ b/${target.path}`,
+        "@@ -0,0 +1 @@",
+        "+sample patch line"
+      ].join("\n")
+    };
+  }
+
+  return {
+    path: target.path,
+    diffText: [
+      `diff --git a/${target.path} b/${target.path}`,
+      `--- a/${target.path}`,
+      `+++ b/${target.path}`,
+      "@@ -1 +1 @@",
+      `-${firstLine}`,
+      `+${firstLine} // sample patch`
+    ].join("\n")
+  };
+};
+
 const buildFallbackUnifiedDiff = (
   repositoryContext: RepositoryContextPack
 ): { diffText: string; path: string } => {
@@ -180,30 +227,33 @@ export const buildFallbackPatchProposal = (
 const buildCandidatePatchProposal = (
   input: PatchGenerationInput
 ): PatchProposal => {
-  const patchTarget = buildFallbackUnifiedDiff(input.repositoryContext);
+  const patchTarget = buildExampleUnifiedDiff(input.repositoryContext);
 
   return PatchProposalSchema.parse({
     id: randomUUID(),
     title: `Candidate patch for ${input.goal}`,
-    summary: "Structured candidate patch proposal for manual inspection and gated application.",
+    summary: "Structured candidate patch proposal used as a schema example for model output.",
     rationale: [
-      "The patch is scoped to the selected repository context and must still pass inspect/apply gates.",
-      "Deterministic validation remains required after any successful application."
+      "This candidate illustrates the required PatchProposal JSON shape.",
+      "A real provider response should replace this example with repository-grounded edits."
     ],
     unifiedDiff: patchTarget.diffText,
     files: [
       {
         path: patchTarget.path,
         changeType: "modify",
-        summary: "Add a minimal candidate patch for review.",
+        summary: "Illustrative patch entry for schema guidance only.",
         riskLevel: "low"
       }
     ],
     risks: [
-      "Candidate patch still requires manual review.",
-      "Repository validation may fail after apply and should be reviewed."
+      "Example patch content is not evidence of a validated fix.",
+      "Any real patch still requires inspection and deterministic validation."
     ],
-    validationPlan: ["Run deterministic validation before and after any write-enabled apply."],
+    validationPlan: [
+      "Replace this example with a repository-grounded patch proposal before apply.",
+      "Run deterministic validation before and after any write-enabled apply."
+    ],
     generatedAt: new Date().toISOString(),
     source: {
       workflow: "patch-generation-worker",

@@ -76,6 +76,16 @@ const areModelMocksDisabled = (
   return value === "1" || value === "true" || value === "yes";
 };
 
+const shouldUseMockResponse = <T>(
+  options: StructuredInvocationOptions<T>
+): boolean => {
+  if (options.disableMockResponse ?? areModelMocksDisabled()) {
+    return false;
+  }
+
+  return options.config.provider === "mock";
+};
+
 const truncateForRetryPrompt = (text: string, maxChars = 1_200): string =>
   text.length <= maxChars ? text : `${text.slice(0, maxChars)}...`;
 
@@ -120,10 +130,9 @@ export async function invokeStructured<T>(
         systemPrompt: options.systemPrompt,
         responseFormat: "json",
         responseSchema: options.schema,
-        mockResponse:
-          options.disableMockResponse ?? areModelMocksDisabled()
-            ? undefined
-            : options.mockResponse,
+        mockResponse: shouldUseMockResponse(options)
+          ? options.mockResponse
+          : undefined,
         metadata: options.metadata
       });
 

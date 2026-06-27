@@ -100,6 +100,35 @@ const parseClientPayload = (stdout: string): ClientPayload => {
   return JSON.parse(lastNonEmptyLine) as ClientPayload;
 };
 
+const tryParseClientPayload = (stdout: string): ClientPayload | null => {
+  try {
+    return parseClientPayload(stdout);
+  } catch {
+    return null;
+  }
+};
+
+const summarizeClientError = (value: string): string =>
+  value.replaceAll(/\s+/gu, " ").trim().slice(0, 300);
+
+const buildClientExitError = (
+  exitCode: number,
+  stderr: string,
+  stdout: string
+): Error => {
+  const payload = tryParseClientPayload(stdout);
+  const message =
+    (payload?.is_error && typeof payload.result === "string"
+      ? payload.result
+      : undefined) ??
+    (stderr.trim().length > 0 ? stderr.trim() : undefined) ??
+    (stdout.trim().length > 0 ? summarizeClientError(stdout) : undefined);
+
+  return new Error(
+    `Local client worker exited with code ${exitCode}${message ? `: ${message}` : ""}`
+  );
+};
+
 const runClient = async (
   args: string[],
   prompt: string
@@ -150,9 +179,7 @@ export class LocalClientProvider implements ModelProvider {
     );
 
     if (exitCode !== 0) {
-      throw new Error(
-        `Local client worker exited with code ${exitCode}${stderr.trim().length > 0 ? `: ${stderr.trim()}` : ""}`
-      );
+      throw buildClientExitError(exitCode, stderr, stdout);
     }
 
     const payload = parseClientPayload(stdout);

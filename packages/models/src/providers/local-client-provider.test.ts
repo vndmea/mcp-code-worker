@@ -160,6 +160,31 @@ describe("LocalClientProvider", () => {
     );
   });
 
+  it("surfaces structured client error output when the local client exits non-zero", async () => {
+    const child = createMockChildProcess();
+    spawnMock.mockReturnValue(child);
+
+    const provider = new LocalClientProvider();
+    const pending = provider.invoke(config, {
+      prompt: "Reply with exactly hello"
+    });
+
+    child.stdout.end(
+      JSON.stringify({
+        type: "result",
+        subtype: "success",
+        is_error: true,
+        result: "API Error: Unable to connect to API (ConnectionRefused)"
+      })
+    );
+    child.stderr.end();
+    child.emit("close", 1);
+
+    await expect(pending).rejects.toThrow(
+      "Local client worker exited with code 1: API Error: Unable to connect to API (ConnectionRefused)"
+    );
+  });
+
   it("uses the configured client command override when provided", async () => {
     process.env.AO_WORKER_CLIENT_COMMAND = "custom-client";
     const child = createMockChildProcess();

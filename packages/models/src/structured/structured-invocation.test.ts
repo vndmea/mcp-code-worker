@@ -308,4 +308,40 @@ describe("invokeStructured", () => {
       }
     });
   });
+
+  it("does not pass mock responses through non-mock providers by default", async () => {
+    const provider = new SequenceProvider([
+      {
+        provider: "sequence",
+        model: "client-model",
+        text: JSON.stringify({
+          message: "real",
+          count: 5
+        })
+      }
+    ]);
+
+    const result = await invokeStructured({
+      provider,
+      config: {
+        provider: "client",
+        model: "qwen3-coder"
+      },
+      schema,
+      prompt: "Use the real client provider response",
+      mockResponse: {
+        message: "mock",
+        count: 1
+      }
+    });
+
+    expect(provider.requests[0]?.mockResponse).toBeUndefined();
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        message: "real",
+        count: 5
+      }
+    });
+  });
 });
