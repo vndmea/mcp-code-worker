@@ -7,8 +7,11 @@ import type {
   AgentTask,
   ExecutionContext,
   ModelConfig,
+  WorkerAdmissionDecision,
   WorkerCapabilityProfile,
+  WorkerCapabilityPortrait,
   WorkerInterviewDiagnostics,
+  WorkerInterviewEvidence,
   WorkerInterviewPersistenceAdvice,
   WorkerEvaluationScore,
   WorkerEvaluationSuite,
@@ -16,6 +19,7 @@ import type {
   WorkerInterviewTask,
   WorkerInterviewTaskResult,
   WorkerInterviewTaskType,
+  WorkerTaskScoreCard,
   WorkflowState,
   WorkerTaskType
 } from "@agent-orchestrator/core";
@@ -51,8 +55,13 @@ interface WorkerInterviewSuiteIdentity {
   workerId?: string;
 }
 
+interface FixtureFile {
+  path: string;
+  content: string;
+}
+
 const WORKER_EVALUATION_SUITE_NAME = "default-worker-onboarding-suite";
-const WORKER_EVALUATION_SUITE_VERSION = "4";
+const WORKER_EVALUATION_SUITE_VERSION = "5";
 
 const InterviewState = Annotation.Root({
   task: Annotation<WorkflowState["task"]>(),
@@ -138,6 +147,139 @@ const includesAny = (value: string, expected: string[]): boolean => {
   return expected.some((entry) => normalizedValue.includes(normalizeText(entry)));
 };
 
+const stringifyParsed = (value: unknown): string =>
+  typeof value === "string" ? value : JSON.stringify(value);
+
+const detectTemplateLanguage = (value: string): boolean =>
+  /summarize-context|draft-implementation|plan-tests|workflow|step 1|step 2|scope not provided/iu.test(
+    value
+  );
+
+const detectGenericAnswer = (value: string): boolean =>
+  /inspect the code|review the files|depends on context|needs more context|possible issue|check the implementation/iu.test(
+    value
+  );
+
+const hasRepoPathReference = (value: string): boolean =>
+  /packages\/[a-z0-9-]+\/src\/[A-Za-z0-9./-]+/iu.test(value);
+
+const renderFixtureFiles = (files: FixtureFile[]): string[] => [
+  "Repository files:",
+  ...files.flatMap((file) => [
+    `File: ${file.path}`,
+    ...file.content.trim().split("\n")
+  ])
+];
+
+const routingFixtureFiles: FixtureFile[] = [
+  {
+    path: "packages/runtime/src/selectWorker.ts",
+    content: [
+      "export function selectWorker(profile: WorkerProfile): string {",
+      '  return profile.status === "blocked" ? "fallback-worker" : profile.workerId;',
+      "}"
+    ].join("\n")
+  },
+  {
+    path: "packages/runtime/src/profileCache.ts",
+    content: [
+      "export function canReuseProfile(profile: WorkerProfile, modelId: string): boolean {",
+      "  return profile.modelId === modelId && !profile.expired;",
+      "}"
+    ].join("\n")
+  },
+  {
+    path: "packages/cli/src/index.ts",
+    content: [
+      "export function renderWorkerSummary(workerId: string): string {",
+      '  return `worker=${workerId}`;',
+      "}"
+    ].join("\n")
+  }
+];
+
+const scopeFixtureFiles: FixtureFile[] = [
+  {
+    path: "packages/id/src/generateId.ts",
+    content: [
+      "export function generateId(prefix: string, raw: string): string {",
+      "  return `${prefix}-${raw.trim()}`;",
+      "}"
+    ].join("\n")
+  },
+  {
+    path: "packages/id/src/schemaMinimum.ts",
+    content: [
+      "export const schemaMinimum = {",
+      "  prefix: { minLength: 1 },",
+      "  raw: { minLength: 1 }",
+      "};"
+    ].join("\n")
+  },
+  {
+    path: "packages/id/src/index.ts",
+    content: [
+      'export { generateId } from "./generateId.js";',
+      'export { schemaMinimum } from "./schemaMinimum.js";'
+    ].join("\n")
+  },
+  {
+    path: "packages/cli/src/index.ts",
+    content: [
+      "export function printHelp(): void {",
+      '  process.stdout.write("help\\n");',
+      "}"
+    ].join("\n")
+  }
+];
+
+const logFixtureFiles: FixtureFile[] = [
+  {
+    path: "packages/runtime/src/profileStore.ts",
+    content: [
+      "export interface PersistedWorkerProfile {",
+      "  workerId: string;",
+      "  score: number;",
+      "}"
+    ].join("\n")
+  },
+  {
+    path: "packages/runtime/src/readProfile.ts",
+    content: [
+      "export function readProfile(row: { score: string }): PersistedWorkerProfile {",
+      '  return { workerId: "fixture-worker", score: Number(row.score) };',
+      "}"
+    ].join("\n")
+  }
+];
+
+const codeUnderstandingFixtureFiles: FixtureFile[] = [
+  {
+    path: "packages/math/src/sumValidated.ts",
+    content: [
+      "export function sumValidated(values: unknown[]): number {",
+      "  return values",
+      '    .filter((value): value is number => typeof value === "number" && Number.isFinite(value))',
+      "    .reduce((total, value) => total + value, 0);",
+      "}"
+    ].join("\n")
+  }
+];
+
+const codegenFixtureFiles: FixtureFile[] = [
+  {
+    path: "packages/validation/src/validateScore.ts",
+    content: [
+      "export interface ValidationResult {",
+      "  ok: boolean;",
+      "  message?: string;",
+      "}",
+      "",
+      "// TODO: implement validateScore"
+    ].join("\n")
+  }
+];
+
 const instructionFollowingVariants = [
   [
     'Return exactly JSON with {"mode":"json-only","confidence":0.4} and nothing else.',
@@ -156,52 +298,52 @@ const instructionFollowingVariants = [
 const structuredOutputVariants = [
   strictJsonContractLines(
     [
-      "Analyze the incident summary below.",
+      "Analyze the worker-routing regression using only the repository evidence below.",
       "Use exactly these keys and types:",
       '- summary: string',
       '- risks: string[]',
       '- confidence: number between 0 and 1',
       '- files: string[]',
-      "Return at least one risk and at least one file.",
+      "Return at least one risk and at least one file from the fixture.",
+      ...renderFixtureFiles(routingFixtureFiles),
       "Incident summary:",
-      "- Build failed after a worker routing change.",
-      "- Stale worker profiles were accepted without revalidation.",
-      "- Affected files: packages/models/src/router/worker-profile-resolution.ts, packages/graph/src/workflows/leader-worker-workflow.ts.",
-      "- Main risk: a blocked worker could be routed into production tasks."
+      "- Cached worker profiles are being reused after capability drift.",
+      "- A blocked worker could still be selected if cache reuse is wrong.",
+      "- The answer must cite only files from the repository fixture."
     ],
     '{"summary":"...","risks":["risk 1"],"confidence":0.85,"files":["path.ts"]}'
   ),
   strictJsonContractLines(
     [
-      "Review the release incident notes below.",
+      "Review the release incident notes below using the repository fixture only.",
       "Use exactly these keys and types:",
       '- summary: string',
       '- risks: string[]',
       '- confidence: number between 0 and 1',
       '- files: string[]',
-      "Return at least one risk and at least one file.",
+      "Return at least one risk and at least one file from the fixture.",
+      ...renderFixtureFiles(routingFixtureFiles),
       "Incident notes:",
-      "- A hotfix changed model routing for worker selection.",
-      "- The fallback branch skipped capability freshness checks.",
-      "- Touched files: packages/models/src/router/model-router.ts, packages/graph/src/workflows/leader-worker-workflow.ts.",
-      "- Main risk: low-quality workers may receive code generation tasks."
+      "- A hotfix changed worker selection behavior.",
+      "- The fallback path may reuse a stale profile without checking expiry.",
+      "- Main risk: the wrong worker id can survive routing."
     ],
     '{"summary":"...","risks":["risk 1"],"confidence":0.78,"files":["path.ts"]}'
   ),
   strictJsonContractLines(
     [
-      "Inspect the workflow regression summary below.",
+      "Inspect the routing regression summary below using only the fixture files.",
       "Use exactly these keys and types:",
       '- summary: string',
       '- risks: string[]',
       '- confidence: number between 0 and 1',
       '- files: string[]',
-      "Return at least one risk and at least one file.",
+      "Return at least one risk and at least one file from the fixture.",
+      ...renderFixtureFiles(routingFixtureFiles),
       "Regression summary:",
-      "- Worker capability profiles were reused after a model swap.",
-      "- A stale compatibility gate caused outdated scores to look valid.",
-      "- Related files: packages/models/src/router/worker-profile-resolution.ts, packages/cli/src/commands/worker.ts.",
-      "- Main risk: routing decisions may trust the wrong worker profile."
+      "- Worker capability profiles are reused too aggressively.",
+      "- A stale cache can return an outdated worker id.",
+      "- Main risk: runtime routing decisions trust the wrong profile."
     ],
     '{"summary":"...","risks":["risk 1"],"confidence":0.81,"files":["path.ts"]}'
   )
@@ -218,62 +360,85 @@ const scopeDisciplineVariants = [
       '- confidence: number between 0 and 1',
       "Do not invent files outside the request.",
       "The answer must mention at least one allowed file path.",
+      ...renderFixtureFiles(scopeFixtureFiles),
       "Task request:",
-      "- Scope: packages/core",
-      "- Allowed files: packages/core/src/generateId.ts, packages/core/src/schemaMinimum.ts, packages/core/src/index.ts",
+      "- Scope: packages/id",
+      "- Allowed files: packages/id/src/generateId.ts, packages/id/src/schemaMinimum.ts, packages/id/src/index.ts",
       "- Out-of-scope file that must be blocked: packages/cli/src/index.ts",
       "- Goal: explain which file should be inspected first for id-generation regressions."
     ],
-    '{"allowedFiles":["packages/core/src/generateId.ts"],"blockedFiles":["packages/cli/src/index.ts"],"answer":"Inspect packages/core/src/generateId.ts first.","confidence":0.82}'
+    '{"allowedFiles":["packages/id/src/generateId.ts"],"blockedFiles":["packages/cli/src/index.ts"],"answer":"Inspect packages/id/src/generateId.ts first.","confidence":0.82}'
+  ),
+  strictJsonContractLines(
+    [
+      "Answer the scoped repository request below.",
+      "Use exactly these keys and types:",
+      '- allowedFiles: string[]',
+      '- blockedFiles: string[]',
+      '- answer: string',
+      '- confidence: number between 0 and 1',
+      "Do not widen the scope.",
+      "The answer must cite an allowed file path verbatim.",
+      ...renderFixtureFiles(scopeFixtureFiles),
+      "Task request:",
+      "- Scope: packages/id",
+      "- Allowed files: packages/id/src/generateId.ts, packages/id/src/schemaMinimum.ts",
+      "- Must block: packages/cli/src/index.ts",
+      "- Goal: identify the first file to inspect for id-format regressions."
+    ],
+    '{"allowedFiles":["packages/id/src/generateId.ts"],"blockedFiles":["packages/cli/src/index.ts"],"answer":"Start with packages/id/src/generateId.ts because it trims and formats the id.","confidence":0.79}'
   )
 ];
 
 const summarizationVariants = [
   strictJsonContractLines(
     [
-      "Summarize the error log below as JSON.",
+      "Summarize the error log below as JSON using the repository fixture.",
       "Use exactly these keys and types:",
       '- issue: string',
       '- impact: string',
       '- nextSteps: string[]',
       '- confidence: number between 0 and 1',
       "Return at least two nextSteps.",
+      ...renderFixtureFiles(logFixtureFiles),
       "Error log:",
-      "TS2322: Type '{ score: string; }' is not assignable to type '{ score: number; }'.",
-      "  at packages/models/src/router/worker-profile-store.ts:48:7",
-      "Build failed for @agent-orchestrator/models."
+      "TS2322: Type '{ score: string; }' is not assignable to type 'PersistedWorkerProfile'.",
+      "  at packages/runtime/src/readProfile.ts:2:49",
+      "Build failed after profile parsing changes."
     ],
     '{"issue":"...","impact":"...","nextSteps":["step 1","step 2"],"confidence":0.95}'
   ),
   strictJsonContractLines(
     [
-      "Convert the failure log below into JSON.",
+      "Convert the failure log below into JSON using the repository fixture.",
       "Use exactly these keys and types:",
       '- issue: string',
       '- impact: string',
       '- nextSteps: string[]',
       '- confidence: number between 0 and 1',
       "Return at least two nextSteps.",
+      ...renderFixtureFiles(logFixtureFiles),
       "Failure log:",
-      "Error: WORKER_PROFILE_REQUIRED",
-      "  Persisted worker profile openai-compatible:deepseek-v4-pro has expired.",
-      "  at packages/models/src/router/worker-profile-resolution.ts:132:9"
+      "TypeError: score.toFixed is not a function",
+      "  at packages/runtime/src/readProfile.ts:2:49",
+      "  called with persisted row data where score is still a string"
     ],
     '{"issue":"...","impact":"...","nextSteps":["step 1","step 2"],"confidence":0.72}'
   ),
   strictJsonContractLines(
     [
-      "Summarize the build failure below as JSON.",
+      "Summarize the build failure below as JSON using the repository fixture.",
       "Use exactly these keys and types:",
       '- issue: string',
       '- impact: string',
       '- nextSteps: string[]',
       '- confidence: number between 0 and 1',
       "Return at least two nextSteps.",
+      ...renderFixtureFiles(logFixtureFiles),
       "Build output:",
-      "pnpm --filter @agent-orchestrator/cli build",
-      "error TS6053: File 'packages/graph/dist/index.d.ts' not found.",
-      "DTS build aborted for @agent-orchestrator/cli."
+      "pnpm --filter @fixture/runtime build",
+      "error TS2345: Argument of type '{ score: string; }' is not assignable to parameter of type 'PersistedWorkerProfile'.",
+      "Compilation stopped in packages/runtime/src/readProfile.ts."
     ],
     '{"issue":"...","impact":"...","nextSteps":["step 1","step 2"],"confidence":0.88}'
   )
@@ -287,12 +452,8 @@ const codeUnderstandingVariants = [
       '- behavior: string',
       '- risk: string',
       '- confidence: number between 0 and 1',
-      "Code:",
-      "function sumValidated(values: unknown[]): number {",
-      "  return values",
-      '    .filter((value): value is number => typeof value === "number" && Number.isFinite(value))',
-      "    .reduce((total, value) => total + value, 0);",
-      "}"
+      ...renderFixtureFiles(codeUnderstandingFixtureFiles),
+      "Explain the behavior of packages/math/src/sumValidated.ts and name one concrete risk."
     ],
     '{"behavior":"...","risk":"...","confidence":0.95}'
   ),
@@ -303,12 +464,9 @@ const codeUnderstandingVariants = [
       '- behavior: string',
       '- risk: string',
       '- confidence: number between 0 and 1',
-      "Code:",
-      "function sumScores(input: Array<number | null>): number {",
-      "  return input",
-      "    .filter((value): value is number => value !== null)",
-      "    .reduce((sum, value) => sum + value, 0);",
-      "}"
+      ...renderFixtureFiles(codeUnderstandingFixtureFiles),
+      "Focus on packages/math/src/sumValidated.ts.",
+      "Describe what values are ignored and one limitation of that behavior."
     ],
     '{"behavior":"...","risk":"...","confidence":0.9}'
   ),
@@ -319,13 +477,8 @@ const codeUnderstandingVariants = [
       '- behavior: string',
       '- risk: string',
       '- confidence: number between 0 and 1',
-      "Code:",
-      "function sumFinite(values: readonly unknown[]): number {",
-      "  const filtered = values.filter((value): value is number =>",
-      '    typeof value === "number" && Number.isFinite(value)',
-      "  );",
-      "  return filtered.reduce((total, value) => total + value, 0);",
-      "}"
+      ...renderFixtureFiles(codeUnderstandingFixtureFiles),
+      "Answer for packages/math/src/sumValidated.ts only."
     ],
     '{"behavior":"...","risk":"...","confidence":0.83}'
   )
@@ -338,9 +491,11 @@ const codegenVariants = [
       '- code: string',
       '- confidence: number between 0 and 1',
       "The code value must be strict TypeScript.",
+      ...renderFixtureFiles(codegenFixtureFiles),
+      "Target file: packages/validation/src/validateScore.ts",
       "It must define:",
       'export function validateScore(value: number): { ok: boolean; message?: string }',
-      "The function must reject NaN and negative numbers."
+      "The function must reject non-finite and negative numbers."
     ],
     '{"code":"export function validateScore(...) { ... }","confidence":0.68}'
   ),
@@ -350,6 +505,8 @@ const codegenVariants = [
       '- code: string',
       '- confidence: number between 0 and 1',
       "The code value must be strict TypeScript.",
+      ...renderFixtureFiles(codegenFixtureFiles),
+      "Target file: packages/validation/src/validateScore.ts",
       "Generate exactly this function signature:",
       'export function validateScore(value: number): { ok: boolean; message?: string }',
       "The implementation must reject non-finite values and values below zero."
@@ -362,9 +519,11 @@ const codegenVariants = [
       '- code: string',
       '- confidence: number between 0 and 1',
       "The code value must be strict TypeScript.",
+      ...renderFixtureFiles(codegenFixtureFiles),
+      "Target file: packages/validation/src/validateScore.ts",
       "Include this exact exported signature:",
       'export function validateScore(value: number): { ok: boolean; message?: string }',
-      "Return ok=false for NaN or negative input."
+      "Return ok=false for non-finite or negative input."
     ],
     '{"code":"export function validateScore(...) { ... }","confidence":0.61}'
   )
@@ -466,9 +625,10 @@ const buildInterviewTasks = (
       confidence: z.number().min(0).max(1)
     }),
     mockResponse: {
-      summary: "Worker profile routing looks stable but still needs review.",
-      risks: ["Low confidence still requires review."],
-      files: ["packages/models/src/router/worker-profile-resolution.ts"],
+      summary:
+        "packages/runtime/src/profileCache.ts can reuse a stale profile and route the wrong worker.",
+      risks: ["A blocked worker may still be selected from cache reuse."],
+      files: ["packages/runtime/src/profileCache.ts"],
       confidence: 0.66
     },
     mapRawOutputToTaskTypes: ["json-extraction"],
@@ -479,23 +639,26 @@ const buildInterviewTasks = (
         summary: string;
       };
       const findings: string[] = [];
+      const rendered = stringifyParsed(parsed);
       if (
         !value.files.some((file) =>
           [
-            "packages/models/src/router/worker-profile-resolution.ts",
-            "packages/graph/src/workflows/leader-worker-workflow.ts",
-            "packages/models/src/router/model-router.ts",
-            "packages/cli/src/commands/worker.ts"
+            "packages/runtime/src/selectWorker.ts",
+            "packages/runtime/src/profileCache.ts",
+            "packages/cli/src/index.ts"
           ].includes(file)
         )
       ) {
         findings.push("Structured output did not preserve the cited repository files.");
       }
-      if (!includesAny(value.summary, ["worker", "profile", "routing"])) {
+      if (!includesAny(value.summary, ["worker", "profile", "routing", "cache"])) {
         findings.push("Structured output summary was too generic.");
       }
       if (value.risks.length === 0) {
         findings.push("Structured output omitted concrete risks.");
+      }
+      if (detectTemplateLanguage(rendered)) {
+        findings.push("Structured output fell back to template workflow language.");
       }
       return {
         score: findings.length === 0 ? 0.92 : 0.38,
@@ -522,9 +685,10 @@ const buildInterviewTasks = (
       confidence: z.number().min(0).max(1)
     }),
     mockResponse: {
-      allowedFiles: ["packages/core/src/generateId.ts"],
+      allowedFiles: ["packages/id/src/generateId.ts"],
       blockedFiles: ["packages/cli/src/index.ts"],
-      answer: "Inspect packages/core/src/generateId.ts first because it is explicitly in scope for the id-generation regression.",
+      answer:
+        "Inspect packages/id/src/generateId.ts first because it applies trim and prefix formatting directly.",
       confidence: 0.82
     },
     mapRawOutputToTaskTypes: ["review-lite", "summarization"],
@@ -535,14 +699,18 @@ const buildInterviewTasks = (
         blockedFiles: string[];
       };
       const findings: string[] = [];
+      const rendered = stringifyParsed(parsed);
       if (!value.blockedFiles.includes("packages/cli/src/index.ts")) {
         findings.push("Worker did not block the out-of-scope file.");
       }
-      if (!value.allowedFiles.includes("packages/core/src/generateId.ts")) {
+      if (!value.allowedFiles.includes("packages/id/src/generateId.ts")) {
         findings.push("Worker missed the primary in-scope file.");
       }
-      if (!includesAny(value.answer, ["packages/core/src/generateId.ts"])) {
+      if (!includesAny(value.answer, ["packages/id/src/generateId.ts"])) {
         findings.push("Worker answer was not grounded in an allowed repository file.");
+      }
+      if (detectTemplateLanguage(rendered) || detectGenericAnswer(value.answer)) {
+        findings.push("Worker answer fell back to generic workflow language.");
       }
       return {
         score: findings.length === 0 ? 0.94 : 0.28,
@@ -569,9 +737,13 @@ const buildInterviewTasks = (
       confidence: z.number().min(0).max(1)
     }),
     mockResponse: {
-      issue: "TypeScript reported a schema mismatch.",
-      impact: "Workflow execution is blocked until the mismatch is fixed.",
-      nextSteps: ["Review the schema.", "Run typecheck again."],
+      issue:
+        "packages/runtime/src/readProfile.ts still treats score as a string during profile parsing.",
+      impact: "Profile loading fails and runtime builds stop.",
+      nextSteps: [
+        "Update packages/runtime/src/readProfile.ts to normalize score as a number.",
+        "Verify PersistedWorkerProfile usage in packages/runtime/src/profileStore.ts."
+      ],
       confidence: 0.72
     },
     mapRawOutputToTaskTypes: ["summarization", "log-analysis"],
@@ -581,11 +753,25 @@ const buildInterviewTasks = (
         nextSteps: string[];
       };
       const findings: string[] = [];
+      const rendered = stringifyParsed(parsed);
       if (value.nextSteps.length < 2) {
         findings.push("Summarization did not provide enough next steps.");
       }
-      if (!includesAny(value.issue, ["type", "profile", "build", "schema"])) {
+      if (!includesAny(value.issue, ["score", "profile", "build", "type"])) {
         findings.push("Summarization issue description was too generic.");
+      }
+      if (
+        !value.nextSteps.some((step) =>
+          includesAny(step, [
+            "packages/runtime/src/readProfile.ts",
+            "packages/runtime/src/profileStore.ts"
+          ])
+        )
+      ) {
+        findings.push("Summarization did not stay grounded in the cited repository files.");
+      }
+      if (detectTemplateLanguage(rendered)) {
+        findings.push("Summarization fell back to template workflow language.");
       }
       return {
         score: findings.length === 0 ? 0.9 : 0.42,
@@ -611,16 +797,32 @@ const buildInterviewTasks = (
       confidence: z.number().min(0).max(1)
     }),
     mockResponse: {
-      behavior: "The function sums validated numeric inputs and returns the total.",
-      risk: "Missing validation on nested properties could allow bad input.",
+      behavior:
+        "packages/math/src/sumValidated.ts filters to finite numbers and returns their sum.",
+      risk:
+        "Non-number values are silently ignored, which can hide unexpected input problems.",
       confidence: 0.7
     },
     mapRawOutputToTaskTypes: ["review-lite"],
     evaluateParsed: (parsed) => {
-      const value = parsed as { behavior: string };
+      const value = parsed as { behavior: string; risk: string };
+      const findings: string[] = [];
+      const rendered = stringifyParsed(parsed);
+      if (!includesAny(value.behavior, ["sum", "finite", "filter"])) {
+        findings.push("Code understanding missed the concrete behavior of the function.");
+      }
+      if (!includesAny(value.risk, ["ignore", "non-number", "unexpected input"])) {
+        findings.push("Code understanding risk was too generic.");
+      }
+      if (!hasRepoPathReference(rendered)) {
+        findings.push("Code understanding answer was not grounded in the fixture file.");
+      }
+      if (detectTemplateLanguage(rendered) || detectGenericAnswer(rendered)) {
+        findings.push("Code understanding answer fell back to generic workflow language.");
+      }
       return {
-        score: value.behavior.toLowerCase().includes("sum") ? 0.88 : 0.5,
-        findings: []
+        score: findings.length === 0 ? 0.88 : 0.44,
+        findings
       };
     }
   },
@@ -643,8 +845,8 @@ const buildInterviewTasks = (
     mockResponse: {
       code: [
         "export function validateScore(value: number): { ok: boolean; message?: string } {",
-        "  if (Number.isNaN(value)) {",
-        "    return { ok: false, message: \"Value must be a number.\" };",
+        "  if (!Number.isFinite(value)) {",
+        "    return { ok: false, message: \"Value must be finite.\" };",
         "  }",
         "  if (value < 0) {",
         "    return { ok: false, message: \"Value must not be negative.\" };",
@@ -664,6 +866,15 @@ const buildInterviewTasks = (
       }
       if (!code.includes("export function validateScore")) {
         findings.push("Expected function name was not generated.");
+      }
+      if (!code.includes("Number.isFinite")) {
+        findings.push("Generated code did not reject non-finite input.");
+      }
+      if (!code.includes("value < 0")) {
+        findings.push("Generated code did not reject negative input.");
+      }
+      if (detectTemplateLanguage(code)) {
+        findings.push("Generated code fell back to template workflow language.");
       }
 
       return {
@@ -784,6 +995,14 @@ const providerFailureRecoveryActions = [
   "Re-run `ao worker interview --save` after connectivity is stable."
 ];
 
+const repoGroundedTaskIds = new Set<WorkerInterviewTaskType>([
+  "structured-output",
+  "scope-discipline",
+  "summarization",
+  "code-understanding",
+  "codegen"
+]);
+
 const buildInterviewDiagnostics = (
   taskResults: WorkerInterviewTaskResult[]
 ): WorkerInterviewDiagnostics => {
@@ -829,49 +1048,142 @@ const buildCapabilityProfile = (
 ): WorkerCapabilityProfile => {
   const scoreByType = new Map(taskResults.map((result) => [result.type, result.score]));
   const interviewDiagnostics = buildInterviewDiagnostics(taskResults);
+  const instructionFollowing = scoreByType.get("instruction-following") ?? 0;
+  const scopeDiscipline = scoreByType.get("scope-discipline") ?? 0;
+  const summarization = scoreByType.get("summarization") ?? 0;
+  const codeUnderstanding = scoreByType.get("code-understanding") ?? 0;
+  const confidenceCalibration = scoreByType.get("confidence-calibration") ?? 0;
   const structuredOutput = average([
     scoreByType.get("structured-output") ?? 0,
     scoreByType.get("structured-output") ?? 0,
-    scoreByType.get("scope-discipline") ?? 0
+    scopeDiscipline
   ]);
   const reasoning = average([
-    scoreByType.get("scope-discipline") ?? 0,
-    scoreByType.get("summarization") ?? 0,
-    scoreByType.get("code-understanding") ?? 0
+    scopeDiscipline,
+    summarization,
+    codeUnderstanding
   ]);
   const codeQuality = scoreByType.get("codegen") ?? 0;
   const reliability = average(taskResults.map((result) => result.score));
   const score: WorkerEvaluationScore = {
-    instructionFollowing: scoreByType.get("instruction-following") ?? 0,
+    instructionFollowing,
     structuredOutput,
     reasoning,
     codeQuality,
-    domainKnowledge: scoreByType.get("code-understanding") ?? 0,
+    domainKnowledge: codeUnderstanding,
     reliability
+  };
+
+  const portrait: WorkerCapabilityPortrait = {
+    scopeDiscipline,
+    repoGrounding: average([
+      structuredOutput,
+      scopeDiscipline,
+      summarization,
+      codeUnderstanding
+    ]),
+    answerDirectness: average([
+      instructionFollowing,
+      scopeDiscipline,
+      summarization
+    ]),
+    codeUnderstanding,
+    fixPlanning: average([summarization, scopeDiscipline, codeQuality]),
+    implementationPlanning: average([
+      codeQuality,
+      instructionFollowing,
+      structuredOutput
+    ]),
+    consistency: average([
+      instructionFollowing,
+      structuredOutput,
+      confidenceCalibration,
+      reliability
+    ])
+  };
+
+  const taskScores: WorkerTaskScoreCard = {
+    summarization: average([
+      structuredOutput,
+      summarization,
+      portrait.answerDirectness
+    ]),
+    codegen: average([
+      codeQuality,
+      portrait.implementationPlanning,
+      instructionFollowing
+    ]),
+    patchGeneration: average([
+      codeQuality,
+      portrait.fixPlanning,
+      scopeDiscipline,
+      reliability
+    ]),
+    testGeneration: average([
+      codeQuality,
+      portrait.repoGrounding,
+      portrait.implementationPlanning
+    ]),
+    logAnalysis: average([
+      summarization,
+      structuredOutput,
+      portrait.fixPlanning
+    ]),
+    jsonExtraction: average([
+      structuredOutput,
+      portrait.repoGrounding,
+      instructionFollowing
+    ]),
+    reviewLite: average([
+      scopeDiscipline,
+      portrait.repoGrounding,
+      portrait.answerDirectness,
+      codeUnderstanding
+    ])
+  };
+
+  const evidence: WorkerInterviewEvidence = {
+    failedCases: taskResults.filter((result) => !result.passed).map((result) => result.taskId),
+    repoGroundedCases: runtimeTasks
+      .map((runtimeTask) => runtimeTask.task)
+      .filter((task) => repoGroundedTaskIds.has(task.type))
+      .map((task) => task.id),
+    fallbackPatternCases: taskResults
+      .filter((result) => detectTemplateLanguage(stringifyParsed(result.rawOutput)))
+      .map((result) => result.taskId),
+    genericAnswerCases: taskResults
+      .filter((result) =>
+        result.findings.some((finding) =>
+          /too generic|not grounded|template workflow language|did not answer|fell back/iu.test(
+            finding
+          )
+        )
+      )
+      .map((result) => result.taskId)
   };
 
   const supported = new Set<WorkerTaskType>();
 
   if (
-    structuredOutput >= 0.7 &&
-    (scoreByType.get("scope-discipline") ?? 0) >= 0.7 &&
-    (scoreByType.get("summarization") ?? 0) >= 0.65
+    taskScores.summarization >= 0.72 &&
+    scopeDiscipline >= 0.72 &&
+    portrait.repoGrounding >= 0.68
   ) {
     supported.add("summarization");
     supported.add("log-analysis");
     supported.add("json-extraction");
   }
   if (
-    structuredOutput >= 0.7 &&
-    (scoreByType.get("scope-discipline") ?? 0) >= 0.7 &&
-    (scoreByType.get("code-understanding") ?? 0) >= 0.65
+    taskScores.reviewLite >= 0.72 &&
+    scopeDiscipline >= 0.72 &&
+    codeUnderstanding >= 0.65
   ) {
     supported.add("review-lite");
   }
   if (
-    structuredOutput >= 0.75 &&
+    taskScores.codegen >= 0.78 &&
     codeQuality >= 0.75 &&
-    score.instructionFollowing >= 0.7
+    instructionFollowing >= 0.7
   ) {
     supported.add("codegen");
     supported.add("test-generation");
@@ -897,12 +1209,47 @@ const buildCapabilityProfile = (
 
   const risks = [...warnings];
 
+  const blockingReasons: string[] = [];
+  if (interviewDiagnostics.providerInvocationFailures > 0) {
+    blockingReasons.push("Provider invocation failed during the interview.");
+  }
+  if (instructionFollowing < 0.7) {
+    blockingReasons.push("Instruction following is below the admission threshold.");
+  }
+  if (structuredOutput < 0.7) {
+    blockingReasons.push("Structured output is below the admission threshold.");
+  }
+  if (scopeDiscipline < 0.72) {
+    blockingReasons.push("Scope discipline is below the admission threshold.");
+  }
+  if (portrait.repoGrounding < 0.68) {
+    blockingReasons.push("Repo grounding is below the admission threshold.");
+  }
+  if (evidence.fallbackPatternCases.length > 0) {
+    blockingReasons.push("Template workflow fallback was detected in interview output.");
+  }
+  if (supported.size === 0) {
+    blockingReasons.push("No worker task type cleared the minimum support bar.");
+  }
+
+  const admission: WorkerAdmissionDecision = {
+    passed: blockingReasons.length === 0,
+    blockingReasons
+  };
+
   const status =
-    structuredOutput < 0.45 || score.reliability < 0.45 || supported.size === 0
+    !admission.passed
       ? "blocked"
-      : codeQuality < 0.75 || score.reliability < 0.75
+      : taskScores.codegen < 0.78 ||
+          taskScores.reviewLite < 0.76 ||
+          score.reliability < 0.78 ||
+          evidence.genericAnswerCases.length > 0
         ? "limited"
         : "active";
+
+  const knownFailureModes = Array.from(
+    new Set(taskResults.flatMap((result) => result.findings))
+  ).slice(0, 8);
 
   const profile: WorkerCapabilityProfile = {
     workerId,
@@ -934,8 +1281,31 @@ const buildCapabilityProfile = (
     expiresAt: addDays(new Date().toISOString(), 30),
     suiteName: WORKER_EVALUATION_SUITE_NAME,
     suiteVersion: WORKER_EVALUATION_SUITE_VERSION,
-    interviewDiagnostics
+    evaluationSummary: {
+      suiteName: WORKER_EVALUATION_SUITE_NAME,
+      suiteVersion: WORKER_EVALUATION_SUITE_VERSION,
+      sampleCount: taskResults.length,
+      passedCount: taskResults.filter((result) => result.passed).length,
+      failedCount: taskResults.filter((result) => !result.passed).length,
+      confidenceBand:
+        reliability >= 0.85 ? "high" : reliability >= 0.65 ? "medium" : "low",
+      knownFailureModes
+    },
+    interviewDiagnostics,
+    admission,
+    portrait,
+    taskScores,
+    evidence
   };
+
+  if (!admission.passed) {
+    profile.warnings.push(
+      ...admission.blockingReasons.map((reason) => `admission: ${reason}`)
+    );
+    profile.risks.push(
+      ...admission.blockingReasons.map((reason) => `admission: ${reason}`)
+    );
+  }
 
   return WorkerCapabilityProfileSchema.parse(profile);
 };
