@@ -42,7 +42,7 @@ const asTaskInputWithRepositoryContext = (
   value: unknown
 ): TaskInputWithRepositoryContext =>
   value && typeof value === "object"
-    ? (value as TaskInputWithRepositoryContext)
+    ? value
     : {};
 
 const truncate = (value: string, maxLength: number): string =>
