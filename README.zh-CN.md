@@ -59,7 +59,7 @@ packages/
 apps/
   playground/
 examples/
-  leader-worker-basic/
+  host-worker-basic/
 docs/
 ```
 
@@ -317,10 +317,6 @@ ao mcp list-tools
 
 参见 [.env.example](https://github.com/vndmea/agent-orchestrator/blob/master/.env.example)。
 
-- `LEADER_MODEL_PROVIDER`
-- `LEADER_MODEL_NAME`
-- `LEADER_MODEL_BASE_URL`
-- `LEADER_MODEL_API_KEY`
 - `WORKER_MODEL_PROVIDER`
 - `WORKER_MODEL_NAME`
 - `WORKER_MODEL_BASE_URL`
@@ -345,7 +341,7 @@ ao mcp list-tools
 3. `~/.ao/workspaces/<workspace-id>/config.json`
 4. 内置默认值
 
-`config.json` 不再记录密钥环境变量名。运行时密钥统一通过 `LEADER_MODEL_API_KEY`、`WORKER_MODEL_API_KEY` 这类固定变量提供。
+`config.json` 不再记录密钥环境变量名。运行时密钥统一通过 `WORKER_MODEL_API_KEY` 这类固定变量提供。
 
 用户级 AO `config.json` 里的 repository context 配置也会作为 review、fix、patch 和 task workflow 的默认预算来源，包括 `maxFileBytes`、`maxTotalBytes` 和 `ignoredPaths`，除非某个命令显式覆盖。
 
@@ -360,7 +356,7 @@ ao mcp list-tools
 
 ## 运行基础示例
 
-可通过 `pnpm exec tsx examples/leader-worker-basic/src/index.ts` 查看当前的宿主管理示例流程。
+可通过 `pnpm exec tsx examples/host-worker-basic/src/index.ts` 查看当前的宿主管理示例流程。
 
 ## 如何添加新的 worker
 
@@ -387,11 +383,11 @@ ao mcp list-tools
 
 ## 如何配置 LiteLLM
 
-将 `LEADER_MODEL_PROVIDER=litellm` 或 `WORKER_MODEL_PROVIDER=litellm`，并提供：
+将 `WORKER_MODEL_PROVIDER=litellm`，并提供：
 
 - `LITELLM_BASE_URL`
 
-如果你希望 leader 和 worker 走不同的 endpoint，也可以改用各自的 `LEADER_MODEL_BASE_URL` / `WORKER_MODEL_BASE_URL`。
+如果你希望 worker 走非默认 endpoint，也可以改用 `WORKER_MODEL_BASE_URL`。
 
 ## 安全模型
 

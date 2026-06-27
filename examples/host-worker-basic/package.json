@@ -1,5 +1,5 @@
 {
-  "name": "@agent-orchestrator/example-leader-worker-basic",
+  "name": "@agent-orchestrator/example-host-worker-basic",
   "version": "0.1.0",
   "type": "module",
   "private": true,

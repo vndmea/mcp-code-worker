@@ -36,7 +36,7 @@ describe("doctor", () => {
       getAoConfigPath(rootDir),
       JSON.stringify({
         version: 1,
-        leaderModel: {
+        workerModel: {
           provider: "litellm",
           model: "qwen3-coder",
           baseURL: "not-a-url"
@@ -53,7 +53,7 @@ describe("doctor", () => {
     const report = await runDoctor(
       createExecutionContextFromEnv(undefined, {
         rootDir,
-        leaderModel: {
+        workerModel: {
           provider: "litellm",
           model: "qwen3-coder"
         }
@@ -62,7 +62,7 @@ describe("doctor", () => {
 
     expect(report.checks.find((check) => check.name === "ao-config")?.status).toBe("fail");
     expect(report.checks.find((check) => check.name === "task-sessions")?.status).toBe("warning");
-    expect(report.checks.find((check) => check.name === "leader-api-key")?.status).toBe("warning");
+    expect(report.checks.find((check) => check.name === "worker-api-key")?.status).toBe("warning");
   });
 
   it("passes after init-like setup with retained directories", async () => {
@@ -74,9 +74,9 @@ describe("doctor", () => {
       JSON.stringify(
         {
           version: 1,
-          leaderModel: {
+          workerModel: {
             provider: "mock",
-            model: "gpt-5.4"
+            model: "gpt-5.4-mini"
           }
         },
         null,
@@ -123,10 +123,6 @@ describe("doctor", () => {
       const report = await runDoctor(
         createExecutionContextFromEnv(undefined, {
           rootDir,
-          leaderModel: {
-            provider: "client",
-            model: "qwen3-coder"
-          },
           workerModel: {
             provider: "client",
             model: "qwen3-coder"
@@ -136,9 +132,6 @@ describe("doctor", () => {
 
       expect(
         report.checks.find((check) => check.name === "local-client-command")?.status
-      ).toBe("pass");
-      expect(
-        report.checks.find((check) => check.name === "leader-api-key")?.status
       ).toBe("pass");
       expect(
         report.checks.find((check) => check.name === "worker-api-key")?.status

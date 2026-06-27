@@ -9,7 +9,6 @@ import {
 } from "../storage/ao-paths.js";
 
 export type AuditActor =
-  | "leader"
   | "worker"
   | "tool"
   | "cli"

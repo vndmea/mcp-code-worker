@@ -38,11 +38,10 @@ const createCommandContext = (
     allowedCommands: context.allowedCommands,
     contextBudget: context.contextBudget,
     dryRun: false,
-    leaderModel: context.leaderModel,
     logLevel: context.logLevel,
     serverName: context.serverName,
     serverVersion: context.serverVersion,
-      workerModel: context.workerModel
+    workerModel: context.workerModel
   });
 
 const listDirtyFiles = (dirtyWorktree: DirtyWorktree | undefined): string[] =>

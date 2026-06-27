@@ -51,7 +51,6 @@ export const AoValidationConfigSchema = z.object({
 
 export const AoConfigSchema = z.object({
   version: z.literal(1),
-  leaderModel: AoModelConfigSchema.optional(),
   workerModel: AoModelConfigSchema.optional(),
   safety: AoSafetyConfigSchema.default({
     dryRun: true,

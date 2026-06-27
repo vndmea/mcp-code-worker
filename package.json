@@ -19,7 +19,7 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "dev:playground": "pnpm --filter @agent-orchestrator/playground dev",
-    "example:leader-worker-basic": "pnpm --filter @agent-orchestrator/example-leader-worker-basic dev"
+    "example:host-worker-basic": "pnpm --filter @agent-orchestrator/example-host-worker-basic dev"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

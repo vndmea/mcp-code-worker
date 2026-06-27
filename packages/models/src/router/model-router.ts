@@ -23,10 +23,7 @@ export interface RoutedModel {
 export class ModelRouter {
   private readonly providers: Map<string, ModelProvider>;
 
-  public constructor(
-    private readonly leaderModel: ModelConfig,
-    private readonly workerModel: ModelConfig
-  ) {
+  public constructor(private readonly workerModel: ModelConfig) {
     this.providers = new Map<string, ModelProvider>([
       ["mock", new MockModelProvider()],
       ["openai", new AiSdkProvider()],
@@ -40,11 +37,6 @@ export class ModelRouter {
   public listModels() {
     return [
       {
-        role: "leader",
-        provider: this.leaderModel.provider,
-        model: this.leaderModel.model
-      },
-      {
         role: "worker",
         provider: this.workerModel.provider,
         model: this.workerModel.model
@@ -57,9 +49,7 @@ export class ModelRouter {
   }
 
   public route(role: AgentRole): RoutedModel {
-    const config = role === "leader" || role === "reviewer"
-      ? this.leaderModel
-      : this.workerModel;
+    const config = this.workerModel;
     const provider =
       this.providers.get(config.provider) ??
       this.providers.get("mock") ??

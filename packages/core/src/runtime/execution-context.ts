@@ -17,7 +17,6 @@ export interface ExecutionContext {
     ignoredPaths: string[];
     strictFiles: boolean;
   };
-  leaderModel: ModelConfig;
   workerModel: ModelConfig;
   serverName: string;
   serverVersion: string;
@@ -31,7 +30,6 @@ export interface ExecutionContextOverrides {
   allowedCommands?: string[];
   contextBudget?: Partial<ExecutionContext["contextBudget"]>;
   dryRun?: boolean;
-  leaderModel?: Partial<ModelConfig>;
   logLevel?: string;
   rootDir?: string;
   serverName?: string;
@@ -106,18 +104,6 @@ export const createExecutionContextFromEnv = (
       DEFAULT_CONTEXT_BUDGET.ignoredPaths
   };
 
-  const leaderModel = mergeModelConfig(
-    {
-      provider: env.LEADER_MODEL_PROVIDER ?? "mock",
-      model: env.LEADER_MODEL_NAME ?? "gpt-5.4",
-      baseURL: env.LEADER_MODEL_BASE_URL || undefined,
-      apiKey: env.LEADER_MODEL_API_KEY || undefined,
-      temperature: 0.2,
-      maxTokens: 4000
-    },
-    overrides.leaderModel
-  );
-
   const workerModel = mergeModelConfig(
     {
       provider: env.WORKER_MODEL_PROVIDER ?? "mock",
@@ -148,7 +134,6 @@ export const createExecutionContextFromEnv = (
     allowWrite,
     allowedCommands,
     contextBudget,
-    leaderModel,
     workerModel,
     serverName: overrides.serverName ?? env.MCP_SERVER_NAME ?? "agent-orchestrator",
     serverVersion: overrides.serverVersion ?? env.MCP_SERVER_VERSION ?? "0.1.0",

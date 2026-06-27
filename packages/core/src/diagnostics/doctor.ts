@@ -61,8 +61,6 @@ export interface RunDoctorOptions {
 const WHY_THIS_MATTERS: Record<string, string> = {
   "root-dir":
     "If the active root directory is wrong, ao can inspect or persist work against the wrong repository.",
-  "leader-model":
-    "The leader model coordinates higher-level task planning and review.",
   "worker-model":
     "The worker model handles scoped execution steps such as review, validation guidance, and patch generation.",
   "local-client-command":
@@ -75,8 +73,6 @@ const WHY_THIS_MATTERS: Record<string, string> = {
     "These are the only shell commands ao can run through its safe command layer.",
   "ao-config":
     "Local configuration controls safety defaults, model resolution, validation mappings, and session retention.",
-  "leader-api-key":
-    "Without a leader credential for non-mock providers, model-backed planning and review can degrade or fail.",
   "worker-api-key":
     "Without a worker credential for non-mock providers, worker-routed tasks can degrade or fail.",
   "env-file":
@@ -338,19 +334,6 @@ export const runDoctor = async (
   });
 
   addCheck(checks, {
-    name: "leader-model",
-    status:
-      context.leaderModel.provider.length > 0 && context.leaderModel.model.length > 0
-        ? "pass"
-        : "fail",
-    message: `Resolved leader model: ${context.leaderModel.provider}:${context.leaderModel.model}`,
-    metadata: {
-      model: context.leaderModel.model,
-      provider: context.leaderModel.provider
-    }
-  });
-
-  addCheck(checks, {
     name: "worker-model",
     status:
       context.workerModel.provider.length > 0 && context.workerModel.model.length > 0
@@ -363,10 +346,7 @@ export const runDoctor = async (
     }
   });
 
-  if (
-    LOCAL_CLIENT_PROVIDERS.has(context.leaderModel.provider) ||
-    LOCAL_CLIENT_PROVIDERS.has(context.workerModel.provider)
-  ) {
+  if (LOCAL_CLIENT_PROVIDERS.has(context.workerModel.provider)) {
     const localClientCommand = resolveLocalClientCommand();
     const localClientPath = await resolveCommandOnPath(localClientCommand);
 
@@ -443,12 +423,6 @@ export const runDoctor = async (
   });
 
   const apiKeyChecks = [
-    {
-      name: "leader-api-key",
-      provider: context.leaderModel.provider,
-      envVar: "LEADER_MODEL_API_KEY",
-      hasKey: Boolean(context.leaderModel.apiKey)
-    },
     {
       name: "worker-api-key",
       provider: context.workerModel.provider,
@@ -643,11 +617,9 @@ export const runDoctor = async (
       name: "task-entrypoint",
       relatedChecks: [
         "root-dir",
-        "leader-model",
         "worker-model",
         "local-client-command",
         "ao-config",
-        "leader-api-key",
         "worker-api-key"
       ],
       readySummary: "You can start model-backed ao tasks from this workspace.",
@@ -719,7 +691,7 @@ export const runDoctor = async (
     checks,
     minimalSuccessPath: [
       `1. Confirm the active root directory is ${context.rootDir}.`,
-      "2. Verify the leader and worker model credentials or local client.",
+      "2. Verify the worker model credential or local client.",
       "3. Start a dry-run task with `ao task start --goal \"Review this repository\"`.",
       "4. Read the returned report summary or `ao task report <task-id>` if the session is persisted.",
       "5. Decide whether to continue into patch proposal and patch inspection."

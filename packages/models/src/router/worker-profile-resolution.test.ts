@@ -30,7 +30,7 @@ const createProfile = (overrides: Record<string, unknown> = {}) => ({
   warnings: [],
   routingPolicy: {
     maxTaskComplexity: "low",
-    requiresLeaderReview: false,
+    requiresHostReview: false,
     allowCodegen: false,
     allowPatchGeneration: false,
     allowDomainTasks: false
@@ -282,3 +282,4 @@ describe("resolveWorkerProfile", () => {
     ).rejects.toBeInstanceOf(AgentError);
   });
 });
+

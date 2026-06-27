@@ -64,7 +64,9 @@ describe("cli smoke", () => {
       expect(parseLastJson<{ checks: unknown[] }>(output).checks.length).toBeGreaterThan(0);
 
       await cli.parseAsync(["node", "ao", "models", "list"]);
-      expect(parseLastJson<Array<{ role: string }>>(output).some((item) => item.role === "leader")).toBe(true);
+      expect(parseLastJson<Array<{ role: string }>>(output)).toEqual([
+        expect.objectContaining({ role: "worker" })
+      ]);
 
       await cli.parseAsync(["node", "ao", "mcp", "list-tools"]);
       expect(listToolNames(output)).toContain("ao_start_task");

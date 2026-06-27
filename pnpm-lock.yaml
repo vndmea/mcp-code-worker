@@ -42,7 +42,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/graph
 
-  examples/leader-worker-basic:
+  examples/host-worker-basic:
     dependencies:
       '@agent-orchestrator/graph':
         specifier: workspace:*

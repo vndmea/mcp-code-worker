@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const AgentRoleSchema = z.enum(["leader", "worker", "reviewer", "tool"]);
+export const AgentRoleSchema = z.enum(["worker", "reviewer", "tool"]);
 export const TaskPrioritySchema = z.enum(["low", "medium", "high"]);
 
 export const AgentTaskSchema = z.object({

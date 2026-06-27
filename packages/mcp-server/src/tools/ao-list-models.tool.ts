@@ -12,11 +12,11 @@ export const aoListModelsTool: AoToolDefinition<
   ReturnType<ModelRouter["listModels"]>
 > = {
   name: "ao_list_models",
-  description: "List configured leader and worker models.",
+  description: "List configured worker models.",
   inputSchema,
   execute: async () => {
     const context = await resolveExecutionContext();
-    const router = new ModelRouter(context.leaderModel, context.workerModel);
+    const router = new ModelRouter(context.workerModel);
     return router.listModels();
   }
 };

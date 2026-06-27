@@ -52,7 +52,7 @@ const createProfile = (overrides: Record<string, unknown> = {}) =>
     warnings: [],
     routingPolicy: {
       maxTaskComplexity: "medium",
-      requiresLeaderReview: false,
+      requiresHostReview: false,
       allowCodegen: true,
       allowPatchGeneration: false,
       allowDomainTasks: true
@@ -156,3 +156,4 @@ describe("worker benchmark workflow", () => {
     expect(updated.profile.routingPolicy.allowPatchGeneration).toBe(false);
   });
 });
+

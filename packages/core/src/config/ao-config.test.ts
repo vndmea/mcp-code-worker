@@ -33,10 +33,6 @@ describe("ao config", () => {
     const rootDir = await createWorkspace();
     await writeConfig(rootDir, {
       version: 1,
-      leaderModel: {
-        provider: "litellm",
-        model: "qwen3-coder"
-      },
       workerModel: {
         provider: "litellm",
         model: "qwen3-coder-mini"
@@ -52,15 +48,13 @@ describe("ao config", () => {
     const context = await resolveExecutionContext({
       rootDir,
       env: {
-        LEADER_MODEL_API_KEY: "leader-secret",
         WORKER_MODEL_API_KEY: "worker-secret"
       }
     });
 
     expect(result.exists).toBe(true);
     expect(result.error).toBeUndefined();
-    expect(context.leaderModel.provider).toBe("litellm");
-    expect(context.leaderModel.apiKey).toBe("leader-secret");
+    expect(context.workerModel.provider).toBe("litellm");
     expect(context.workerModel.apiKey).toBe("worker-secret");
     expect(context.allowWrite).toBe(true);
     expect(context.dryRun).toBe(false);
@@ -71,7 +65,7 @@ describe("ao config", () => {
     const rootDir = await createWorkspace();
     await writeConfig(rootDir, {
       version: 1,
-      leaderModel: {
+      workerModel: {
         provider: "litellm",
         model: "qwen3-coder",
         baseURL: "not-a-url"
@@ -89,10 +83,6 @@ describe("ao config", () => {
     const rootDir = await createWorkspace();
     await writeConfig(rootDir, {
       version: 1,
-      leaderModel: {
-        provider: "litellm",
-        model: "config-leader"
-      },
       workerModel: {
         provider: "litellm",
         model: "config-worker"
@@ -107,15 +97,12 @@ describe("ao config", () => {
     const context = await resolveExecutionContext({
       rootDir,
       env: {
-        LEADER_MODEL_PROVIDER: "env-provider",
-        LEADER_MODEL_NAME: "env-leader",
+        WORKER_MODEL_PROVIDER: "env-provider",
+        WORKER_MODEL_NAME: "env-worker",
         AO_DRY_RUN: "true"
       },
       cliOverrides: {
         allowWrite: true,
-        leaderModel: {
-          model: "cli-leader"
-        },
         workerModel: {
           provider: "cli-provider",
           model: "cli-worker"
@@ -123,8 +110,6 @@ describe("ao config", () => {
       }
     });
 
-    expect(context.leaderModel.provider).toBe("env-provider");
-    expect(context.leaderModel.model).toBe("cli-leader");
     expect(context.workerModel.provider).toBe("cli-provider");
     expect(context.workerModel.model).toBe("cli-worker");
     expect(context.dryRun).toBe(true);

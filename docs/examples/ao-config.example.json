@@ -1,9 +1,5 @@
 {
   "version": 1,
-  "leaderModel": {
-    "provider": "mock",
-    "model": "gpt-5.4"
-  },
   "workerModel": {
     "provider": "openai-compatible",
     "model": "deepseek-v4-flash",

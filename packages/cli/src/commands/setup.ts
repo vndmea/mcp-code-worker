@@ -68,9 +68,6 @@ interface SetupOptions {
   allowWrite: boolean;
   disableValidationAutoDiscover: boolean;
   interviewWorker: boolean;
-  leaderBaseUrl?: string;
-  leaderModel?: string;
-  leaderProvider?: string;
   lintScript: string[];
   registerWorker: boolean;
   testScript: string[];
@@ -102,7 +99,7 @@ const relativePath = (rootDir: string, path: string): string =>
   formatDisplayPath(rootDir, path);
 
 const mergeModelConfig = (
-  existing: AoConfig["leaderModel"],
+  existing: AoConfig["workerModel"],
   updates: {
     baseURL?: string;
     model?: string;
@@ -133,11 +130,6 @@ const buildDesiredConfig = (
   AoConfigSchema.parse({
     ...existing,
     version: 1,
-    leaderModel: mergeModelConfig(existing.leaderModel, {
-      provider: options.leaderProvider,
-      model: options.leaderModel,
-      baseURL: options.leaderBaseUrl
-    }),
     workerModel: mergeModelConfig(existing.workerModel, {
       provider: options.workerProvider,
       model: options.workerModel,
@@ -345,9 +337,6 @@ export const registerSetupCommand = (program: Command, io: CliIo): void => {
   program
     .command("setup")
     .description("Guide and optionally apply the user-scoped setup steps needed before ao task workflows feel reliable.")
-    .option("--leader-provider <provider>", "Leader provider")
-    .option("--leader-model <model>", "Leader model")
-    .option("--leader-base-url <url>", "Leader base URL")
     .option("--worker-provider <provider>", "Worker provider")
     .option("--worker-model <model>", "Worker model")
     .option("--worker-base-url <url>", "Worker base URL")
@@ -426,7 +415,6 @@ export const registerSetupCommand = (program: Command, io: CliIo): void => {
             : "The ao workspace config already matches the requested model and validation settings.",
         details: {
           replacedInvalidConfig: Boolean(configResult.error),
-          leaderModel: desiredConfig.leaderModel,
           workerModel: desiredConfig.workerModel
         }
       });
@@ -692,12 +680,6 @@ export const registerSetupCommand = (program: Command, io: CliIo): void => {
         summary: readinessSummary,
         steps,
         recommendedEnv: unique([
-          desiredConfig.leaderModel &&
-          !["mock", "client", "local-client"].includes(
-            desiredConfig.leaderModel.provider
-          )
-            ? "LEADER_MODEL_API_KEY"
-            : undefined,
           desiredConfig.workerModel &&
           !["mock", "client", "local-client"].includes(
             desiredConfig.workerModel.provider

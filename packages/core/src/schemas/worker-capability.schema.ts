@@ -71,7 +71,7 @@ export const WorkerInterviewEvidenceSchema = z.object({
 
 export const WorkerRoutingPolicySchema = z.object({
   maxTaskComplexity: z.enum(["low", "medium", "high"]),
-  requiresLeaderReview: z.boolean(),
+  requiresHostReview: z.boolean(),
   allowCodegen: z.boolean(),
   allowPatchGeneration: z.boolean(),
   allowDomainTasks: z.boolean()

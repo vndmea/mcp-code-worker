@@ -268,7 +268,7 @@ export class PatchGenerationWorker {
   private readonly router: ModelRouter;
 
   public constructor(private readonly context: ExecutionContext) {
-    this.router = new ModelRouter(context.leaderModel, context.workerModel);
+    this.router = new ModelRouter(context.workerModel);
   }
 
   public async generateProposal(

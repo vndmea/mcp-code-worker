@@ -1,6 +1,6 @@
 import type { ZodType } from "zod";
 
-export type AgentRole = "leader" | "worker" | "reviewer" | "tool";
+export type AgentRole = "worker" | "reviewer" | "tool";
 export type WorkerTaskType =
   | "summarization"
   | "codegen"
@@ -92,7 +92,7 @@ export interface WorkerInterviewEvidence {
 
 export interface WorkerRoutingPolicy {
   maxTaskComplexity: "low" | "medium" | "high";
-  requiresLeaderReview: boolean;
+  requiresHostReview: boolean;
   allowCodegen: boolean;
   allowPatchGeneration: boolean;
   allowDomainTasks: boolean;

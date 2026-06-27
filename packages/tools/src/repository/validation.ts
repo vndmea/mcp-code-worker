@@ -88,7 +88,6 @@ const createScopedContext = (
         allowedCommands: context.allowedCommands,
         contextBudget: context.contextBudget,
         dryRun: context.dryRun,
-        leaderModel: context.leaderModel,
         logLevel: context.logLevel,
         serverName: context.serverName,
         serverVersion: context.serverVersion,

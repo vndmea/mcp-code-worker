@@ -102,7 +102,7 @@ export const mcpToolCatalog: McpToolCatalogEntry[] = [
   {
     name: "ao_list_models",
     category: "diagnostics",
-    description: "List resolved leader and worker model configurations."
+    description: "List resolved worker model configurations."
   },
   {
     name: "ao_list_workflows",

@@ -32,7 +32,7 @@ const createProfile = (
   warnings: [],
   routingPolicy: {
     maxTaskComplexity: "medium",
-    requiresLeaderReview: false,
+    requiresHostReview: false,
     allowCodegen: true,
     allowPatchGeneration: true,
     allowDomainTasks: true
@@ -114,3 +114,4 @@ describe("assessWorkerTaskEligibility", () => {
     expect(result.reason).toContain("repository-grounded summarization discipline");
   });
 });
+

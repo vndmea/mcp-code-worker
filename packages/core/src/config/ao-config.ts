@@ -50,11 +50,11 @@ const resolveRootDir = (
 };
 
 const mergeModelConfig = (
-  base: ExecutionContext["leaderModel"],
+  base: ExecutionContext["workerModel"],
   configModel: AoModelConfig | undefined,
   env: NodeJS.ProcessEnv,
-  envPrefix: "LEADER" | "WORKER",
-  cliOverride?: ExecutionContextOverrides["leaderModel"]
+  envPrefix: "WORKER",
+  cliOverride?: ExecutionContextOverrides["workerModel"]
 ) => {
   const provider =
     cliOverride?.provider ??
@@ -152,13 +152,6 @@ export async function resolveExecutionContext(
       cliOverrides.contextBudget?.ignoredPaths ??
       config.context.ignoredPaths
   };
-  const leaderModel = mergeModelConfig(
-    baseContext.leaderModel,
-    config.leaderModel,
-    env,
-    "LEADER",
-    cliOverrides.leaderModel
-  );
   const workerModel = mergeModelConfig(
     baseContext.workerModel,
     config.workerModel,
@@ -174,7 +167,6 @@ export async function resolveExecutionContext(
     allowWrite,
     allowedCommands,
     contextBudget,
-    leaderModel,
     workerModel
   });
 }

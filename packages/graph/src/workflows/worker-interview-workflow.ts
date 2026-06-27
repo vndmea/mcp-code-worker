@@ -1270,7 +1270,7 @@ const buildCapabilityProfile = (
           : status === "limited"
             ? "low"
             : "low",
-      requiresLeaderReview: status !== "active" || score.reliability < 0.85,
+      requiresHostReview: status !== "active" || score.reliability < 0.85,
       allowCodegen: supported.has("codegen"),
       allowPatchGeneration:
         supported.has("codegen") && codeQuality >= 0.82 && score.reliability >= 0.8,
@@ -1323,7 +1323,7 @@ export const runWorkerInterviewWorkflow = async (
   const context = input.context ?? await resolveExecutionContext();
   const modelConfig = input.modelConfig ?? context.workerModel;
   const workerId = input.workerId ?? ModelRouter.deriveWorkerId(modelConfig);
-  const router = new ModelRouter(context.leaderModel, modelConfig);
+  const router = new ModelRouter(modelConfig);
   const runtimeTasks = buildInterviewTasks({
     modelConfig,
     workerId

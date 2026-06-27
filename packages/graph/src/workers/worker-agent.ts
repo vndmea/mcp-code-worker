@@ -85,7 +85,7 @@ export abstract class WorkerAgent {
     protected readonly context: ExecutionContext,
     public readonly capability: WorkerCapability
   ) {
-    this.router = new ModelRouter(context.leaderModel, context.workerModel);
+    this.router = new ModelRouter(context.workerModel);
   }
 
   public abstract execute(input: WorkerExecutionInput): Promise<AgentResult>;

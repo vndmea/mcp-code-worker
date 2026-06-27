@@ -27,7 +27,7 @@ describe("core schemas", () => {
         id: "task-1",
         goal: "Plan work",
         constraints: [],
-        assignedRole: "leader",
+        assignedRole: "reviewer",
         priority: "high",
         metadata: {}
       })
@@ -75,7 +75,7 @@ describe("core schemas", () => {
           id: "task-1",
           goal: "Goal",
           constraints: [],
-          assignedRole: "leader",
+          assignedRole: "reviewer",
           priority: "high",
           metadata: {}
         },
@@ -99,7 +99,7 @@ describe("core schemas", () => {
           id: "step-1",
           title: "Inspect",
           description: "Inspect the code",
-          assignedRole: "leader",
+          assignedRole: "reviewer",
           validation: ["Read target files"]
         }
       ],
@@ -132,7 +132,7 @@ describe("core schemas", () => {
         warnings: ["do not route codegen tasks"],
         routingPolicy: {
           maxTaskComplexity: "low",
-          requiresLeaderReview: true,
+          requiresHostReview: true,
           allowCodegen: false,
           allowPatchGeneration: false,
           allowDomainTasks: false
@@ -299,7 +299,7 @@ describe("core schemas", () => {
     expect(() =>
       AoConfigSchema.parse({
         version: 1,
-        leaderModel: {
+        workerModel: {
           provider: "litellm",
           model: "qwen3-coder",
           baseURL: "not-a-url"

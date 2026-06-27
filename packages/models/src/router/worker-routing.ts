@@ -6,7 +6,7 @@ import type {
 export interface WorkerTaskEligibility {
   allowed: boolean;
   reason: string;
-  requiresLeaderReview: boolean;
+  requiresHostReview: boolean;
 }
 
 export const assessWorkerTaskEligibility = (
@@ -17,7 +17,7 @@ export const assessWorkerTaskEligibility = (
     return {
       allowed: false,
       reason: `Worker ${profile.workerId} is blocked by onboarding evaluation.`,
-      requiresLeaderReview: true
+      requiresHostReview: true
     };
   }
 
@@ -25,7 +25,7 @@ export const assessWorkerTaskEligibility = (
     return {
       allowed: false,
       reason: `Worker ${profile.workerId} is not qualified for ${taskType} tasks.`,
-      requiresLeaderReview: true
+      requiresHostReview: true
     };
   }
 
@@ -54,7 +54,7 @@ export const assessWorkerTaskEligibility = (
       allowed: false,
       reason:
         `Worker ${profile.workerId} is not qualified for review-lite tasks because repo-grounded review discipline is below the routing threshold.`,
-      requiresLeaderReview: true
+      requiresHostReview: true
     };
   }
 
@@ -74,7 +74,7 @@ export const assessWorkerTaskEligibility = (
       allowed: false,
       reason:
         `Worker ${profile.workerId} is not qualified for ${taskType} tasks because repository-grounded summarization discipline is below the routing threshold.`,
-      requiresLeaderReview: true
+      requiresHostReview: true
     };
   }
 
@@ -82,7 +82,7 @@ export const assessWorkerTaskEligibility = (
     return {
       allowed: false,
       reason: `Worker ${profile.workerId} is not allowed to perform code generation.`,
-      requiresLeaderReview: true
+      requiresHostReview: true
     };
   }
 
@@ -93,7 +93,7 @@ export const assessWorkerTaskEligibility = (
     return {
       allowed: false,
       reason: `Worker ${profile.workerId} is not allowed to generate tests.`,
-      requiresLeaderReview: true
+      requiresHostReview: true
     };
   }
 
@@ -104,13 +104,13 @@ export const assessWorkerTaskEligibility = (
     return {
       allowed: false,
       reason: `Worker ${profile.workerId} is not allowed to generate patch proposals.`,
-      requiresLeaderReview: true
+      requiresHostReview: true
     };
   }
 
   return {
     allowed: true,
     reason: `Worker ${profile.workerId} is qualified for ${taskType}.`,
-    requiresLeaderReview: profile.routingPolicy.requiresLeaderReview
+    requiresHostReview: profile.routingPolicy.requiresHostReview
   };
 };

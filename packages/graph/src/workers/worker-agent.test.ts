@@ -71,7 +71,7 @@ describe("WorkerAgent structured outputs", () => {
       task: {
         id: "task-1",
         goal: "Summarize the workflow",
-        assignedRole: "leader",
+        assignedRole: "reviewer",
         priority: "high",
         constraints: [],
         metadata: {}
@@ -111,7 +111,7 @@ describe("WorkerAgent structured outputs", () => {
       task: {
         id: "task-2",
         goal: "Suggest tests",
-        assignedRole: "leader",
+        assignedRole: "reviewer",
         priority: "high",
         constraints: [],
         metadata: {}

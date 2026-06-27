@@ -6,7 +6,7 @@ export interface TaskPlanStep {
   id: string;
   title: string;
   description: string;
-  assignedRole: "leader" | "worker" | "reviewer" | "tool";
+  assignedRole: "worker" | "reviewer" | "tool";
   validation: string[];
 }
 

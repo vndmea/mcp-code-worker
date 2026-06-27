@@ -12,7 +12,7 @@ ao doctor
 2. Verify model access and credentials.
 
 - Confirm the active `rootDir` matches your repository.
-- Confirm the resolved leader and worker models are the ones you expect.
+- Confirm the resolved worker model is the one you expect.
 - If a non-mock provider is configured, make sure the expected API key env vars are available.
 
 3. Start a dry-run task first.

@@ -7,14 +7,14 @@ import type { CliIo } from "../index.js";
 import { writeOutput } from "../output.js";
 
 export const registerModelsCommand = (program: Command, io: CliIo): void => {
-  const models = program.command("models").description("Inspect configured models.");
+  const models = program.command("models").description("Inspect configured worker models.");
 
   models
     .command("list")
-    .description("List configured leader and worker models.")
+    .description("List configured worker models.")
     .action(async () => {
       const context = await resolveExecutionContext();
-      const router = new ModelRouter(context.leaderModel, context.workerModel);
+      const router = new ModelRouter(context.workerModel);
       const models = router.listModels();
       writeOutput(
         io,

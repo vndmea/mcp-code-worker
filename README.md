@@ -59,7 +59,7 @@ packages/
 apps/
   playground/
 examples/
-  leader-worker-basic/
+  host-worker-basic/
 docs/
 ```
 
@@ -322,10 +322,6 @@ ao mcp list-tools
 
 See [.env.example](https://github.com/vndmea/agent-orchestrator/blob/master/.env.example).
 
-- `LEADER_MODEL_PROVIDER`
-- `LEADER_MODEL_NAME`
-- `LEADER_MODEL_BASE_URL`
-- `LEADER_MODEL_API_KEY`
 - `WORKER_MODEL_PROVIDER`
 - `WORKER_MODEL_NAME`
 - `WORKER_MODEL_BASE_URL`
@@ -350,7 +346,7 @@ Runtime configuration resolves in this order:
 3. `~/.ao/workspaces/<workspace-id>/config.json`
 4. built-in defaults
 
-`config.json` no longer stores secret env-var names. Provide runtime secrets through fixed variables such as `LEADER_MODEL_API_KEY` and `WORKER_MODEL_API_KEY`.
+`config.json` no longer stores secret env-var names. Provide runtime secrets through fixed variables such as `WORKER_MODEL_API_KEY`.
 
 Repository context settings in the user-scoped AO `config.json` also control default `maxFileBytes`, `maxTotalBytes`, and `ignoredPaths` for review, fix, patch, and task workflows unless a command overrides them explicitly.
 
@@ -365,7 +361,7 @@ Repository context settings in the user-scoped AO `config.json` also control def
 
 ## How to run the basic example
 
-Run `pnpm exec tsx examples/leader-worker-basic/src/index.ts` to inspect the host-managed example workflow.
+Run `pnpm exec tsx examples/host-worker-basic/src/index.ts` to inspect the host-managed example workflow.
 
 ## How to add a new worker
 
@@ -392,10 +388,10 @@ Run `pnpm exec tsx examples/leader-worker-basic/src/index.ts` to inspect the hos
 
 ## How to configure LiteLLM
 
-Set `LEADER_MODEL_PROVIDER=litellm` or `WORKER_MODEL_PROVIDER=litellm`, then provide:
+Set `WORKER_MODEL_PROVIDER=litellm`, then provide:
 
 - `LITELLM_BASE_URL`
-Use `LEADER_MODEL_BASE_URL` or `WORKER_MODEL_BASE_URL` when leader and worker traffic should target different endpoints.
+Use `WORKER_MODEL_BASE_URL` when worker traffic should target a non-default endpoint.
 
 ## Safety model
 

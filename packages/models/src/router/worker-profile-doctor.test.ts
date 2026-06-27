@@ -134,7 +134,7 @@ describe("worker profile doctor checks", () => {
         ],
         routingPolicy: {
           maxTaskComplexity: "low",
-          requiresLeaderReview: true,
+          requiresHostReview: true,
           allowCodegen: false,
           allowPatchGeneration: false,
           allowDomainTasks: false
@@ -164,3 +164,4 @@ describe("worker profile doctor checks", () => {
     ).toBe(true);
   });
 });
+

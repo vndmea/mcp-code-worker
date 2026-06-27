@@ -226,7 +226,7 @@ const createProfile = (overrides: Record<string, unknown> = {}) => ({
   warnings: [],
   routingPolicy: {
     maxTaskComplexity: "medium",
-    requiresLeaderReview: false,
+    requiresHostReview: false,
     allowCodegen: true,
     allowPatchGeneration: true,
     allowDomainTasks: true
@@ -245,7 +245,6 @@ describe("cli parsing", () => {
 
     await cli.parseAsync(["node", "ao", "models", "list"]);
 
-    expect(output.join("\n")).toContain("\"role\": \"leader\"");
     expect(output.join("\n")).toContain("\"role\": \"worker\"");
   });
 
@@ -375,10 +374,6 @@ describe("cli parsing", () => {
         "node",
         "ao",
         "setup",
-        "--leader-provider",
-        "mock",
-        "--leader-model",
-        "setup-leader",
         "--worker-provider",
         "mock",
         "--worker-model",
@@ -568,7 +563,7 @@ describe("cli parsing", () => {
           unsupportedTaskTypes: ["patch-generation"],
           routingPolicy: {
             maxTaskComplexity: "medium",
-            requiresLeaderReview: false,
+            requiresHostReview: false,
             allowCodegen: true,
             allowPatchGeneration: false,
             allowDomainTasks: true
@@ -1037,3 +1032,4 @@ describe("cli parsing", () => {
     });
   }, 15_000);
 });
+

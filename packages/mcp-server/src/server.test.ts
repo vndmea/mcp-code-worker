@@ -208,7 +208,7 @@ const createProfile = () => ({
   warnings: [],
   routingPolicy: {
     maxTaskComplexity: "medium",
-    requiresLeaderReview: false,
+    requiresHostReview: false,
     allowCodegen: true,
     allowPatchGeneration: true,
     allowDomainTasks: true
@@ -260,7 +260,7 @@ const createLimitedProfile = () => ({
   unsupportedTaskTypes: ["patch-generation"],
   routingPolicy: {
     maxTaskComplexity: "medium",
-    requiresLeaderReview: false,
+    requiresHostReview: false,
     allowCodegen: true,
     allowPatchGeneration: false,
     allowDomainTasks: true
@@ -301,7 +301,11 @@ describe("mcp tool registration", () => {
 
   it("lists configured models", async () => {
     const models = await aoListModelsTool.execute({});
-    expect(models).toHaveLength(2);
+    expect(models).toEqual([
+      expect.objectContaining({
+        role: "worker"
+      })
+    ]);
   });
 
   it("lists MCP tool definitions including dedicated workflow tools", async () => {
@@ -616,3 +620,4 @@ describe("mcp tool registration", () => {
     });
   });
 });
+
