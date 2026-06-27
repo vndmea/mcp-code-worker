@@ -69,31 +69,63 @@ const formatWorkerUnregisterResult = (result: {
 const formatWorkerInterviewResult = (result: {
   persistence?: { mode?: string; path?: string; reason?: string } | null;
   profile: {
+    admission?: { blockingReasons: string[]; passed: boolean };
+    portrait?: {
+      answerDirectness: number;
+      repoGrounding: number;
+      scopeDiscipline: number;
+    };
     status: string;
     supportedTaskTypes: string[];
+    taskScores?: {
+      codegen: number;
+      logAnalysis: number;
+      reviewLite: number;
+    };
     workerId: string;
   };
   warnings: string[];
 }): string[] => {
+  const formatScore = (value: number): string => value.toFixed(2);
   const lines: string[] = [
     `worker interview: ${result.profile.workerId}`,
     `status: ${result.profile.status}`
   ];
 
+  if (result.profile.admission) {
+    lines.push(
+      result.profile.admission.passed
+        ? "admission: passed"
+        : `admission: blocked (${result.profile.admission.blockingReasons.join("; ")})`
+    );
+  }
+
   if (result.profile.supportedTaskTypes.length > 0) {
     lines.push(`supports: ${result.profile.supportedTaskTypes.join(", ")}`);
   }
 
+  if (result.profile.portrait) {
+    lines.push(
+      `portrait: repoGrounding=${formatScore(result.profile.portrait.repoGrounding)}, scope=${formatScore(result.profile.portrait.scopeDiscipline)}, directness=${formatScore(result.profile.portrait.answerDirectness)}`
+    );
+  }
+
+  if (result.profile.taskScores) {
+    lines.push(
+      `task scores: review-lite=${formatScore(result.profile.taskScores.reviewLite)}, log-analysis=${formatScore(result.profile.taskScores.logAnalysis)}, codegen=${formatScore(result.profile.taskScores.codegen)}`
+    );
+  }
+
   if (result.persistence) {
-      if (result.persistence.mode === "execute") {
-        lines.push(`profile saved: ${result.persistence.path ?? "persisted"}`);
-      } else if (result.persistence.mode === "dry-run") {
-        lines.push(
-          `dry-run: profile would be saved to ${result.persistence.path ?? "the ao workspace profile store"}`
-        );
-      } else {
-        lines.push(result.persistence.reason ?? "profile was not persisted");
-      }
+    if (result.persistence.mode === "execute") {
+      lines.push(`profile saved: ${result.persistence.path ?? "persisted"}`);
+    } else if (result.persistence.mode === "dry-run") {
+      lines.push(
+        `dry-run: profile would be saved to ${result.persistence.path ?? "the ao workspace profile store"}`
+      );
+    } else {
+      lines.push(result.persistence.reason ?? "profile was not persisted");
+    }
   }
 
   if (result.warnings.length > 0) {
