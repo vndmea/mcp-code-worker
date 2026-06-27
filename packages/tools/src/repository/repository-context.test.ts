@@ -253,6 +253,29 @@ describe("repository context pack", () => {
     expect(result.selectedFiles[0]?.content.length).toBeGreaterThan(8);
   });
 
+  it("records skipped files and a coverage gap when ranked context exceeds budget", async () => {
+    const rootDir = await createRootDir();
+    const context = createExecutionContextFromEnv(undefined, {
+      dryRun: true,
+      allowWrite: false,
+      rootDir
+    });
+
+    await writeText(rootDir, "src/a.ts", "export const a = '".concat("a".repeat(60), "';\n"));
+    await writeText(rootDir, "src/b.ts", "export const b = '".concat("b".repeat(60), "';\n"));
+    await writeText(rootDir, "src/c.ts", "export const c = '".concat("c".repeat(60), "';\n"));
+
+    const result = await buildRepositoryContextPack(context, {
+      rootDir,
+      maxFileBytes: 200,
+      maxTotalBytes: 90
+    });
+
+    expect(result.coverageGapDetected).toBe(true);
+    expect(result.skippedFiles.length).toBeGreaterThan(0);
+    expect(result.warnings.some((warning) => warning.includes("Skipping"))).toBe(true);
+  });
+
   it("ranks files using error-log matches, dependency hints, and selection reasons", async () => {
     const rootDir = await createRootDir();
     const context = createExecutionContextFromEnv(undefined, {

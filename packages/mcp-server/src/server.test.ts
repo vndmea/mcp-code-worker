@@ -427,8 +427,10 @@ describe("mcp tool registration", () => {
 
   it("executes the dedicated host-worker MCP tool", async () => {
     const result = await aoRunHostWorkerTool.execute({
-      goal: "Review this repository",
-      taskType: "review-lite"
+      goal: "Review the selected repository files for direct implementation risks",
+      taskType: "review-lite",
+      files: ["packages/core/src/index.ts"],
+      strictFiles: true
     });
 
     expect(result.workerResult).not.toBeNull();

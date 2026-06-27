@@ -31,16 +31,23 @@ describe("task session report", () => {
           qualityGate: {
             workflowStatus: "completed",
             answerStatus: "complete",
+            coverageGapDetected: false,
             failureStages: []
+          },
+          promptTransparency: {
+            hostPrompt: "Review packages/core",
+            promptTransformation: "augmented",
+            workerPrompt: "Return JSON"
           },
           repositoryContext: {
             requestedFiles: ["packages/core/src/index.ts"],
+            skippedFiles: [],
             selectedFiles: ["packages/core/src/index.ts"],
+            coverageGapDetected: false,
             strictFiles: true
           },
           worker: {
             metadata: {
-              prompt: "Return JSON",
               failureKind: undefined
             }
           }

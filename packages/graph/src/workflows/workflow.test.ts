@@ -87,6 +87,35 @@ describe("host worker workflow", () => {
       }
     });
   });
+
+  it("marks answers incomplete when repository coverage has gaps", async () => {
+    const rootDir = await createWorkspace();
+    await writeFile(
+      join(rootDir, "packages", "core", "src", "extra.ts"),
+      "export const extra = '".concat("x".repeat(200), "';\n"),
+      "utf8"
+    );
+
+    const result = await runHostWorkerWorkflow({
+      context: createExecutionContextFromEnv(undefined, {
+        dryRun: true,
+        allowWrite: false,
+        rootDir
+      }),
+      goal: "Review the selected files for id-generation regressions",
+      taskType: "review-lite",
+      maxFileBytes: 200,
+      maxTotalBytes: 120
+    });
+
+    expect(result.workerResult).not.toBeNull();
+    expect(result.repositoryContext.coverageGapDetected).toBe(true);
+    expect(result.qualityGate.coverageGapDetected).toBe(true);
+    expect(result.qualityGate.answerStatus).toBe("incomplete");
+    expect(result.qualityGate.failureStages).toContain("coverage-gap");
+    expect(result.debug.promptTransparency.hostPrompt).toContain("Review the selected files");
+    expect(result.debug.promptTransparency.workerPrompt).toContain("Return JSON");
+  });
 });
 
 describe("worker interview workflow", () => {

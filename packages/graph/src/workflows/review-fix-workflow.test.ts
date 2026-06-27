@@ -92,8 +92,16 @@ describe("review workflow", () => {
     expect(result.workerReviewResult).not.toBeNull();
     expect(result.reviewSummary.summary).toContain("Host-managed review");
     const summary = formatReviewWorkflowOutput(result) as {
-      debug?: { workerMetadata?: Record<string, unknown> };
+      answerStatus?: string;
+      debug?: {
+        promptTransparency?: { hostPrompt?: string };
+        workerMetadata?: Record<string, unknown>;
+      };
+      workflowStatus?: string;
     };
+    expect(summary.workflowStatus).toBeTypeOf("string");
+    expect(summary.answerStatus).toBeTypeOf("string");
+    expect(summary.debug?.promptTransparency?.hostPrompt).toBeTypeOf("string");
     expect(summary.debug?.workerMetadata?.prompt).toBeTypeOf("string");
   });
 
