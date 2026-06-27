@@ -65,13 +65,11 @@ By default, the MCP server stores AO-managed state under:
 - Host-facing execution: task sessions, review, fix, patch proposal, and explicit worker-task execution.
 - Patch lifecycle gates: inspect and apply remain explicit, separate safety steps.
 - Worker management: registry, profile, onboarding interview, and benchmark-driven capability qualification.
-- Low-level/internal workflows: planning and legacy standalone workflow runners.
+- Host-managed workflow building blocks: explicit worker execution plus patch lifecycle utilities.
 - Diagnostics and audit: doctor, audit event listing, model and workflow inspection.
 
 ## Exposed Tools
 
-- `ao_plan`
-- `ao_run_workflow`
 - `ao_run_leader_worker`
 - `ao_propose_patch`
 - `ao_inspect_patch`
@@ -113,7 +111,7 @@ For host-driven coding flows:
 
 1. Use `ao_start_task` when you want AO to manage repository context, validation, task artifacts, and patch lifecycle.
 2. Use `ao_run_leader_worker` only when the host wants one narrow worker task under explicit control.
-3. Treat `ao_run_workflow` and `leader-worker-workflow` as low-level/internal surfaces rather than the primary user-facing control path.
+3. Use `ao_list_workflows` only to inspect the remaining host-managed workflow surfaces; public tools no longer expose the old standalone leader workflow.
 
 For worker qualification over MCP, use:
 

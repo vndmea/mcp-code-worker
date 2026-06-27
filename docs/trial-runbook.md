@@ -136,7 +136,6 @@ ao worker register \
   --provider litellm \
   --model qwen3-coder \
   --base-url http://localhost:4000/v1 \
-  --api-key-env-var LITELLM_API_KEY \
   --allow-write
 
 ao worker interview --worker litellm:qwen3-coder --save

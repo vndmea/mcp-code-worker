@@ -15,7 +15,7 @@
 - Default mode is dry-run.
 - Dry-run does not create audit files by default for ordinary evaluation paths.
 - Repository reads and safe inspection commands can still run in dry-run mode.
-- Worker outputs are not accepted until leader review completes.
+- Worker outputs are not accepted until host review completes.
 
 ## Gates
 

@@ -5,7 +5,6 @@ export const WorkerRegistrationSchema = z.object({
   provider: z.string().min(1),
   model: z.string().min(1),
   baseURL: z.string().url().optional(),
-  apiKeyEnvVar: z.string().min(1).optional(),
   enabled: z.boolean().default(true),
   tags: z.array(z.string()).default([]),
   notes: z.string().optional(),

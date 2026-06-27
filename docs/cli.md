@@ -9,8 +9,6 @@ For write gates and local artifact boundaries, see `docs/permissions.md`.
 
 ```bash
 ao setup
-ao plan --goal "Generate TipTap nodes from S1000D proced.xsd"
-ao run leader-worker-basic --goal "Generate tests for schema parser"
 ao review repo --scope packages/graph
 ao review diff --base main --head HEAD
 ao review files --file packages/graph/src/index.ts

@@ -32,7 +32,7 @@ The following commands completed successfully on the commit above:
 - Provider: `openai-compatible`
 - Model: `deepseek-v4-flash`
 - Base URL: `https://api.deepseek.com`
-- API key env var: `DEEPSEEK_API_KEY`
+- API key env var: `WORKER_MODEL_API_KEY`
 - Worker registry path: `%USERPROFILE%\.ao-rc-20260626\workspaces\agent-orchestrator-645b92a8a0\workers.json`
 
 ### Interview
@@ -71,7 +71,7 @@ The following commands completed successfully on the commit above:
 - Provider: `openai-compatible`
 - Model: `deepseek-v4-pro`
 - Base URL: `https://api.deepseek.com`
-- API key env var: `DEEPSEEK_API_KEY`
+- API key env var: `WORKER_MODEL_API_KEY`
 - Worker registry path: `%USERPROFILE%\.ao-rc-20260626\workspaces\agent-orchestrator-645b92a8a0\workers.json`
 
 ### Interview

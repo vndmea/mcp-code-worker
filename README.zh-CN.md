@@ -105,8 +105,6 @@ pnpm exec ao mcp config
 ## CLI 用法
 
 ```bash
-ao plan --goal "Generate TipTap nodes from S1000D proced.xsd"
-ao run leader-worker-basic --goal "Generate tests for schema parser"
 ao review repo --scope packages/graph
 ao review diff --base main --head HEAD
 ao review files --file packages/graph/src/index.ts
@@ -147,7 +145,7 @@ ao worker profile litellm:qwen3-coder
 评估结果会生成 `WorkerCapabilityProfile`，并直接影响路由：
 
 - `active`：可以接收其通过评估的任务类型
-- `limited`：只允许低风险任务，并且需要 leader review
+- `limited`：只允许低风险任务，并且需要宿主复核
 - `blocked`：禁止进入生产工作流，并输出告警
 
 示例告警输出：
@@ -165,7 +163,7 @@ Reasons:
 Recommended action:
 - Do not assign codegen tasks.
 - Limit this worker to qualified low-risk tasks.
-- Require leader review for every accepted output.
+- Require host review for every accepted output.
 ```
 
 如果 worker 表现更差，profile 会被标记为 `blocked`，生产路由应将其视为不可用。
@@ -325,7 +323,6 @@ ao mcp list-tools
 - `WORKER_MODEL_BASE_URL`
 - `WORKER_MODEL_API_KEY`
 - `LITELLM_BASE_URL`
-- `LITELLM_API_KEY`
 - `MCP_SERVER_NAME`
 - `MCP_SERVER_VERSION`
 - `LOG_LEVEL`
@@ -351,17 +348,16 @@ ao mcp list-tools
 
 ## 内置工作流
 
-- `planning-workflow`：生成任务计划、worker 分配建议、风险列表和验证策略
-- `leader-worker-workflow`：低层内部工作流，用于 standalone/测试式 leader-worker 编排
+- `host-worker-workflow`：在宿主控制下执行单个 worker 任务，并带答案质量闸门
 - `review-workflow`：汇总 diff 影响、风险、缺失测试与后续项
 - `fix-error-workflow`：分析错误日志并给出以验证为导向的安全修复建议
+- `patch-proposal-workflow`：生成并检查 patch proposal，但不直接改仓库
+- `task-session-workflow`：执行端到端的 task session 持久化流程
 - `worker-interview-workflow`：在生产路由前评估 worker 模型，并生成能力画像
 
 ## 运行基础示例
 
-```bash
-pnpm example:leader-worker-basic
-```
+可通过 `pnpm exec tsx examples/leader-worker-basic/src/index.ts` 查看当前的宿主管理示例流程。
 
 ## 如何添加新的 worker
 
@@ -376,7 +372,7 @@ pnpm example:leader-worker-basic
 
 1. 在 `packages/graph/src/workflows` 下创建新的 workflow 文件。
 2. 使用 LangGraph.js 显式建模状态流转。
-3. 复用 core contracts 和 leader review 模式。
+3. 复用 core contracts 和宿主管理质量闸门。
 4. 只有在补齐测试后，再通过 CLI 或 MCP 暴露出去。
 
 ## 如何添加新的 MCP tool
@@ -391,9 +387,8 @@ pnpm example:leader-worker-basic
 将 `LEADER_MODEL_PROVIDER=litellm` 或 `WORKER_MODEL_PROVIDER=litellm`，并提供：
 
 - `LITELLM_BASE_URL`
-- `LITELLM_API_KEY`
 
-如果你希望 leader 和 worker 走不同的 endpoint，也可以改用各自的 model-specific base URL 变量。
+如果你希望 leader 和 worker 走不同的 endpoint，也可以改用各自的 `LEADER_MODEL_BASE_URL` / `WORKER_MODEL_BASE_URL`。
 
 ## 安全模型
 

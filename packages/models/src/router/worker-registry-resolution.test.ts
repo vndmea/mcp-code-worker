@@ -45,9 +45,7 @@ describe("resolveWorkerModel", () => {
   it("returns registry-derived config for registered workers", async () => {
     const rootDir = await createRootDir();
     process.env.WORKER_MODEL_API_KEY = "secret-value";
-    await writeRegistry(rootDir, [
-      createRegistration({ apiKeyEnvVar: "AO_TEST_WORKER_KEY" })
-    ]);
+    await writeRegistry(rootDir, [createRegistration()]);
     const context = createExecutionContextFromEnv(undefined, { rootDir });
 
     const result = await resolveWorkerModel({

@@ -108,8 +108,6 @@ Legacy repository-local `.ao/` directories are unsupported and ignored by curren
 ## CLI usage
 
 ```bash
-ao plan --goal "Generate TipTap nodes from S1000D proced.xsd"
-ao run leader-worker-basic --goal "Generate tests for schema parser"
 ao review repo --scope packages/graph
 ao review diff --base main --head HEAD
 ao review files --file packages/graph/src/index.ts
@@ -150,7 +148,7 @@ The interview workflow evaluates:
 Interview results produce a `WorkerCapabilityProfile` that affects routing:
 
 - `active`: worker can receive the task types it qualified for
-- `limited`: worker is restricted to low-risk tasks and requires leader review
+- `limited`: worker is restricted to low-risk tasks and requires host review
 - `blocked`: worker is excluded from production workflows and emits warnings
 
 Example warning output:
@@ -168,7 +166,7 @@ Reasons:
 Recommended action:
 - Do not assign codegen tasks.
 - Limit this worker to qualified low-risk tasks.
-- Require leader review for every accepted output.
+- Require host review for every accepted output.
 ```
 
 If the worker is significantly worse, the profile becomes `blocked` and production routing should treat it as unavailable.
@@ -205,7 +203,6 @@ ao worker register \
   --provider litellm \
   --model qwen3-coder \
   --base-url http://localhost:4000/v1 \
-  --api-key-env-var LITELLM_API_KEY \
   --allow-write
 
 ao worker interview --worker litellm:qwen3-coder --save
@@ -331,7 +328,6 @@ See [.env.example](https://github.com/vndmea/agent-orchestrator/blob/master/.env
 - `WORKER_MODEL_BASE_URL`
 - `WORKER_MODEL_API_KEY`
 - `LITELLM_BASE_URL`
-- `LITELLM_API_KEY`
 - `MCP_SERVER_NAME`
 - `MCP_SERVER_VERSION`
 - `LOG_LEVEL`
@@ -357,17 +353,16 @@ Repository context settings in the user-scoped AO `config.json` also control def
 
 ## Workflows
 
-- `planning-workflow`: builds a plan, worker assignment proposal, risk list, and validation strategy
-- `leader-worker-workflow`: legacy standalone workflow that coordinates internal leader planning, worker execution, tool validation, and final review
+- `host-worker-workflow`: runs one explicit worker task under host control with answer-quality gates
 - `review-workflow`: summarizes diff impact, risks, missing tests, and follow-up items
 - `fix-error-workflow`: analyzes error logs and proposes safe validation-oriented fix steps
+- `patch-proposal-workflow`: generates and inspects patch proposals without applying repository writes
+- `task-session-workflow`: runs the end-to-end persisted task pipeline
 - `worker-interview-workflow`: evaluates a worker model before production routing and generates a capability profile
 
 ## How to run the basic example
 
-```bash
-pnpm example:leader-worker-basic
-```
+Run `pnpm exec tsx examples/leader-worker-basic/src/index.ts` to inspect the host-managed example workflow.
 
 ## How to add a new worker
 
@@ -382,7 +377,7 @@ pnpm example:leader-worker-basic
 
 1. Create a workflow file under `packages/graph/src/workflows`.
 2. Use LangGraph.js to model transitions explicitly.
-3. Reuse core contracts and leader review patterns.
+3. Reuse core contracts and host-managed quality gates.
 4. Expose it through the CLI or MCP only after tests exist.
 
 ## How to add a new MCP tool
@@ -397,9 +392,7 @@ pnpm example:leader-worker-basic
 Set `LEADER_MODEL_PROVIDER=litellm` or `WORKER_MODEL_PROVIDER=litellm`, then provide:
 
 - `LITELLM_BASE_URL`
-- `LITELLM_API_KEY`
-
-If you want different endpoints for leader and worker traffic, use the model-specific base URL variables instead.
+Use `LEADER_MODEL_BASE_URL` or `WORKER_MODEL_BASE_URL` when leader and worker traffic should target different endpoints.
 
 ## Safety model
 
@@ -416,7 +409,6 @@ If you want different endpoints for leader and worker traffic, use the model-spe
 - `ao audit list` exposes the local audit trail for workflow, file, and command events.
 - `ao cleanup runs` and `ao cleanup audit` only delete local AO artifacts and never touch project source files.
 - In host-driven flows, worker outputs are not final until the host accepts them.
-- In legacy standalone leader-worker workflows, worker outputs are not final until internal leader review completes.
 - Workers must pass onboarding evaluation before they should receive production tasks.
 - Workers that fail structured output or reliability checks are limited or blocked.
 - Secrets are expected from environment variables and should never be logged.
