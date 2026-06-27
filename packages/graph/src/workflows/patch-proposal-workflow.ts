@@ -118,7 +118,7 @@ export const runPatchProposalWorkflow = async (
 
     if (eligibility.requiresLeaderReview) {
       warnings.push(
-        `Worker ${workerProfile.workerId} may generate patch proposals only with leader review.`
+        `Worker ${workerProfile.workerId} may generate patch proposals only with host review.`
       );
     }
   }

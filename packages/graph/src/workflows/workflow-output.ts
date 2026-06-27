@@ -45,7 +45,7 @@ export const formatTaskSessionWorkflowOutput = (
     workerId: output.workerId,
     sessionPath: output.sessionPath,
     nextRecommendedActions: output.nextRecommendedActions,
-    reviewSummary: output.reviewResult?.leaderReview.summary,
+    reviewSummary: output.reviewResult?.reviewSummary.summary,
     fixSummary: output.fixResult?.rootCauseAnalysis,
     patch:
       output.patchProposal || output.patchInspection || output.patchApplyResult
@@ -106,7 +106,8 @@ export const formatReviewWorkflowOutput = (
   }
 
   return {
-    leaderSummary: output.leaderReview.summary,
+    reviewSummary: output.reviewSummary.summary,
+    accepted: output.accepted,
     repository: {
       scope: output.repositoryContext.scope,
       selectedFileCount: output.repositoryContext.selectedFiles.length,
@@ -117,7 +118,8 @@ export const formatReviewWorkflowOutput = (
       ).length
     },
     validation: summarizeValidationReport(output.validationReport, options?.maxBytes),
-    workerReviewStatus: output.workerReviewResult?.status ?? "not-run"
+    workerReviewStatus: output.workerReviewResult?.status ?? "not-run",
+    qualityGate: output.qualityGate
   };
 };
 

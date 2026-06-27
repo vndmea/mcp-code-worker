@@ -640,8 +640,14 @@ const resolveFinalStatus = (input: {
   applyPatchRequested: boolean;
   patchApplyResult?: PatchApplyResult;
   patchInspection?: PatchInspection;
+  reviewAccepted?: boolean;
+  fixAccepted?: boolean;
   validationReport?: ValidationReport;
 }): TaskSessionStatus => {
+  if (input.reviewAccepted === false || input.fixAccepted === false) {
+    return "needs-review";
+  }
+
   if (input.applyPatchRequested) {
     if (!input.patchApplyResult) {
       return "blocked";
@@ -752,13 +758,19 @@ const executeReviewStep = async (input: {
     reviewResult,
     input.allowWriteSession
   );
-  finalizeStep(getStep(input.session, "reviewed"), "success", {
-    artifactPath: reviewArtifactPath
-  });
+  finalizeStep(
+    getStep(input.session, "reviewed"),
+    reviewResult.accepted ? "success" : "failure",
+    {
+      artifactPath: reviewArtifactPath,
+      warnings: reviewResult.warnings,
+      errors: reviewResult.errors
+    }
+  );
   await syncSessionState(
     input.context,
     input.session,
-    "reviewed",
+    reviewResult.accepted ? "reviewed" : "needs-review",
     input.allowWriteSession
   );
   const validationArtifactPath = await persistArtifact(
@@ -768,29 +780,54 @@ const executeReviewStep = async (input: {
     reviewResult.validationReport,
     input.allowWriteSession
   );
+  const validationWarnings = [
+    ...reviewResult.validationReport.warnings,
+    ...reviewResult.warnings
+  ];
   finalizeStep(
     getStep(input.session, "validated"),
     reviewResult.validationReport.ok ? "success" : "failure",
     {
       artifactPath: validationArtifactPath,
-      warnings: reviewResult.validationReport.warnings
+      warnings: validationWarnings,
+      errors: reviewResult.errors
     }
   );
   await syncSessionState(
     input.context,
     input.session,
-    reviewResult.validationReport.ok ? "validated" : "reviewed",
+    reviewResult.accepted
+      ? reviewResult.validationReport.ok
+        ? "validated"
+        : "reviewed"
+      : "needs-review",
     input.allowWriteSession
   );
   return reviewResult;
 };
 
-const shouldRunFixStep = (input: {
-  errorLog?: string;
-  errorLogFile?: string;
-  runFix?: boolean;
-}): boolean =>
-  Boolean(input.runFix || input.errorLog || input.errorLogFile);
+const blockRemainingExecutionSteps = async (input: {
+  allowWriteSession: boolean;
+  context: ExecutionContext;
+  reason: string;
+  session: TaskSession;
+  steps: TaskStepId[];
+}): Promise<void> => {
+  input.steps.forEach((stepId) => {
+    const step = getStep(input.session, stepId);
+    if (step.status === "pending" || step.status === "running") {
+      finalizeStep(step, "blocked", {
+        warnings: [input.reason]
+      });
+    }
+  });
+  await syncSessionState(
+    input.context,
+    input.session,
+    "needs-review",
+    input.allowWriteSession
+  );
+};
 
 const executeFixStep = async (input: {
   allowWriteSession: boolean;
@@ -833,18 +870,26 @@ const executeFixStep = async (input: {
   );
   input.session.artifacts[ARTIFACT_NAMES.repositoryContext] = repositoryContextPath;
   input.session.artifacts[ARTIFACT_NAMES.validationReport] = validationArtifactPath;
-  finalizeStep(step, "success", {
+  finalizeStep(step, fixResult.accepted ? "success" : "failure", {
     artifactPath: fixArtifactPath,
-    warnings: fixResult.validationReport.warnings
+    warnings: fixResult.warnings,
+    errors: fixResult.errors
   });
   await syncSessionState(
     input.context,
     input.session,
-    "fix-planned",
+    fixResult.accepted ? "fix-planned" : "needs-review",
     input.allowWriteSession
   );
   return fixResult;
 };
+
+const shouldRunFixStep = (input: {
+  errorLog?: string;
+  errorLogFile?: string;
+  runFix?: boolean;
+}): boolean =>
+  Boolean(input.runFix || input.errorLog || input.errorLogFile);
 
 const executePatchProposalStep = async (input: {
   allowWriteSession: boolean;
@@ -1106,8 +1151,11 @@ export const runTaskSessionWorkflow = async (
   let fixResult: FixErrorWorkflowOutput | undefined;
   let patchResult: PatchProposalWorkflowOutput | undefined;
   let patchApplyResult: PatchApplyResult | undefined;
+  const reviewBlockReason = reviewResult.accepted
+    ? undefined
+    : `Review quality gate failed: ${reviewResult.qualityGate.reasons.join(" | ")}`;
 
-  if (shouldRunFixStep(input)) {
+  if (reviewResult.accepted && shouldRunFixStep(input)) {
     fixResult = await executeFixStep({
       context: resolved.context,
       session,
@@ -1116,6 +1164,14 @@ export const runTaskSessionWorkflow = async (
       errorLog: input.errorLog,
       errorLogFile: input.errorLogFile,
       allowWriteSession
+    });
+  } else if (reviewBlockReason) {
+    await blockRemainingExecutionSteps({
+      allowWriteSession,
+      context: resolved.context,
+      reason: reviewBlockReason,
+      session,
+      steps: ["fix-planned", "patch-proposed", "patch-inspected", "patch-applied"]
     });
   } else {
     finalizeStep(getStep(session, "fix-planned"), "skipped");
@@ -1126,7 +1182,15 @@ export const runTaskSessionWorkflow = async (
   const validationReport =
     fixResult?.validationReport ?? reviewResult.validationReport;
 
-  if (input.proposePatch || input.inspectPatch) {
+  const fixBlockReason =
+    fixResult && !fixResult.accepted
+      ? `Fix planning quality gate failed: ${[
+          ...fixResult.analysisResult.qualityGate.reasons,
+          ...fixResult.planResult.qualityGate.reasons
+        ].join(" | ")}`
+      : undefined;
+
+  if (reviewResult.accepted && !fixBlockReason && (input.proposePatch || input.inspectPatch)) {
     patchResult = await executePatchProposalStep({
       context: resolved.context,
       session,
@@ -1138,12 +1202,20 @@ export const runTaskSessionWorkflow = async (
       workerId: resolved.requestedWorkerId,
       allowWriteSession
     });
+  } else if (fixBlockReason) {
+    await blockRemainingExecutionSteps({
+      allowWriteSession,
+      context: resolved.context,
+      reason: fixBlockReason,
+      session,
+      steps: ["patch-proposed", "patch-inspected", "patch-applied"]
+    });
   } else {
     finalizeStep(getStep(session, "patch-proposed"), "skipped");
     finalizeStep(getStep(session, "patch-inspected"), "skipped");
   }
 
-  if (input.applyPatch) {
+  if (reviewResult.accepted && !fixBlockReason && input.applyPatch) {
     const proposal = patchResult?.proposal;
     if (!proposal) {
       throw new AgentError(
@@ -1170,6 +1242,8 @@ export const runTaskSessionWorkflow = async (
     applyPatchRequested: input.applyPatch ?? false,
     patchApplyResult,
     patchInspection: patchResult?.inspection,
+    reviewAccepted: reviewResult.accepted,
+    fixAccepted: fixResult?.accepted,
     validationReport
   });
   await syncSessionState(
@@ -1359,8 +1433,15 @@ export const resumeTaskSessionWorkflow = async (
       { taskId: session.taskId }
     );
   }
+  const reviewBlockReason = reviewResult.accepted
+    ? undefined
+    : `Review quality gate failed: ${reviewResult.qualityGate.reasons.join(" | ")}`;
 
-  if (shouldRunFixStep(options) && shouldRunStep(session, "fix-planned", fromStep)) {
+  if (
+    reviewResult.accepted &&
+    shouldRunFixStep(options) &&
+    shouldRunStep(session, "fix-planned", fromStep)
+  ) {
     fixResult = await executeFixStep({
       context: resolved.context,
       session,
@@ -1372,9 +1453,30 @@ export const resumeTaskSessionWorkflow = async (
     });
     repositoryContext = fixResult.repositoryContext;
     validationReport = fixResult.validationReport;
+  } else if (reviewBlockReason) {
+    await blockRemainingExecutionSteps({
+      allowWriteSession: input.allowWriteSession ?? false,
+      context: resolved.context,
+      reason: reviewBlockReason,
+      session,
+      steps: ["fix-planned", "patch-proposed", "patch-inspected", "patch-applied"]
+    });
   }
 
-  if ((options.proposePatch || options.inspectPatch) && shouldRunStep(session, "patch-proposed", fromStep)) {
+  const fixBlockReason =
+    fixResult && !fixResult.accepted
+      ? `Fix planning quality gate failed: ${[
+          ...fixResult.analysisResult.qualityGate.reasons,
+          ...fixResult.planResult.qualityGate.reasons
+        ].join(" | ")}`
+      : undefined;
+
+  if (
+    reviewResult.accepted &&
+    !fixBlockReason &&
+    (options.proposePatch || options.inspectPatch) &&
+    shouldRunStep(session, "patch-proposed", fromStep)
+  ) {
     const patchResult = await executePatchProposalStep({
       context: resolved.context,
       session,
@@ -1388,9 +1490,22 @@ export const resumeTaskSessionWorkflow = async (
     });
     patchProposal = patchResult.proposal;
     patchInspection = patchResult.inspection;
+  } else if (fixBlockReason) {
+    await blockRemainingExecutionSteps({
+      allowWriteSession: input.allowWriteSession ?? false,
+      context: resolved.context,
+      reason: fixBlockReason,
+      session,
+      steps: ["patch-proposed", "patch-inspected", "patch-applied"]
+    });
   }
 
-  if (options.applyPatch && shouldRunStep(session, "patch-applied", fromStep)) {
+  if (
+    reviewResult.accepted &&
+    !fixBlockReason &&
+    options.applyPatch &&
+    shouldRunStep(session, "patch-applied", fromStep)
+  ) {
     if (!patchProposal) {
       throw new AgentError(
         "TASK_PATCH_PROPOSAL_MISSING",
@@ -1485,6 +1600,8 @@ export const resumeTaskSessionWorkflow = async (
     applyPatchRequested: options.applyPatch,
     patchApplyResult,
     patchInspection,
+    reviewAccepted: reviewResult.accepted,
+    fixAccepted: fixResult?.accepted,
     validationReport: validationReport ?? reviewResult.validationReport
   });
   await syncSessionState(

@@ -14,8 +14,8 @@ const summarizeReview = (reviewResult: unknown): string => {
     return "No review result recorded.";
   }
 
-  const value = reviewResult as { leaderReview?: { summary?: string } };
-  return value.leaderReview?.summary ?? "Review result is present.";
+  const value = reviewResult as { reviewSummary?: { summary?: string } };
+  return value.reviewSummary?.summary ?? "Review result is present.";
 };
 
 const summarizeFix = (fixResult: unknown): string => {

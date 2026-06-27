@@ -1,8 +1,5 @@
-import { randomUUID } from "node:crypto";
-
-import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import type {
-  AgentTask,
+  AgentResult,
   ExecutionContext,
   RepositoryContextPack,
   ReviewSummary,
@@ -15,9 +12,8 @@ import {
   runRepositoryValidation
 } from "@agent-orchestrator/tools";
 
-import { LeaderAgent } from "../leader/leader-agent.js";
-import { createInitialWorkflowState } from "../leader/leader-state.js";
-import { ReviewWorker } from "../workers/review-worker.js";
+import type { HostWorkerWorkflowQualityGate } from "./host-worker-workflow.js";
+import { runHostWorkerWorkflow } from "./host-worker-workflow.js";
 
 export interface ReviewWorkflowInput {
   context?: ExecutionContext;
@@ -28,39 +24,81 @@ export interface ReviewWorkflowInput {
   includeDiff?: boolean;
   maxFileBytes?: number;
   maxTotalBytes?: number;
+  requireProfile?: boolean;
   scope?: string;
   validate?: {
     lint?: boolean;
     test?: boolean;
     typecheck?: boolean;
   };
+  workerId?: string;
 }
 
 export interface ReviewWorkflowOutput {
-  leaderReview: ReviewSummary;
+  accepted: boolean;
+  errors: string[];
+  qualityGate: HostWorkerWorkflowQualityGate;
   repositoryContext: RepositoryContextPack;
+  reviewSummary: ReviewSummary;
   validationReport: ValidationReport;
-  workerReviewResult: ReturnType<typeof createInitialWorkflowState>["workerResults"][number] | null;
+  warnings: string[];
+  workerReviewResult: AgentResult | null;
 }
 
-const ReviewState = Annotation.Root({
-  task: Annotation<ReturnType<typeof createInitialWorkflowState>["task"]>(),
-  plan: Annotation<ReturnType<typeof createInitialWorkflowState>["plan"]>(),
-  workerResults: Annotation<ReturnType<typeof createInitialWorkflowState>["workerResults"]>(),
-  toolResults: Annotation<ReturnType<typeof createInitialWorkflowState>["toolResults"]>(),
-  review: Annotation<ReturnType<typeof createInitialWorkflowState>["review"]>(),
-  finalResult: Annotation<ReturnType<typeof createInitialWorkflowState>["finalResult"]>(),
-  workerCapabilityProfile: Annotation<ReturnType<typeof createInitialWorkflowState>["workerCapabilityProfile"]>(),
-  warnings: Annotation<ReturnType<typeof createInitialWorkflowState>["warnings"]>(),
-  errors: Annotation<ReturnType<typeof createInitialWorkflowState>["errors"]>()
-});
+const asStringArray = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+
+const buildReviewSummary = (input: {
+  qualityGate: HostWorkerWorkflowQualityGate;
+  repositoryContext: RepositoryContextPack;
+  validationReport: ValidationReport;
+  workerResult: AgentResult | null;
+}): ReviewSummary => {
+  const selectedPaths = input.repositoryContext.selectedFiles.map((file) => file.path);
+  const findings = input.workerResult
+    ? asStringArray((input.workerResult.output as { findings?: unknown }).findings)
+    : [];
+  const failedChecks = input.validationReport.checks
+    .filter((check) => check.status === "failure")
+    .map((check) => `${check.name} validation failed.`);
+  const mustFixItems = [
+    ...input.qualityGate.reasons,
+    ...failedChecks,
+    ...findings.slice(0, 2)
+  ];
+  const shouldFixItems = findings.slice(2);
+  const summaryPrefix = input.qualityGate.answered
+    ? "Host-managed review answered the scoped repository question directly."
+    : "Host-managed review did not meet the answer-quality gate.";
+
+  return {
+    summary: `${summaryPrefix} Reviewed ${selectedPaths.length} selected file(s).`,
+    architectureImpact:
+      selectedPaths.length > 0
+        ? `Focused on ${selectedPaths.join(", ")}.`
+        : "No repository files were selected for review.",
+    mustFixItems,
+    shouldFixItems,
+    missingTests: input.validationReport.ok
+      ? []
+      : input.validationReport.checks
+          .filter((check) => check.status !== "success")
+          .map((check) => `Re-run ${check.name} after updating the scoped files.`),
+    riskLevel:
+      !input.qualityGate.answered || !input.validationReport.ok
+        ? "high"
+        : findings.length > 2
+          ? "medium"
+          : "low"
+  };
+};
 
 export const runReviewWorkflow = async (
   input: ReviewWorkflowInput
 ): Promise<ReviewWorkflowOutput> => {
   const context = input.context ?? await resolveExecutionContext();
-  const leader = new LeaderAgent(context);
-  const reviewWorker = new ReviewWorker(context);
   const diffSummary =
     input.diff
       ? {
@@ -76,7 +114,7 @@ export const runReviewWorkflow = async (
             head: input.diffHead
           })
         : undefined;
-  const repositoryContext = await buildRepositoryContextPack(context, {
+  const repositoryContextBase = await buildRepositoryContextPack(context, {
     rootDir: context.rootDir,
     scope: input.scope,
     files: input.files,
@@ -86,79 +124,49 @@ export const runReviewWorkflow = async (
     maxFileBytes: input.maxFileBytes,
     maxTotalBytes: input.maxTotalBytes
   });
+  const repositoryContext = diffSummary
+    ? {
+        ...repositoryContextBase,
+        gitDiff: diffSummary
+      }
+    : repositoryContextBase;
   const validationReport = await runRepositoryValidation(context, {
     typecheck: input.validate?.typecheck,
     lint: input.validate?.lint,
     test: input.validate?.test,
     scope: input.scope
   });
-  const task: AgentTask = {
-    id: randomUUID(),
-    goal: "Review diff or file list for architecture and testing impact",
-    input: {
+  const workerRun = await runHostWorkerWorkflow({
+    context,
+    files: input.files,
+    goal: "Review the selected repository context for concrete implementation and validation risks.",
+    maxFileBytes: input.maxFileBytes,
+    maxTotalBytes: input.maxTotalBytes,
+    repositoryContext,
+    requireProfile: input.requireProfile,
+    scope: input.scope,
+    taskType: "review-lite",
+    additionalTaskInput: {
       diff: diffSummary?.diffText ?? input.diff,
-      files: input.files ?? [],
-      repositoryContext,
       validationReport
     },
-    constraints: ["Return structured review output."],
-    expectedOutput: "Review summary",
-    assignedRole: "reviewer",
-    priority: "medium",
-    metadata: {
-      workflow: "review-workflow"
-    }
-  };
-
-  const app = new StateGraph(ReviewState)
-    .addNode("review-worker", async (state) => ({
-      ...state,
-      workerResults: [await reviewWorker.execute({ task: state.task })]
-    }))
-    .addNode("leader-review", (state) => ({
-      ...state,
-      toolResults: validationReport.checks.map((check) => ({
-        toolName: `validation:${check.name}`,
-        status:
-          check.status === "success"
-            ? "success"
-            : check.status === "failure"
-              ? "failure"
-              : "dry-run",
-        output: check,
-        metadata: {}
-      })),
-      review: leader.buildReviewSummary(
-        state.task,
-        state.workerResults,
-        validationReport.checks.map((check) => ({
-          toolName: `validation:${check.name}`,
-          status:
-            check.status === "success"
-              ? "success"
-              : check.status === "failure"
-                ? "failure"
-                : "dry-run",
-          output: check,
-          metadata: {}
-        }))
-      )
-    }))
-    .addEdge(START, "review-worker")
-    .addEdge("review-worker", "leader-review")
-    .addEdge("leader-review", END)
-    .compile();
-
-  const state = await app.invoke(createInitialWorkflowState(task));
-  const workerReviewResult = state.workerResults[0] ?? null;
+    workerId: input.workerId
+  });
+  const reviewSummary = buildReviewSummary({
+    qualityGate: workerRun.qualityGate,
+    repositoryContext,
+    validationReport,
+    workerResult: workerRun.workerResult
+  });
 
   return {
-    repositoryContext: {
-      ...repositoryContext,
-      ...(diffSummary ? { gitDiff: diffSummary } : {})
-    },
+    accepted: workerRun.qualityGate.answered,
+    errors: workerRun.errors,
+    qualityGate: workerRun.qualityGate,
+    repositoryContext,
+    reviewSummary,
     validationReport,
-    workerReviewResult,
-    leaderReview: state.review ?? leader.buildReviewSummary(task, [], [])
+    warnings: workerRun.warnings,
+    workerReviewResult: workerRun.workerResult
   };
 };

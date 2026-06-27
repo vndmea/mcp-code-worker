@@ -1,11 +1,6 @@
-import { randomUUID } from "node:crypto";
-
-import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import type {
-  AgentTask,
   ExecutionContext,
   RepositoryContextPack,
-  ToolExecutionResult,
   ValidationReport
 } from "@agent-orchestrator/core";
 import { resolveExecutionContext } from "@agent-orchestrator/core";
@@ -15,10 +10,8 @@ import {
   runRepositoryValidation
 } from "@agent-orchestrator/tools";
 
-import { LeaderAgent } from "../leader/leader-agent.js";
-import { createInitialWorkflowState } from "../leader/leader-state.js";
-import { CodegenWorker } from "../workers/codegen-worker.js";
-import { TestWorker } from "../workers/test-worker.js";
+import type { HostWorkerWorkflowOutput } from "./host-worker-workflow.js";
+import { runHostWorkerWorkflow } from "./host-worker-workflow.js";
 import { runPatchProposalWorkflow } from "./patch-proposal-workflow.js";
 
 export interface FixErrorWorkflowInput {
@@ -26,44 +19,84 @@ export interface FixErrorWorkflowInput {
   errorLog?: string;
   errorLogFile?: string;
   proposePatch?: boolean;
+  requireProfile?: boolean;
   scope?: string;
   validate?: {
     lint?: boolean;
     test?: boolean;
     typecheck?: boolean;
   };
+  workerId?: string;
 }
 
 export interface FixErrorWorkflowOutput {
+  accepted: boolean;
+  analysisResult: HostWorkerWorkflowOutput;
   candidateFixPlan: string[];
-  leaderReview: Awaited<ReturnType<LeaderAgent["review"]>>;
+  errors: string[];
   repositoryContext: RepositoryContextPack;
   rootCauseAnalysis: string;
   patchInspection?: Awaited<ReturnType<typeof runPatchProposalWorkflow>>["inspection"];
   patchProposal?: Awaited<ReturnType<typeof runPatchProposalWorkflow>>["proposal"];
+  planResult: HostWorkerWorkflowOutput;
   suggestedPatchArtifact: string;
   validationReport: ValidationReport;
+  warnings: string[];
 }
 
-const FixErrorState = Annotation.Root({
-  task: Annotation<ReturnType<typeof createInitialWorkflowState>["task"]>(),
-  plan: Annotation<ReturnType<typeof createInitialWorkflowState>["plan"]>(),
-  workerResults: Annotation<ReturnType<typeof createInitialWorkflowState>["workerResults"]>(),
-  toolResults: Annotation<ReturnType<typeof createInitialWorkflowState>["toolResults"]>(),
-  review: Annotation<ReturnType<typeof createInitialWorkflowState>["review"]>(),
-  finalResult: Annotation<ReturnType<typeof createInitialWorkflowState>["finalResult"]>(),
-  workerCapabilityProfile: Annotation<ReturnType<typeof createInitialWorkflowState>["workerCapabilityProfile"]>(),
-  warnings: Annotation<ReturnType<typeof createInitialWorkflowState>["warnings"]>(),
-  errors: Annotation<ReturnType<typeof createInitialWorkflowState>["errors"]>()
-});
+const asStringArray = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+
+const getRootCauseAnalysis = (analysisResult: HostWorkerWorkflowOutput): string => {
+  const workerOutput = analysisResult.workerResult?.output as {
+    brief?: unknown;
+    issue?: unknown;
+  } | undefined;
+
+  if (typeof workerOutput?.brief === "string") {
+    return workerOutput.brief;
+  }
+
+  if (typeof workerOutput?.issue === "string") {
+    return workerOutput.issue;
+  }
+
+  return analysisResult.qualityGate.answered
+    ? "Root cause analysis completed, but the worker response did not include a brief summary."
+    : analysisResult.qualityGate.reasons.join(" ");
+};
+
+const getCandidateFixPlan = (planResult: HostWorkerWorkflowOutput): string[] => {
+  const workerOutput = planResult.workerResult?.output as {
+    patchPlan?: unknown;
+    notes?: unknown;
+  } | undefined;
+  const patchPlan = asStringArray(workerOutput?.patchPlan);
+
+  if (patchPlan.length > 0) {
+    return patchPlan;
+  }
+
+  const notes = asStringArray(workerOutput?.notes);
+  if (notes.length > 0) {
+    return notes;
+  }
+
+  return planResult.qualityGate.answered
+    ? [
+        "Identify the smallest code path connected to the failing signal.",
+        "Limit the fix to the scoped files.",
+        "Re-run deterministic validation before accepting the change."
+      ]
+    : planResult.qualityGate.reasons;
+};
 
 export const runFixErrorWorkflow = async (
   input: FixErrorWorkflowInput
 ): Promise<FixErrorWorkflowOutput> => {
   const context = input.context ?? await resolveExecutionContext();
-  const leader = new LeaderAgent(context);
-  const codegenWorker = new CodegenWorker(context);
-  const testWorker = new TestWorker(context);
   const errorLog = input.errorLog ??
     (input.errorLogFile
       ? await readRepositoryFile(input.errorLogFile, context.rootDir, 20_000)
@@ -79,115 +112,74 @@ export const runFixErrorWorkflow = async (
     test: input.validate?.test,
     scope: input.scope
   });
-  const validationChecks = validationReport.checks.map((check) => ({
-    toolName: `validation:${check.name}`,
-    status:
-      check.status === "success"
-        ? "success"
-        : check.status === "failure"
-          ? "failure"
-          : "dry-run",
-    output: check,
-    metadata: {}
-  })) satisfies ToolExecutionResult[];
-  const task: AgentTask = {
-    id: randomUUID(),
-    goal: "Analyze an error log and propose a safe fix plan",
-    input: {
-      errorLog,
-      errorLogFile: input.errorLogFile,
-      repositoryContext,
-      validationReport,
-      scope: input.scope
-    },
-    constraints: [
-      "Do not apply writes automatically.",
-      "Return a root-cause analysis with validation guidance."
-    ],
-    expectedOutput: "Root cause analysis and candidate fix plan",
-    assignedRole: "leader",
-    priority: "high",
-    metadata: {
-      workflow: "fix-error-workflow"
-    }
+  const sharedTaskInput = {
+    errorLog,
+    errorLogFile: input.errorLogFile,
+    validationReport
   };
-
-  const app = new StateGraph(FixErrorState)
-    .addNode("create_plan", async (state) => ({
-      ...state,
-      plan: await leader.createPlan(state.task)
-    }))
-    .addNode("workers", async (state) => ({
-      ...state,
-      workerResults: await Promise.all([
-        codegenWorker.execute({ task: state.task, scope: input.scope }),
-        testWorker.execute({ task: state.task })
-      ])
-    }))
-    .addNode("validate", (state) => ({
-      ...state,
-      toolResults: [
-        {
-          toolName: "error-log-check",
-          status: errorLog.trim() ? "success" : "failure",
-          output: {
-            hasErrorLog: Boolean(errorLog.trim())
-          },
-          metadata: {}
-        },
-        ...validationChecks
-      ]
-    }))
-    .addEdge(START, "create_plan")
-    .addEdge("create_plan", "workers")
-    .addEdge("workers", "validate")
-    .addEdge("validate", END)
-    .compile();
-
-  const state = await app.invoke(createInitialWorkflowState(task));
-  const leaderReview = await leader.review(
-    state.task,
-    state.workerResults,
-    state.toolResults
-  );
+  const analysisResult = await runHostWorkerWorkflow({
+    context,
+    goal: "Analyze the supplied error log and summarize the likely root cause using the scoped repository context.",
+    repositoryContext,
+    requireProfile: input.requireProfile,
+    scope: input.scope,
+    taskType: "log-analysis",
+    additionalTaskInput: sharedTaskInput,
+    workerId: input.workerId
+  });
+  const planResult = await runHostWorkerWorkflow({
+    context,
+    goal: "Produce a safe candidate fix plan for the supplied error log using only the scoped repository context.",
+    repositoryContext,
+    requireProfile: input.requireProfile,
+    scope: input.scope,
+    taskType: "codegen",
+    additionalTaskInput: sharedTaskInput,
+    workerId: input.workerId
+  });
+  const accepted =
+    analysisResult.qualityGate.answered &&
+    planResult.qualityGate.answered;
+  const rootCauseAnalysis = getRootCauseAnalysis(analysisResult);
+  const candidateFixPlan = getCandidateFixPlan(planResult);
   const patchResult = input.proposePatch
     ? await runPatchProposalWorkflow({
         context,
         errorLog,
         fixResult: {
-          candidateFixPlan: [
-            "Reproduce the failing command in dry-run-safe conditions.",
-            "Limit the fix to the provided scope.",
-            "Run deterministic validation after the change."
-          ]
+          candidateFixPlan
         },
         goal: input.scope
           ? `Fix issues within ${input.scope}`
           : "Fix the supplied repository issue",
         repositoryContext,
         scope: input.scope,
-        validationReport
+        validationReport,
+        workerId: input.workerId,
+        requireProfile: input.requireProfile
       })
     : undefined;
 
   return {
-    rootCauseAnalysis: errorLog.trim()
-      ? "The supplied error log should be traced from failing validation back to the owning package boundary."
-      : "No error log was provided, so the analysis is incomplete.",
-    candidateFixPlan: [
-      "Reproduce the failing command in dry-run-safe conditions.",
-      "Limit the fix to the provided scope.",
-      "Run deterministic validation after the change."
-    ],
+    accepted,
+    analysisResult,
+    candidateFixPlan,
+    errors: [...analysisResult.errors, ...planResult.errors],
     ...(patchResult
       ? {
           patchProposal: patchResult.proposal,
           patchInspection: patchResult.inspection
         }
       : {}),
+    planResult,
     repositoryContext,
+    rootCauseAnalysis,
     suggestedPatchArtifact: "candidate-patch-plan.md",
     validationReport,
-    leaderReview
+    warnings: [
+      ...analysisResult.warnings,
+      ...planResult.warnings,
+      ...(patchResult?.warnings ?? [])
+    ]
   };
 };

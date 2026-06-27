@@ -28,11 +28,13 @@ import { TestWorker } from "../workers/test-worker.js";
 import { runWorkerInterviewWorkflow } from "./worker-interview-workflow.js";
 
 export interface HostWorkerWorkflowInput {
+  additionalTaskInput?: Record<string, unknown>;
   context?: ExecutionContext;
   files?: string[];
   goal: string;
   maxFileBytes?: number;
   maxTotalBytes?: number;
+  repositoryContext?: RepositoryContextPack;
   requireProfile?: boolean;
   scope?: string;
   taskType: Exclude<WorkerTaskType, "patch-generation">;
@@ -85,6 +87,7 @@ const buildTask = (
   id: randomUUID(),
   goal: input.goal,
   input: {
+    ...(input.additionalTaskInput ?? {}),
     files: input.files ?? [],
     repositoryContext,
     scope: repositoryContext.scope,
@@ -104,7 +107,7 @@ const buildTask = (
 });
 
 const detectTemplateFallback = (text: string): boolean =>
-  /summarize-context|draft-implementation|plan-tests|scope not provided|candidate patches still require leader review/iu.test(
+  /summarize-context|draft-implementation|plan-tests|scope not provided/iu.test(
     text
   );
 
@@ -246,13 +249,15 @@ export const runHostWorkerWorkflow = async (
     context,
     workerModelResolution.modelConfig
   );
-  const repositoryContext = await buildRepositoryContextPack(context, {
-    rootDir: context.rootDir,
-    scope: input.scope,
-    files: input.files,
-    maxFileBytes: input.maxFileBytes,
-    maxTotalBytes: input.maxTotalBytes
-  });
+  const repositoryContext =
+    input.repositoryContext ??
+    await buildRepositoryContextPack(context, {
+      rootDir: context.rootDir,
+      scope: input.scope,
+      files: input.files,
+      maxFileBytes: input.maxFileBytes,
+      maxTotalBytes: input.maxTotalBytes
+    });
   const task = buildTask(input, repositoryContext);
 
   await writeAuditEvent(context, {

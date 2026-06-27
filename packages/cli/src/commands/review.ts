@@ -15,8 +15,10 @@ import {
 } from "../output.js";
 
 const formatReviewSummaryText = (summary: Record<string, unknown>): string[] => {
-  const leaderSummary =
-    typeof summary["leaderSummary"] === "string" ? summary["leaderSummary"] : null;
+  const reviewSummary =
+    typeof summary["reviewSummary"] === "string" ? summary["reviewSummary"] : null;
+  const accepted =
+    typeof summary["accepted"] === "boolean" ? summary["accepted"] : null;
   const validation =
     typeof summary["validation"] === "object" && summary["validation"] !== null
       ? (summary["validation"] as { summary?: string })
@@ -38,8 +40,12 @@ const formatReviewSummaryText = (summary: Record<string, unknown>): string[] => 
 
   const lines: string[] = ["review complete"];
 
-  if (leaderSummary) {
-    lines.push(`leader: ${leaderSummary}`);
+  if (reviewSummary) {
+    lines.push(`review: ${reviewSummary}`);
+  }
+
+  if (accepted !== null) {
+    lines.push(`accepted: ${accepted ? "yes" : "no"}`);
   }
 
   if (repository) {

@@ -53,7 +53,7 @@ export class CodegenWorker extends WorkerAgent {
           ? [`Ground the plan in ${selectedPaths.join(", ")}.`]
           : []),
         input.scope ? `Limit implementation to ${input.scope}.` : "No scope provided.",
-        "Candidate patches still require leader review."
+        "Candidate patches still require host review."
       ]
     };
 

@@ -43,7 +43,7 @@ export class TestWorker extends WorkerAgent {
           ? [`Add focused coverage around ${selectedPaths.join(" and ")}.`]
           : []),
         "Validate schema parsing for structured workflow outputs.",
-        "Validate state transitions for planning and leader-worker workflows.",
+        "Validate state transitions for host-managed review and task-session workflows.",
         "Validate write and shell safety policies."
       ]
     };

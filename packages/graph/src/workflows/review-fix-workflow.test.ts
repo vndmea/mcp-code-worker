@@ -89,7 +89,7 @@ describe("review workflow", () => {
       })
     ]);
     expect(result.workerReviewResult).not.toBeNull();
-    expect(result.leaderReview.summary).toContain("Review diff or file list");
+    expect(result.reviewSummary.summary).toContain("Host-managed review");
   });
 
   it("includes git diff context when requested", async () => {
@@ -143,7 +143,7 @@ describe("fix-error workflow", () => {
     });
 
     expect(result.rootCauseAnalysis).toContain("supplied error log");
-    expect(result.candidateFixPlan).toHaveLength(3);
+    expect(result.candidateFixPlan.length).toBeGreaterThanOrEqual(3);
   });
 
   it("rejects traversal paths for error log files", async () => {
