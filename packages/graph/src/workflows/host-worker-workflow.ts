@@ -141,7 +141,8 @@ const buildQualityGate = (
   const structuredOutputOk =
     workerResult?.metadata.structuredOutputOk === true;
   const templateFallbackDetected = detectTemplateFallback(outputText);
-  const genericFallbackDetected = detectGenericFallback(outputText);
+  const genericFallbackDetected =
+    input.taskType === "review-lite" && detectGenericFallback(outputText);
   const reasons: string[] = [];
 
   if (!workerResult) {
