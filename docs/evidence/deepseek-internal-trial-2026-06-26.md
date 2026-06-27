@@ -128,9 +128,9 @@ The following commands completed successfully on the commit above:
 
 - No API key was committed.
 - No bearer token was committed.
-- AO artifacts stayed under user-scoped CW storage, not the repository checkout.
+- CW artifacts stayed under user-scoped CW storage, not the repository checkout.
 - No repository-local legacy `.cw` directory was required.
-- The shell environment emitted a Node warning about `NODE_TLS_REJECT_UNAUTHORIZED=0`. This was inherited from the operator environment, not set by AO, and should be cleared before any shared team trial.
+- The shell environment emitted a Node warning about `NODE_TLS_REJECT_UNAUTHORIZED=0`. This was inherited from the operator environment, not set by CW, and should be cleared before any shared team trial.
 
 ## Decision
 

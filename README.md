@@ -26,7 +26,7 @@ In host-driven use cases such as Codex, `cw` stays as the controlled execution/r
 - The host agent stays responsible for user intent, final judgment, and acceptance.
 - `cw` provides the controlled runtime: worker routing, repository context packs, deterministic validation, artifact persistence, and patch gates.
 - The recommended host-facing path is `cw_start_task` and other host-managed tools.
-- For narrow repo-grounded checks, prefer explicit file lists with strict file mode so AO fails fast instead of silently widening or skipping critical evidence.
+- For narrow repo-grounded checks, prefer explicit file lists with strict file mode so CW fails fast instead of silently widening or skipping critical evidence.
 
 ## Architecture diagram
 
@@ -40,7 +40,7 @@ Human / Coding Agent / CI / MCP Client
    Orchestration Runtime Layer
       |            |         \
       v            v          v
- Worker Routing  Deterministic Tools  AO Storage / Artifacts
+ Worker Routing  Deterministic Tools  CW Storage / Artifacts
       |
       v
  Worker Models / Local Clients
@@ -297,7 +297,7 @@ cw task resume <taskId> \
   --confirm-apply
 ```
 
-Session persistence is separate from repository writes. `--allow-write-session` only permits AO session artifacts under `runs/`. It does not enable patch apply.
+Session persistence is separate from repository writes. `--allow-write-session` only permits CW session artifacts under `runs/`. It does not enable patch apply.
 
 See `docs/permissions.md` for the full write-gate model.
 
@@ -351,7 +351,7 @@ Runtime configuration resolves in this order:
 
 `config.json` no longer stores secret env-var names. Provide runtime secrets through fixed variables such as `WORKER_MODEL_API_KEY`.
 
-Repository context settings in the user-scoped AO `config.json` control default `ignoredPaths` and `strictFiles` behavior for review, fix, patch, and task workflows.
+Repository context settings in the user-scoped CW `config.json` control default `ignoredPaths` and `strictFiles` behavior for review, fix, patch, and task workflows.
 
 ## Workflows
 
@@ -409,7 +409,7 @@ Use `WORKER_MODEL_BASE_URL` when worker traffic should target a non-default endp
 - If structured patch generation fails, the fallback proposal is marked as a blocked `[PLACEHOLDER]` artifact and cannot be applied.
 - Validation commands go through the safe command path and can be inspected through audit logs.
 - `cw audit list` exposes the local audit trail for workflow, file, and command events.
-- `cw cleanup runs` and `cw cleanup audit` only delete local AO artifacts and never touch project source files.
+- `cw cleanup runs` and `cw cleanup audit` only delete local CW artifacts and never touch project source files.
 - In host-driven flows, worker outputs are not final until the host accepts them.
 - Workers must pass onboarding evaluation before they should receive production tasks.
 - Workers that fail structured output or reliability checks are limited or blocked.

@@ -7,7 +7,7 @@ import { runHostWorkerWorkflow } from "./host-worker-workflow.js";
 import { describe, expect, it } from "vitest";
 
 const createRootDir = async () => {
-  const rootDir = await mkdtemp(join(tmpdir(), "ao-workflow-audit-"));
+  const rootDir = await mkdtemp(join(tmpdir(), "cw-workflow-audit-"));
   await mkdir(join(rootDir, "packages", "core", "src"), { recursive: true });
   await writeFile(
     join(rootDir, "packages", "core", "src", "generateId.ts"),

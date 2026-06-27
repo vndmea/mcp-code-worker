@@ -23,7 +23,7 @@ Human / Codex / CI / MCP Client
    Orchestration Runtime
       |            |        \
       v            v         v
- Worker Routing  Deterministic Tools  AO Storage / Artifacts
+ Worker Routing  Deterministic Tools  CW Storage / Artifacts
       |
       v
  Worker Models / Local Clients

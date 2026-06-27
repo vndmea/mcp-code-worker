@@ -29,7 +29,7 @@ pnpm exec cw worker register \
 
 ## Expected Persisted Artifacts
 
-By default, saved DeepSeek-related AO artifacts live under:
+By default, saved DeepSeek-related CW artifacts live under:
 
 ```text
 ~/.cw/workspaces/<workspace-id>/

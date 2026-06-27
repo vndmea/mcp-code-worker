@@ -2,7 +2,7 @@
 
 Use this matrix before upgrading from individual internal trial to team trial.
 
-Do not mark a gate complete without committed or attached evidence. For storage-aware gates, use user-scoped AO paths such as `~/.cw/workspaces/<workspace-id>/runs/<taskId>/report.md`.
+Do not mark a gate complete without committed or attached evidence. For storage-aware gates, use user-scoped CW paths such as `~/.cw/workspaces/<workspace-id>/runs/<taskId>/report.md`.
 
 ## Release Candidate Checklist
 

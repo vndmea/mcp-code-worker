@@ -84,7 +84,7 @@ export const registerMcpCommand = (program: Command, io: CliIo): void => {
   mcp
     .command("config")
     .description("Print a generic local MCP stdio server config snippet.")
-    .option("--command <command>", "Command to launch the server", "ao")
+    .option("--command <command>", "Command to launch the server", "cw")
     .option("--args <args...>", "Arguments passed to the command")
     .option(
       "--env <assignment>",

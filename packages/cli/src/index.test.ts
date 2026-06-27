@@ -311,7 +311,7 @@ describe("cli parsing", () => {
 
     await cli.parseAsync([
       "node",
-      "ao",
+      "cw",
       "mcp",
       "config",
       "--root",
@@ -328,7 +328,7 @@ describe("cli parsing", () => {
 
     await cli.parseAsync([
       "node",
-      "ao",
+      "cw",
       "mcp",
       "config",
       "--root",
@@ -408,7 +408,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "setup",
         "--worker-provider",
         "mock",
@@ -479,7 +479,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "worker",
         "register",
         "--provider",
@@ -491,7 +491,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "worker",
         "register",
         "--provider",
@@ -505,7 +505,7 @@ describe("cli parsing", () => {
       await cli.parseAsync(["node", "cw", "worker", "registry", "list"]);
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "worker",
         "registry",
         "get",
@@ -517,7 +517,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "worker",
         "unregister",
         "mock:registered-worker"
@@ -526,7 +526,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "worker",
         "unregister",
         "mock:registered-worker",
@@ -544,7 +544,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "worker",
         "interview",
         "--worker",
@@ -556,7 +556,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "worker",
         "interview",
         "--provider",
@@ -570,7 +570,7 @@ describe("cli parsing", () => {
       await expect(
         cli.parseAsync([
           "node",
-          "ao",
+          "cw",
           "worker",
           "interview",
           "--worker",
@@ -611,7 +611,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "worker",
         "benchmark",
         "--worker",
@@ -633,7 +633,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "worker",
         "benchmark",
         "--worker",
@@ -665,7 +665,7 @@ describe("cli parsing", () => {
       await expect(
         cli.parseAsync([
           "node",
-          "ao",
+          "cw",
           "worker",
           "benchmark",
           "--worker",
@@ -687,7 +687,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "review",
         "repo",
         "--scope",
@@ -698,7 +698,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "review",
         "diff",
         "--base",
@@ -712,7 +712,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "review",
         "files",
         "--file",
@@ -743,7 +743,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "validate",
         "--typecheck"
       ]);
@@ -752,7 +752,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "fix",
         "error",
         "--error-log-file",
@@ -784,7 +784,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "review",
         "repo",
         "--scope",
@@ -799,7 +799,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "validate",
         "--typecheck"
       ]);
@@ -810,7 +810,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "task",
         "start",
         "--goal",
@@ -839,7 +839,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "task",
         "start",
         "--goal",
@@ -856,7 +856,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "task",
         "status",
         started.session?.taskId ?? ""
@@ -868,7 +868,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "task",
         "resume",
         started.session?.taskId ?? "",
@@ -880,7 +880,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "task",
         "report",
         started.session?.taskId ?? ""
@@ -897,7 +897,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "task",
         "start",
         "--goal",
@@ -955,7 +955,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "cleanup",
         "runs",
         "--older-than-days",
@@ -965,7 +965,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "cleanup",
         "runs",
         "--older-than-days",
@@ -976,7 +976,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "cleanup",
         "audit",
         "--older-than-days",
@@ -997,7 +997,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "patch",
         "propose",
         "--goal",
@@ -1012,7 +1012,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "patch",
         "propose",
         "--goal",
@@ -1025,7 +1025,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "patch",
         "inspect",
         "tmp/candidate.patch"
@@ -1034,7 +1034,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "patch",
         "apply",
         "tmp/candidate.patch",
@@ -1044,7 +1044,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "patch",
         "apply",
         "tmp/candidate.patch",
@@ -1054,7 +1054,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync([
         "node",
-        "ao",
+        "cw",
         "patch",
         "apply",
         "tmp/candidate.patch",

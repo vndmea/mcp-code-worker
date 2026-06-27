@@ -28,9 +28,9 @@ Patch apply stays explicitly two-step:
 1. generate and inspect a proposal
 2. apply only with `--allow-write --confirm-apply`
 
-## User-Scoped AO Storage
+## User-Scoped CW Storage
 
-By default, local AO state is stored under:
+By default, local CW state is stored under:
 
 ```text
 ~/.cw/workspaces/<workspace-id>/
@@ -49,7 +49,7 @@ Local-managed artifacts include:
 - `runs/`
 - `audit/`
 
-`benchmark` artifacts are local AO artifacts, not project source files.
+`benchmark` artifacts are local CW artifacts, not project source files.
 
 ## What Can Modify Project Files
 

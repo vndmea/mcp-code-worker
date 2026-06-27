@@ -60,7 +60,7 @@ By default, the MCP server stores CW-managed state under:
 - `CW_HOME_DIR` overrides the `~/.cw` root.
 - `rootDir` determines `<workspace-id>`.
 - Two different absolute checkouts of the same repository produce different workspace ids.
-- If you need shared AO state across tools or checkouts, set the same `CW_HOME_DIR` intentionally.
+- If you need shared CW state across tools or checkouts, set the same `CW_HOME_DIR` intentionally.
 
 ## Tool Categories
 
@@ -112,7 +112,7 @@ By default, the MCP server stores CW-managed state under:
 
 For host-driven coding flows:
 
-1. Use `cw_start_task` when you want AO to manage repository context, validation, task artifacts, and patch lifecycle.
+1. Use `cw_start_task` when you want CW to manage repository context, validation, task artifacts, and patch lifecycle.
 2. Use `cw_run_host_worker` only when the host wants one narrow worker task under explicit control, and prefer explicit files plus `strictFiles=true` for hard-scope review tasks.
 3. Use `cw_list_workflows` only to inspect the remaining host-managed workflow surfaces.
 
