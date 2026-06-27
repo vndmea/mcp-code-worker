@@ -81,7 +81,11 @@ describe("host worker workflow", () => {
 
     expect(result.workerResult).not.toBeNull();
     expect(result.repositoryContext.selectedFiles).toHaveLength(2);
+    expect((result.workerResult?.output as { answer?: string }).answer).toContain(
+      "packages/core/src/generateId.ts"
+    );
     expect(result.qualityGate.missingRequestedFiles).toEqual([]);
+    expect(result.qualityGate.genericFallbackDetected).toBe(false);
     expect(result.finalResult.status).toBe("success");
   });
 });

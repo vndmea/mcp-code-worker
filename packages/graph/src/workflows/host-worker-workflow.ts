@@ -44,6 +44,7 @@ export interface HostWorkerWorkflowInput {
 
 export interface HostWorkerWorkflowQualityGate {
   answered: boolean;
+  genericFallbackDetected: boolean;
   mentionedFiles: string[];
   missingRequestedFiles: string[];
   reasons: string[];
@@ -111,6 +112,19 @@ const detectTemplateFallback = (text: string): boolean =>
     text
   );
 
+const detectGenericFallback = (text: string): boolean =>
+  /review the files|inspect the code|depends on context|needs more context|check the implementation|candidate patch/iu.test(
+    text
+  );
+
+const asOutputRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+
+const asStringArray = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+
 const buildQualityGate = (
   input: HostWorkerWorkflowInput,
   repositoryContext: RepositoryContextPack,
@@ -119,6 +133,7 @@ const buildQualityGate = (
   const selectedPaths = repositoryContext.selectedFiles.map((file) => file.path);
   const requestedPaths = input.files ?? [];
   const outputText = workerResult ? JSON.stringify(workerResult.output) : "";
+  const outputRecord = asOutputRecord(workerResult?.output);
   const mentionedFiles = selectedPaths.filter((path) => outputText.includes(path));
   const missingRequestedFiles = requestedPaths.filter(
     (path) => !selectedPaths.includes(path)
@@ -126,6 +141,7 @@ const buildQualityGate = (
   const structuredOutputOk =
     workerResult?.metadata.structuredOutputOk === true;
   const templateFallbackDetected = detectTemplateFallback(outputText);
+  const genericFallbackDetected = detectGenericFallback(outputText);
   const reasons: string[] = [];
 
   if (!workerResult) {
@@ -150,8 +166,37 @@ const buildQualityGate = (
     reasons.push("Worker answer matched a known template fallback pattern.");
   }
 
+  if (genericFallbackDetected) {
+    reasons.push("Worker answer fell back to generic wording instead of a concrete repository answer.");
+  }
+
+  if (input.taskType === "review-lite") {
+    const answer =
+      outputRecord && typeof outputRecord.answer === "string"
+        ? outputRecord.answer
+        : "";
+    const findings = asStringArray(outputRecord?.findings);
+    const referencedFiles = asStringArray(outputRecord?.referencedFiles);
+
+    if (!answer) {
+      reasons.push("Review worker did not provide a direct answer field.");
+    }
+
+    if (findings.length < 2) {
+      reasons.push("Review worker did not provide enough concrete findings.");
+    }
+
+    if (
+      selectedPaths.length > 0 &&
+      !referencedFiles.some((file) => selectedPaths.includes(file))
+    ) {
+      reasons.push("Review worker did not reference the selected files explicitly.");
+    }
+  }
+
   return {
     answered: reasons.length === 0,
+    genericFallbackDetected,
     mentionedFiles,
     missingRequestedFiles,
     reasons,

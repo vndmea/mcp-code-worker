@@ -14,7 +14,9 @@ const inputSchema = z.object({
 });
 
 const outputSchema = z.object({
-  findings: z.array(z.string())
+  answer: z.string().min(1),
+  findings: z.array(z.string()).min(2),
+  referencedFiles: z.array(z.string()).min(1)
 });
 
 const capability: WorkerCapability = {
@@ -38,20 +40,26 @@ export class ReviewWorker extends WorkerAgent {
       .slice(0, 3)
       .map((file) => file.path) ?? [];
     const fallbackOutput = {
+      answer:
+        selectedPaths.length > 0
+          ? `Review ${selectedPaths[0]} first for the highest-confidence implementation risk.`
+          : "Review the selected repository files for the highest-confidence implementation risk.",
       findings: [
         ...(selectedPaths.length > 0
           ? [`Review concrete risks in ${selectedPaths.join(", ")}.`]
           : []),
         "Ensure dry-run behavior is preserved in CLI and MCP flows.",
         "Avoid exposing unrestricted shell access through public interfaces."
-      ]
+      ],
+      referencedFiles: selectedPaths.length > 0 ? selectedPaths : ["repository-context"]
     };
 
     return this.createResult({
       agentId: "worker.review",
       task: input.task,
       prompt: [
-        "Return JSON with key findings.",
+        "Return JSON with keys answer, findings, and referencedFiles.",
+        "The answer field must directly answer the goal in one or two sentences.",
         "Focus on implementation and workflow risks.",
         "Reference concrete repository file paths from the provided context.",
         `Goal: ${input.task.goal}`,
