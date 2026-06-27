@@ -9,8 +9,6 @@ const inputSchema = z.object({
   files: z.array(z.string()).optional(),
   forceExecution: z.boolean().optional(),
   goal: z.string().min(1),
-  maxFileBytes: z.number().int().positive().optional(),
-  maxTotalBytes: z.number().int().positive().optional(),
   scope: z.string().optional(),
   strictFiles: z.boolean().optional(),
   taskType: z.enum([
@@ -44,8 +42,6 @@ export const aoRunHostWorkerTool: AoToolDefinition<
       files: args.files,
       forceExecution: args.forceExecution,
       goal: args.goal,
-      maxFileBytes: args.maxFileBytes,
-      maxTotalBytes: args.maxTotalBytes,
       requireProfile: args.requireProfile,
       scope: args.scope,
       strictFiles: args.strictFiles,
@@ -64,8 +60,6 @@ export const aoRunHostWorkerTool: AoToolDefinition<
       metadata: {
         files: args.files,
         forceExecution: args.forceExecution,
-        maxFileBytes: args.maxFileBytes,
-        maxTotalBytes: args.maxTotalBytes,
         requireProfile: args.requireProfile,
         scope: args.scope,
         strictFiles: args.strictFiles,

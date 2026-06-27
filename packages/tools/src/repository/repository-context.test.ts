@@ -78,7 +78,7 @@ describe("repository context pack", () => {
     expect(result.selectedFiles.some((file) => file.path === "src/index.ts")).toBe(true);
   });
 
-  it("truncates large files and enforces max total bytes", async () => {
+  it("reads explicit files fully without byte budget truncation", async () => {
     const rootDir = await createRootDir();
 
     await writeText(rootDir, "large-a.txt", "a".repeat(80));
@@ -86,40 +86,33 @@ describe("repository context pack", () => {
 
     const result = await selectRepositoryFiles({
       rootDir,
-      files: ["large-a.txt", "large-b.txt"],
-      maxFileBytes: 20,
-      maxTotalBytes: 25
+      files: ["large-a.txt", "large-b.txt"]
     });
 
-    expect(result.selectedFiles[0]?.truncated).toBe(true);
-    expect(result.selectedFiles[0]?.content.length).toBeLessThanOrEqual(20);
+    expect(result.selectedFiles[0]?.truncated).toBe(false);
+    expect(result.selectedFiles[0]?.content.length).toBe(80);
     expect(result.selectedFiles).toHaveLength(2);
-    expect(
-      result.warnings.some((warning) => warning.includes("explicitly requested"))
-    ).toBe(true);
+    expect(result.warnings).toEqual([]);
   });
 
-  it("fails fast in strict file mode when explicit files exceed max total bytes", async () => {
+  it("keeps explicit file selection narrow even in strict file mode", async () => {
     const rootDir = await createRootDir();
 
+    await writeText(rootDir, "extra.txt", "extra");
     await writeText(rootDir, "large-a.txt", "a".repeat(80));
     await writeText(rootDir, "large-b.txt", "b".repeat(80));
 
-    await expect(
-      selectRepositoryFiles({
-        rootDir,
-        files: ["large-a.txt", "large-b.txt"],
-        maxFileBytes: 20,
-        maxTotalBytes: 25,
-        strictFiles: true
-      })
-    ).rejects.toMatchObject({
-      code: "REPOSITORY_CONTEXT_LIMIT_EXCEEDED",
-      details: {
-        path: "large-b.txt",
-        strictFiles: true
-      }
+    const result = await selectRepositoryFiles({
+      rootDir,
+      files: ["large-a.txt", "large-b.txt"],
+      strictFiles: true
     });
+
+    expect(result.selectedFiles.map((file) => file.path)).toEqual([
+      "large-a.txt",
+      "large-b.txt"
+    ]);
+    expect(result.selectedFiles.some((file) => file.path === "extra.txt")).toBe(false);
   });
 
   it("rejects path traversal when selecting files", async () => {
@@ -207,12 +200,10 @@ describe("repository context pack", () => {
     });
   });
 
-  it("uses context budget defaults from execution context", async () => {
+  it("uses context ignored path defaults from execution context", async () => {
     const rootDir = await createRootDir();
     const context = createExecutionContextFromEnv(undefined, {
       contextBudget: {
-        maxFileBytes: 12,
-        maxTotalBytes: 20,
         ignoredPaths: ["generated"]
       },
       rootDir
@@ -225,35 +216,12 @@ describe("repository context pack", () => {
       rootDir
     });
 
-    expect(result.selectedFiles[0]?.truncated).toBe(true);
-    expect(result.selectedFiles[0]?.content.length).toBeLessThanOrEqual(12);
+    expect(result.selectedFiles[0]?.truncated).toBe(false);
+    expect(result.selectedFiles[0]?.content).toBe("export const value = 12345;\n");
     expect(result.files.some((file) => file.path === "generated/skip.ts")).toBe(false);
   });
 
-  it("lets explicit max options override context budget", async () => {
-    const rootDir = await createRootDir();
-    const context = createExecutionContextFromEnv(undefined, {
-      contextBudget: {
-        maxFileBytes: 8,
-        maxTotalBytes: 16,
-        ignoredPaths: []
-      },
-      rootDir
-    });
-
-    await writeText(rootDir, "src/index.ts", "export const expanded = 12345;\n");
-
-    const result = await buildRepositoryContextPack(context, {
-      rootDir,
-      maxFileBytes: 40,
-      maxTotalBytes: 80
-    });
-
-    expect(result.selectedFiles[0]?.truncated).toBe(false);
-    expect(result.selectedFiles[0]?.content.length).toBeGreaterThan(8);
-  });
-
-  it("records skipped files and a coverage gap when ranked context exceeds budget", async () => {
+  it("includes ranked context without byte budget coverage gaps", async () => {
     const rootDir = await createRootDir();
     const context = createExecutionContextFromEnv(undefined, {
       dryRun: true,
@@ -266,14 +234,16 @@ describe("repository context pack", () => {
     await writeText(rootDir, "src/c.ts", "export const c = '".concat("c".repeat(60), "';\n"));
 
     const result = await buildRepositoryContextPack(context, {
-      rootDir,
-      maxFileBytes: 200,
-      maxTotalBytes: 90
+      rootDir
     });
 
-    expect(result.coverageGapDetected).toBe(true);
-    expect(result.skippedFiles.length).toBeGreaterThan(0);
-    expect(result.warnings.some((warning) => warning.includes("Skipping"))).toBe(true);
+    expect(result.coverageGapDetected).toBe(false);
+    expect(result.skippedFiles).toEqual([]);
+    expect(result.selectedFiles.map((file) => file.path)).toEqual([
+      "src/a.ts",
+      "src/b.ts",
+      "src/c.ts"
+    ]);
   });
 
   it("ranks files using error-log matches, dependency hints, and selection reasons", async () => {

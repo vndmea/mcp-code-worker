@@ -25,8 +25,6 @@ export interface ReviewWorkflowInput {
   diffHead?: string;
   files?: string[];
   includeDiff?: boolean;
-  maxFileBytes?: number;
-  maxTotalBytes?: number;
   requireProfile?: boolean;
   scope?: string;
   strictFiles?: boolean;
@@ -73,9 +71,9 @@ const buildReviewSummary = (input: {
   const mustFixItems = [
     ...input.qualityGate.reasons,
     ...failedChecks,
-    ...findings.slice(0, 2)
+    ...findings
   ];
-  const shouldFixItems = findings.slice(2);
+  const shouldFixItems: string[] = [];
   const summaryPrefix = input.qualityGate.answered
     ? "Host-managed review answered the scoped repository question directly."
     : "Host-managed review did not meet the answer-quality gate.";
@@ -128,8 +126,6 @@ export const runReviewWorkflow = async (
     includeDiff: !input.diff && Boolean(diffSummary),
     diffBase: diffSummary?.base,
     diffHead: diffSummary?.head,
-    maxFileBytes: input.maxFileBytes,
-    maxTotalBytes: input.maxTotalBytes,
     strictFiles: input.strictFiles
   });
   const repositoryContext = diffSummary
@@ -149,8 +145,6 @@ export const runReviewWorkflow = async (
     context,
     files: input.files,
     goal: "Review the selected repository context for concrete implementation and validation risks.",
-    maxFileBytes: input.maxFileBytes,
-    maxTotalBytes: input.maxTotalBytes,
     repositoryContext,
     requireProfile: input.requireProfile,
     scope: effectiveScope,

@@ -101,7 +101,7 @@ export const runFixErrorWorkflow = async (
   const context = input.context ?? await resolveExecutionContext();
   const errorLog = input.errorLog ??
     (input.errorLogFile
-      ? await readRepositoryFile(input.errorLogFile, context.rootDir, 20_000)
+      ? await readRepositoryFile(input.errorLogFile, context.rootDir)
       : "");
   const repositoryContext = await buildRepositoryContextPack(context, {
     rootDir: context.rootDir,

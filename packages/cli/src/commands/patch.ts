@@ -128,7 +128,7 @@ const formatPatchProposalSummaryText = (summary: Record<string, unknown>): strin
 };
 
 const parsePatchProposalFile = async (patchFile: string, rootDir: string) => {
-  const contents = await readRepositoryFile(patchFile, rootDir, 240_000);
+  const contents = await readRepositoryFile(patchFile, rootDir);
 
   try {
     return PatchProposalSchema.parse(JSON.parse(contents) as unknown);
@@ -260,7 +260,7 @@ export const registerPatchCommand = (program: Command, io: CliIo): void => {
         const context = await resolveExecutionContext();
         const errorLog = options.errorLog ??
           (options.errorLogFile
-            ? await readRepositoryFile(options.errorLogFile, context.rootDir, 20_000)
+            ? await readRepositoryFile(options.errorLogFile, context.rootDir)
             : undefined);
         const result = await runPatchProposalWorkflow({
           context,

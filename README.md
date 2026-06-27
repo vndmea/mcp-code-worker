@@ -351,7 +351,7 @@ Runtime configuration resolves in this order:
 
 `config.json` no longer stores secret env-var names. Provide runtime secrets through fixed variables such as `WORKER_MODEL_API_KEY`.
 
-Repository context settings in the user-scoped AO `config.json` also control default `maxFileBytes`, `maxTotalBytes`, and `ignoredPaths` for review, fix, patch, and task workflows unless a command overrides them explicitly.
+Repository context settings in the user-scoped AO `config.json` control default `ignoredPaths` and `strictFiles` behavior for review, fix, patch, and task workflows.
 
 ## Workflows
 

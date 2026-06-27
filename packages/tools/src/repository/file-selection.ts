@@ -49,8 +49,6 @@ export interface SelectRepositoryFilesOptions {
   errorLog?: string;
   files?: string[];
   ignoredPaths?: string[];
-  maxFileBytes?: number;
-  maxTotalBytes?: number;
   rootDir: string;
   scope?: string;
   strictFiles?: boolean;
@@ -224,8 +222,7 @@ const resolveSelectionScope = async (
 
 export const readScopedRepositoryFile = async (
   rootDir: string,
-  path: string,
-  maxFileBytes = 20_000
+  path: string
 ): Promise<RepositoryFileContent> => {
   const normalized = ensureInsideRoot(rootDir, path);
 
@@ -239,15 +236,11 @@ export const readScopedRepositoryFile = async (
 
   const fileStat = await stat(normalized);
   const content = await readFile(normalized, "utf8");
-  const truncated = Buffer.byteLength(content, "utf8") > maxFileBytes;
-  const encoded = Buffer.from(content, "utf8");
 
   return {
     path: toRelativePath(rootDir, normalized),
-    content: truncated
-      ? encoded.subarray(0, maxFileBytes).toString("utf8")
-      : content,
-    truncated,
+    content,
+    truncated: false,
     sizeBytes: fileStat.size
   };
 };
@@ -258,8 +251,6 @@ export const selectRepositoryFiles = async ({
   files,
   errorLog,
   ignoredPaths = [...DEFAULT_IGNORED_PATHS],
-  maxFileBytes = 20_000,
-  maxTotalBytes = 120_000,
   strictFiles = false
 }: SelectRepositoryFilesOptions): Promise<{
   effectiveScope?: string;
@@ -321,17 +312,12 @@ export const selectRepositoryFiles = async ({
         continue;
       }
 
-      const fileContent = await readScopedRepositoryFile(
-        rootDir,
-        fullPath,
-        maxFileBytes
-      );
+      const fileContent = await readScopedRepositoryFile(rootDir, fullPath);
       candidateFiles.push(fileContent);
     }
   };
 
   if (selectedSet.size > 0) {
-    let totalBytes = 0;
     for (const path of selectedSet) {
       const fullPath = ensureInsideScope(rootDir, path, effectiveScope);
       const fileStat = await stat(fullPath);
@@ -340,25 +326,7 @@ export const selectRepositoryFiles = async ({
         sizeBytes: fileStat.size,
         selected: true
       });
-      const fileContent = await readScopedRepositoryFile(rootDir, fullPath, maxFileBytes);
-      const nextBytes = totalBytes + Buffer.byteLength(fileContent.content, "utf8");
-
-      if (nextBytes > maxTotalBytes) {
-        if (strictFiles) {
-          throw new AgentError(
-            "REPOSITORY_CONTEXT_LIMIT_EXCEEDED",
-            `Explicit file ${path} would exceed maxTotalBytes in strict file mode.`,
-            {
-              maxTotalBytes,
-              path,
-              strictFiles: true
-            }
-          );
-        }
-        warnings.push(
-          `Explicit file ${path} exceeded maxTotalBytes but was still included because it was explicitly requested.`
-        );
-      }
+      const fileContent = await readScopedRepositoryFile(rootDir, fullPath);
 
       selectedFiles.push(fileContent);
       selectionReasons.push({
@@ -366,7 +334,6 @@ export const selectRepositoryFiles = async ({
         reason: "Explicitly requested for repository context.",
         score: 100
       });
-      totalBytes = nextBytes;
     }
   } else {
     await walk(scopedRoot);
@@ -375,24 +342,8 @@ export const selectRepositoryFiles = async ({
       scope: effectiveScope,
       errorLog
     });
-    let totalBytes = 0;
-
     for (const file of ranked.rankedFiles) {
-      if (totalBytes >= maxTotalBytes) {
-        warnings.push("Maximum repository context size reached.");
-        skippedFiles.push(file.path);
-        continue;
-      }
-
-      const nextBytes = totalBytes + Buffer.byteLength(file.content, "utf8");
-      if (nextBytes > maxTotalBytes) {
-        warnings.push(`Skipping ${file.path} because maxTotalBytes was reached.`);
-        skippedFiles.push(file.path);
-        continue;
-      }
-
       selectedFiles.push(file);
-      totalBytes = nextBytes;
     }
 
     const selectedPaths = new Set(selectedFiles.map((file) => file.path));

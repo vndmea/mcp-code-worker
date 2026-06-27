@@ -33,8 +33,6 @@ export interface HostWorkerWorkflowInput {
   files?: string[];
   forceExecution?: boolean;
   goal: string;
-  maxFileBytes?: number;
-  maxTotalBytes?: number;
   repositoryContext?: RepositoryContextPack;
   requireProfile?: boolean;
   scope?: string;
@@ -361,11 +359,6 @@ const buildQualityGate = (
       failureStages.add("review-answer-missing");
     }
 
-    if (findings.length < 2) {
-      reasons.push("Review worker did not provide enough concrete findings.");
-      failureStages.add("review-findings-insufficient");
-    }
-
     if (
       selectedPaths.length > 0 &&
       !referencedFiles.some((file) => selectedPaths.includes(file))
@@ -522,8 +515,6 @@ export const runHostWorkerWorkflow = async (
       rootDir: context.rootDir,
       scope: input.scope,
       files: input.files,
-      maxFileBytes: input.maxFileBytes,
-      maxTotalBytes: input.maxTotalBytes,
       strictFiles: input.strictFiles
     });
   const task = buildTask(input, repositoryContext);

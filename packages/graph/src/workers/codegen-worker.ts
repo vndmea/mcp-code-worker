@@ -37,7 +37,6 @@ export class CodegenWorker extends WorkerAgent {
   public async execute(input: WorkerExecutionInput) {
     const repositoryContext = getRepositoryContextFromTask(input.task);
     const selectedPaths = repositoryContext?.selectedFiles
-      .slice(0, 3)
       .map((file) => file.path) ?? [];
     const fallbackOutput = {
       patchPlan: [

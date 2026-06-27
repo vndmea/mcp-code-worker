@@ -509,8 +509,6 @@ describe("mcp tool registration", () => {
       await initGitRepo(rootDir);
       await writeAoConfig(rootDir, {
         context: {
-          maxFileBytes: 1,
-          maxTotalBytes: 64,
           ignoredPaths: ["tmp"]
         }
       });
@@ -520,34 +518,40 @@ describe("mcp tool registration", () => {
         detailLevel: "full"
       }) as ReviewWorkflowOutput;
 
-      expect(repoReview.repositoryContext.selectedFiles.some((file) => file.truncated === true)).toBe(
+      expect(repoReview.repositoryContext.selectedFiles.every((file) => file.truncated === false)).toBe(
         true
       );
     });
   }, 15_000);
 
-  it("fails fast for MCP file review when strict files exceed the budget", async () => {
+  it("keeps MCP strict file review scoped to explicit files", async () => {
     await withTempCwd(async (rootDir) => {
       await writeWorkspaceFixture(rootDir);
+      await writeFile(
+        join(rootDir, "packages", "core", "src", "extra.ts"),
+        "export const extra = true;\n",
+        "utf8"
+      );
       await writeFile(
         join(rootDir, "packages", "core", "src", "wide.ts"),
         "export const wide = '".concat("x".repeat(200), "';\n"),
         "utf8"
       );
 
-      await expect(
-        aoReviewFilesTool.execute({
-          files: [
-            "packages/core/src/index.ts",
-            "packages/core/src/wide.ts"
-          ],
-          maxFileBytes: 120,
-          maxTotalBytes: 140,
-          strictFiles: true
-        })
-      ).rejects.toMatchObject({
-        code: "REPOSITORY_CONTEXT_LIMIT_EXCEEDED"
-      });
+      const result = await aoReviewFilesTool.execute({
+        files: [
+          "packages/core/src/index.ts",
+          "packages/core/src/wide.ts"
+        ],
+        strictFiles: true,
+        detailLevel: "full"
+      }) as ReviewWorkflowOutput;
+
+      expect(result.repositoryContext.selectedFiles.map((file) => file.path)).toEqual([
+        "packages/core/src/index.ts",
+        "packages/core/src/wide.ts"
+      ]);
+      expect(result.repositoryContext.selectedFiles.some((file) => file.path.endsWith("extra.ts"))).toBe(false);
     });
   });
 

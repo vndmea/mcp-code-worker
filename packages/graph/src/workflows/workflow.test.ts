@@ -134,7 +134,7 @@ describe("host worker workflow", () => {
     expect(result.finalResult.status).toBe("success");
   });
 
-  it("fails fast when strict file mode cannot fit explicit files into the budget", async () => {
+  it("keeps strict explicit file mode narrow without byte budget failures", async () => {
     const rootDir = await createWorkspace();
     await writeFile(
       join(rootDir, "packages", "core", "src", "wide.ts"),
@@ -142,32 +142,29 @@ describe("host worker workflow", () => {
       "utf8"
     );
 
-    await expect(
-      runHostWorkerWorkflow({
-        context: createExecutionContextFromEnv(undefined, {
-          dryRun: true,
-          allowWrite: false,
-          rootDir
-        }),
-        goal: "Review explicit files only",
-        taskType: "review-lite",
-        files: [
-          "packages/core/src/generateId.ts",
-          "packages/core/src/wide.ts"
-        ],
-        maxFileBytes: 120,
-        maxTotalBytes: 140,
-        strictFiles: true
-      })
-    ).rejects.toMatchObject({
-      code: "REPOSITORY_CONTEXT_LIMIT_EXCEEDED",
-      details: {
-        strictFiles: true
-      }
+    const result = await runHostWorkerWorkflow({
+      context: createExecutionContextFromEnv(undefined, {
+        dryRun: true,
+        allowWrite: false,
+        rootDir
+      }),
+      goal: "Review explicit files only",
+      taskType: "review-lite",
+      files: [
+        "packages/core/src/generateId.ts",
+        "packages/core/src/wide.ts"
+      ],
+      strictFiles: true
     });
+
+    expect(result.repositoryContext.selectedFiles.map((file) => file.path)).toEqual([
+      "packages/core/src/generateId.ts",
+      "packages/core/src/wide.ts"
+    ]);
+    expect(result.repositoryContext.selectedFiles.every((file) => file.truncated === false)).toBe(true);
   });
 
-  it("marks answers incomplete when repository coverage has gaps", async () => {
+  it("does not mark coverage gaps from byte budgets", async () => {
     const rootDir = await createWorkspace();
     await writeFile(
       join(rootDir, "packages", "core", "src", "extra.ts"),
@@ -182,16 +179,13 @@ describe("host worker workflow", () => {
         rootDir
       }),
       goal: "Review the selected files for id-generation regressions",
-      taskType: "review-lite",
-      maxFileBytes: 200,
-      maxTotalBytes: 120
+      taskType: "review-lite"
     });
 
     expect(result.workerResult).not.toBeNull();
-    expect(result.repositoryContext.coverageGapDetected).toBe(true);
-    expect(result.qualityGate.coverageGapDetected).toBe(true);
-    expect(result.qualityGate.answerStatus).toBe("incomplete");
-    expect(result.qualityGate.failureStages).toContain("coverage-gap");
+    expect(result.repositoryContext.coverageGapDetected).toBe(false);
+    expect(result.qualityGate.coverageGapDetected).toBe(false);
+    expect(result.qualityGate.failureStages).not.toContain("coverage-gap");
     expect(result.debug.promptTransparency.hostPrompt).toContain("Review the selected files");
     expect(result.debug.promptTransparency.workerPrompt).toContain("Return valid JSON only.");
   });

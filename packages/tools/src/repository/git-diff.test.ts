@@ -69,19 +69,17 @@ describe("readGitDiff", () => {
     ).rejects.toThrow("Unsafe git ref");
   });
 
-  it("truncates large diffs", async () => {
+  it("reads large diffs without a byte budget", async () => {
     const rootDir = await createGitRoot();
     await writeFile(join(rootDir, "demo.ts"), "export const value = 1;\n", "utf8");
     await execFile("git", ["add", "demo.ts"], { cwd: rootDir });
     await execFile("git", ["commit", "-m", "initial"], { cwd: rootDir });
     await writeFile(join(rootDir, "demo.ts"), `${"line\n".repeat(200)}\n`, "utf8");
 
-    const result = await readGitDiff(createContext(rootDir), {
-      maxBytes: 50
-    });
+    const result = await readGitDiff(createContext(rootDir));
 
-    expect(result.truncated).toBe(true);
-    expect(result.diffText.length).toBeLessThanOrEqual(50);
+    expect(result.truncated).toBe(false);
+    expect(result.diffText.length).toBeGreaterThan(50);
     expect(result.changedFiles).toContain("demo.ts");
   });
 });

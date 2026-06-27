@@ -14,9 +14,9 @@ const inputSchema = z.object({
 });
 
 const outputSchema = z.object({
-  answer: z.string().min(1).max(400),
-  findings: z.array(z.string().min(1)).min(2),
-  referencedFiles: z.array(z.string().min(1)).min(1)
+  answer: z.string().min(1),
+  findings: z.array(z.string().min(1)),
+  referencedFiles: z.array(z.string().min(1))
 }).strict();
 
 const capability: WorkerCapability = {
@@ -37,7 +37,6 @@ export class ReviewWorker extends WorkerAgent {
   public async execute(input: WorkerExecutionInput) {
     const repositoryContext = getRepositoryContextFromTask(input.task);
     const selectedPaths = repositoryContext?.selectedFiles
-      .slice(0, 3)
       .map((file) => file.path) ?? [];
     const citedPathsLine =
       selectedPaths.length > 0
@@ -78,7 +77,7 @@ export class ReviewWorker extends WorkerAgent {
         "Return valid JSON only. Do not include markdown fences or explanatory prose.",
         'Return exactly one JSON object with keys "answer", "findings", and "referencedFiles".',
         "Do not include extra keys.",
-        "The answer field must directly answer the goal in one or two sentences and should state complete, partial, or incorrect when applicable.",
+        "The answer field must directly answer the goal and should state complete, partial, or incorrect when applicable.",
         "The findings field must be a JSON array of strings.",
         "The referencedFiles field must be a JSON array of strings.",
         "Focus on implementation and workflow risks.",

@@ -35,7 +35,6 @@ export class TestWorker extends WorkerAgent {
   public async execute(input: WorkerExecutionInput) {
     const repositoryContext = getRepositoryContextFromTask(input.task);
     const selectedPaths = repositoryContext?.selectedFiles
-      .slice(0, 2)
       .map((file) => file.path) ?? [];
     const fallbackOutput = {
       suggestedTests: [

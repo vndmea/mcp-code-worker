@@ -45,9 +45,6 @@ const asTaskInputWithRepositoryContext = (
     ? value
     : {};
 
-const truncate = (value: string, maxLength: number): string =>
-  value.length <= maxLength ? value : `${value.slice(0, maxLength)}...`;
-
 export const getRepositoryContextFromTask = (
   task: AgentTask
 ): RepositoryContextPack | null =>
@@ -62,14 +59,14 @@ export const buildRepositoryContextPromptLines = (
     return ["Repository context: not provided."];
   }
 
-  const selectedFiles = repositoryContext.selectedFiles.slice(0, 4);
+  const selectedFiles = repositoryContext.selectedFiles;
   const selectedPaths = selectedFiles.map((file) =>
     `${file.path}${file.truncated ? " (truncated)" : ""}`
   );
   const snippets = selectedFiles.map((file) =>
     [
       `File: ${file.path}`,
-      truncate(file.content, 400)
+      file.content
     ].join("\n")
   );
 

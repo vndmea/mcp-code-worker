@@ -2,9 +2,8 @@ import { readScopedRepositoryFile } from "../repository/file-selection.js";
 
 export const readRepositoryFile = async (
   path: string,
-  rootDir = process.cwd(),
-  maxFileBytes = 20_000
+  rootDir = process.cwd()
 ): Promise<string> =>
   (
-    await readScopedRepositoryFile(rootDir, path, maxFileBytes)
+    await readScopedRepositoryFile(rootDir, path)
   ).content;

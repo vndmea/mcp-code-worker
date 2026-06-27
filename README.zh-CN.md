@@ -346,7 +346,7 @@ ao mcp list-tools
 
 `config.json` 不再记录密钥环境变量名。运行时密钥统一通过 `WORKER_MODEL_API_KEY` 这类固定变量提供。
 
-用户级 AO `config.json` 里的 repository context 配置也会作为 review、fix、patch 和 task workflow 的默认预算来源，包括 `maxFileBytes`、`maxTotalBytes` 和 `ignoredPaths`，除非某个命令显式覆盖。
+用户级 AO `config.json` 里的 repository context 配置用于控制 review、fix、patch 和 task workflow 的默认 `ignoredPaths` 与 `strictFiles` 行为。
 
 ## 内置工作流
 

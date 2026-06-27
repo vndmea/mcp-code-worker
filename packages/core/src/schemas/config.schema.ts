@@ -15,8 +15,6 @@ export const AoSafetyConfigSchema = z.object({
 });
 
 export const AoContextConfigSchema = z.object({
-  maxFileBytes: z.number().int().positive().default(20_000),
-  maxTotalBytes: z.number().int().positive().default(120_000),
   strictFiles: z.boolean().default(false),
   ignoredPaths: z.array(z.string()).default([
     "node_modules",
@@ -58,8 +56,6 @@ export const AoConfigSchema = z.object({
     allowedCommands: ["git", "node", "pnpm"]
   }),
   context: AoContextConfigSchema.default({
-    maxFileBytes: 20_000,
-    maxTotalBytes: 120_000,
     strictFiles: false,
     ignoredPaths: [
       "node_modules",

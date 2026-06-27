@@ -12,8 +12,6 @@ export interface ExecutionContext {
   allowWrite: boolean;
   allowedCommands: string[];
   contextBudget: {
-    maxFileBytes: number;
-    maxTotalBytes: number;
     ignoredPaths: string[];
     strictFiles: boolean;
   };
@@ -68,8 +66,6 @@ const mergeModelConfig = (
 });
 
 const DEFAULT_CONTEXT_BUDGET: ExecutionContext["contextBudget"] = {
-  maxFileBytes: 20_000,
-  maxTotalBytes: 120_000,
   strictFiles: false,
   ignoredPaths: [
     "node_modules",

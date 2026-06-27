@@ -9,7 +9,6 @@ import { runSafeCommand } from "../shell/safe-command.js";
 export interface ReadGitDiffOptions {
   base?: string;
   head?: string;
-  maxBytes?: number;
 }
 
 const SAFE_GIT_REF = /^[A-Za-z0-9._~/\-]+$/u;
@@ -53,8 +52,7 @@ export const readGitDiff = async (
   const range = base && head ? `${base}...${head}` : undefined;
   const command = range ? `git diff --no-ext-diff ${range}` : "git diff --no-ext-diff";
   const result = await runSafeCommand(command, context, {
-    commandKind: "read-only",
-    maxOutputBytes: options.maxBytes ?? 120_000
+    commandKind: "read-only"
   });
   const diffText = result.stdout;
 

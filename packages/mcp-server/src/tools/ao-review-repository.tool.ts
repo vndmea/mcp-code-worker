@@ -17,8 +17,6 @@ const inputSchema = z.object({
   typecheck: z.boolean().optional(),
   lint: z.boolean().optional(),
   test: z.boolean().optional(),
-  maxFileBytes: z.number().int().positive().optional(),
-  maxTotalBytes: z.number().int().positive().optional(),
   strictFiles: z.boolean().optional(),
   ...workflowOutputOptionShape
 });
@@ -35,8 +33,6 @@ export const aoReviewRepositoryTool: AoToolDefinition<
     const result = await runReviewWorkflow({
       context,
       scope: args.scope,
-      maxFileBytes: args.maxFileBytes,
-      maxTotalBytes: args.maxTotalBytes,
       strictFiles: args.strictFiles,
       validate: {
         typecheck: args.typecheck,

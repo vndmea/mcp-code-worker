@@ -771,8 +771,6 @@ describe("cli parsing", () => {
       await writeWorkspaceFixture(rootDir);
       await writeAoConfig(rootDir, {
         context: {
-          maxFileBytes: 1,
-          maxTotalBytes: 64,
           ignoredPaths: ["tmp"]
         },
         safety: {
@@ -796,7 +794,7 @@ describe("cli parsing", () => {
         repositoryContext?: { selectedFiles?: Array<{ truncated?: boolean }> };
       };
       expect(
-        reviewResult.repositoryContext?.selectedFiles?.some((file) => file.truncated === true)
+        reviewResult.repositoryContext?.selectedFiles?.every((file) => file.truncated === false)
       ).toBe(true);
 
       await cli.parseAsync([
@@ -827,7 +825,7 @@ describe("cli parsing", () => {
         validationReport?: { checks?: Array<{ status?: string }> };
       };
       expect(
-        taskResult.repositoryContext?.selectedFiles?.some((file) => file.truncated === true)
+        taskResult.repositoryContext?.selectedFiles?.every((file) => file.truncated === false)
       ).toBe(true);
       expect(taskResult.validationReport?.checks?.[0]?.status).toBe("success");
     });
