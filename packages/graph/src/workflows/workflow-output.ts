@@ -123,7 +123,22 @@ export const formatReviewWorkflowOutput = (
     workerReviewStatus: output.workerReviewResult?.status ?? "not-run",
     workflowStatus: output.qualityGate.workflowStatus,
     answerStatus: output.qualityGate.answerStatus,
-    qualityGate: output.qualityGate
+    qualityGate: output.qualityGate,
+    debug: output.workerReviewResult
+      ? {
+          workerMetadata: output.workerReviewResult.metadata,
+          workerArtifacts: output.workerReviewResult.artifacts.map((artifact) => ({
+            name: artifact.name,
+            type: artifact.type
+          })),
+          repositoryContext: {
+            requestedFiles: output.repositoryContext.requestedFiles,
+            selectedFiles: output.repositoryContext.selectedFiles.map((file) => file.path),
+            strictFiles: output.repositoryContext.strictFiles,
+            warnings: output.repositoryContext.warnings
+          }
+        }
+      : undefined
   };
 };
 

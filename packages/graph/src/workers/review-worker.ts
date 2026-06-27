@@ -55,6 +55,7 @@ export class ReviewWorker extends WorkerAgent {
     };
 
     return this.createResult({
+      debugLabel: "Direct review answer grounded in selected repository files",
       agentId: "worker.review",
       task: input.task,
       prompt: [

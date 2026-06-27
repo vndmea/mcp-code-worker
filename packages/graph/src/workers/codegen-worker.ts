@@ -58,6 +58,7 @@ export class CodegenWorker extends WorkerAgent {
     };
 
     return this.createResult({
+      debugLabel: "Structured patch-plan notes grounded in selected repository files",
       agentId: "worker.codegen",
       task: input.task,
       prompt: [

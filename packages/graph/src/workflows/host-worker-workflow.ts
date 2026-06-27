@@ -69,6 +69,28 @@ export interface HostWorkerWorkflowQualityGate {
 }
 
 export interface HostWorkerWorkflowOutput {
+  debug: {
+    qualityGate: {
+      answerStatus: "complete" | "incomplete";
+      failureStages: HostWorkerFailureStage[];
+      reasons: string[];
+      structuredOutputOk: boolean;
+      workflowStatus: "completed" | "needs_review";
+    };
+    repositoryContext: {
+      requestedFiles: string[];
+      scope?: string;
+      selectedFiles: string[];
+      strictFiles: boolean;
+      warnings: string[];
+    };
+    worker: {
+      artifacts: AgentResult["artifacts"];
+      metadata: Record<string, unknown>;
+      output: unknown;
+      status: AgentResult["status"];
+    } | null;
+  };
   errors: string[];
   finalResult: AgentResult;
   qualityGate: HostWorkerWorkflowQualityGate;
@@ -448,6 +470,30 @@ export const runHostWorkerWorkflow = async (
   });
 
   return {
+    debug: {
+      qualityGate: {
+        answerStatus: qualityGate.answerStatus,
+        failureStages: qualityGate.failureStages,
+        reasons: qualityGate.reasons,
+        structuredOutputOk: qualityGate.structuredOutputOk,
+        workflowStatus: qualityGate.workflowStatus
+      },
+      repositoryContext: {
+        requestedFiles: repositoryContext.requestedFiles,
+        scope: repositoryContext.scope,
+        selectedFiles: repositoryContext.selectedFiles.map((file) => file.path),
+        strictFiles: repositoryContext.strictFiles,
+        warnings: repositoryContext.warnings
+      },
+      worker: workerResult
+        ? {
+            artifacts: workerResult.artifacts,
+            metadata: workerResult.metadata,
+            output: workerResult.output,
+            status: workerResult.status
+          }
+        : null
+    },
     errors,
     finalResult,
     qualityGate,

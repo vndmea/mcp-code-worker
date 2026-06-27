@@ -55,6 +55,7 @@ export class SummarizeWorker extends WorkerAgent {
     };
 
     return this.createResult({
+      debugLabel: "Compact repository-grounded summary",
       agentId: "worker.summarize",
       task: input.task,
       prompt: [

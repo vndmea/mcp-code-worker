@@ -84,6 +84,9 @@ describe("WorkerAgent structured outputs", () => {
       brief: "Provider summary",
       focusAreas: ["Inspect worker routing"]
     });
+    expect(result.metadata["prompt"]).toBeTypeOf("string");
+    expect(result.metadata["rawText"]).toBeTypeOf("string");
+    expect(result.artifacts.some((artifact) => artifact.name === "worker-debug.json")).toBe(true);
   });
 
   it("falls back and exposes structured invocation errors for invalid worker output", async () => {
@@ -124,5 +127,7 @@ describe("WorkerAgent structured outputs", () => {
       ]
     });
     expect(result.risks.some((risk) => risk.includes("schema validation failed"))).toBe(true);
+    expect(result.metadata["failureKind"]).toBe("schema-validation");
+    expect((result.metadata["structuredOutputErrors"] as string[]).length).toBeGreaterThan(0);
   });
 });

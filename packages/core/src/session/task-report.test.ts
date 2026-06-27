@@ -26,6 +26,26 @@ describe("task session report", () => {
         errors: [],
         metadata: {}
       },
+      reviewResult: {
+        debug: {
+          qualityGate: {
+            workflowStatus: "completed",
+            answerStatus: "complete",
+            failureStages: []
+          },
+          repositoryContext: {
+            requestedFiles: ["packages/core/src/index.ts"],
+            selectedFiles: ["packages/core/src/index.ts"],
+            strictFiles: true
+          },
+          worker: {
+            metadata: {
+              prompt: "Return JSON",
+              failureKind: undefined
+            }
+          }
+        }
+      },
       validationReport: {
         checks: [
           {
@@ -43,6 +63,8 @@ describe("task session report", () => {
     expect(report).toContain("Task ID: task-1");
     expect(report).toContain("Validation passed across 1 executed check(s).");
     expect(report).toContain("No recovery guidance recorded.");
+    expect(report).toContain("## Review Debug");
+    expect(report).toContain("Worker Prompt Present: yes");
   });
 
   it("renders recovery guidance when validation fails after patch apply", () => {

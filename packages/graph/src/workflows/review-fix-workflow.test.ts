@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import { createExecutionContextFromEnv } from "@agent-orchestrator/core";
 import {
+  formatReviewWorkflowOutput,
   runFixErrorWorkflow,
   runReviewWorkflow
 } from "@agent-orchestrator/graph";
@@ -90,6 +91,10 @@ describe("review workflow", () => {
     ]);
     expect(result.workerReviewResult).not.toBeNull();
     expect(result.reviewSummary.summary).toContain("Host-managed review");
+    const summary = formatReviewWorkflowOutput(result) as {
+      debug?: { workerMetadata?: Record<string, unknown> };
+    };
+    expect(summary.debug?.workerMetadata?.prompt).toBeTypeOf("string");
   });
 
   it("includes git diff context when requested", async () => {

@@ -19,6 +19,7 @@ export interface WorkerExecutionInput {
 }
 
 export interface WorkerResultOptions<T> {
+  debugLabel?: string;
   agentId: string;
   task: AgentTask;
   prompt: string;
@@ -90,6 +91,7 @@ export abstract class WorkerAgent {
   public abstract execute(input: WorkerExecutionInput): Promise<AgentResult>;
 
   protected async createResult<T>({
+    debugLabel,
     agentId,
     task,
     prompt,
@@ -122,6 +124,25 @@ export abstract class WorkerAgent {
     const finalRisks = invocation.ok
       ? risks
       : [...risks, ...invocation.errors];
+    const repositoryContext = getRepositoryContextFromTask(task);
+    const debugContent = {
+      capability: this.capability.name,
+      expectedOutputDescription: debugLabel ?? this.capability.description,
+      failureKind: invocation.ok ? null : invocation.failureKind,
+      prompt,
+      rawOutput: invocation.ok ? invocation.data : (invocation.raw ?? invocation.rawText),
+      rawText: invocation.rawText,
+      repositoryContext: repositoryContext
+        ? {
+            requestedFiles: repositoryContext.requestedFiles,
+            scope: repositoryContext.scope,
+            selectedFiles: repositoryContext.selectedFiles.map((file) => file.path),
+            strictFiles: repositoryContext.strictFiles,
+            warnings: repositoryContext.warnings
+          }
+        : null,
+      structuredOutputErrors: invocation.errors
+    };
 
     return {
       taskId: task.id,
@@ -131,10 +152,23 @@ export abstract class WorkerAgent {
       output: invocation.ok ? invocation.data : fallbackOutput,
       confidence,
       risks: finalRisks,
-      artifacts,
+      artifacts: [
+        ...artifacts,
+        {
+          name: "worker-debug.json",
+          type: "application/json",
+          content: debugContent
+        }
+      ],
       metadata: {
         capability: this.capability.name,
+        expectedOutputDescription: debugLabel ?? this.capability.description,
+        failureKind: invocation.ok ? undefined : invocation.failureKind,
+        prompt,
+        rawOutput: invocation.ok ? invocation.data : (invocation.raw ?? invocation.rawText),
+        rawText: invocation.rawText,
         structuredOutputAttempts: invocation.attempts,
+        structuredOutputErrors: invocation.errors,
         structuredOutputOk: invocation.ok,
         workerProfileStatus: workerProfile?.status
       }

@@ -49,6 +49,7 @@ export class TestWorker extends WorkerAgent {
     };
 
     return this.createResult({
+      debugLabel: "Deterministic test suggestions grounded in selected repository files",
       agentId: "worker.test",
       task: input.task,
       prompt: [

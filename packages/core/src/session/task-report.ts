@@ -18,6 +18,49 @@ const summarizeReview = (reviewResult: unknown): string => {
   return value.reviewSummary?.summary ?? "Review result is present.";
 };
 
+const summarizeReviewDebug = (reviewResult: unknown): string[] => {
+  if (!reviewResult || typeof reviewResult !== "object") {
+    return ["- Debug: no review debug data recorded."];
+  }
+
+  const value = reviewResult as {
+    debug?: {
+      qualityGate?: {
+        answerStatus?: string;
+        failureStages?: string[];
+        workflowStatus?: string;
+      };
+      repositoryContext?: {
+        requestedFiles?: string[];
+        selectedFiles?: string[];
+        strictFiles?: boolean;
+      };
+      worker?: {
+        metadata?: {
+          failureKind?: string;
+          prompt?: string;
+        };
+      } | null;
+    };
+  };
+  const debug = value.debug;
+
+  if (!debug) {
+    return ["- Debug: no review debug data recorded."];
+  }
+
+  return [
+    `- Workflow Status: ${debug.qualityGate?.workflowStatus ?? "unknown"}`,
+    `- Answer Status: ${debug.qualityGate?.answerStatus ?? "unknown"}`,
+    `- Failure Stages: ${debug.qualityGate?.failureStages?.join(", ") || "none"}`,
+    `- Requested Files: ${debug.repositoryContext?.requestedFiles?.join(", ") || "none"}`,
+    `- Selected Files: ${debug.repositoryContext?.selectedFiles?.join(", ") || "none"}`,
+    `- Strict Files: ${debug.repositoryContext?.strictFiles ? "yes" : "no"}`,
+    `- Worker Failure Kind: ${debug.worker?.metadata?.failureKind ?? "none"}`,
+    `- Worker Prompt Present: ${typeof debug.worker?.metadata?.prompt === "string" ? "yes" : "no"}`
+  ];
+};
+
 const summarizeFix = (fixResult: unknown): string => {
   if (!fixResult || typeof fixResult !== "object") {
     return "No fix result recorded.";
@@ -172,6 +215,9 @@ export function renderTaskSessionReport(input: {
     ``,
     `## Review Summary`,
     `- ${summarizeReview(reviewResult)}`,
+    ``,
+    `## Review Debug`,
+    ...summarizeReviewDebug(reviewResult),
     ``,
     `## Fix Summary`,
     `- ${summarizeFix(fixResult)}`,
