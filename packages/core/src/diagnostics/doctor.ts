@@ -1,6 +1,6 @@
 import { access, mkdir, stat } from "node:fs/promises";
 import { constants } from "node:fs";
-import { join } from "node:path";
+import { delimiter, isAbsolute, join } from "node:path";
 
 import { listAuditEvents } from "../audit/audit-log.js";
 import { loadAoConfig } from "../config/ao-config.js";
@@ -65,6 +65,8 @@ const WHY_THIS_MATTERS: Record<string, string> = {
     "The leader model coordinates higher-level task planning and review.",
   "worker-model":
     "The worker model handles scoped execution steps such as review, validation guidance, and patch generation.",
+  "local-client-command":
+    "When ao uses a local client provider, this command is the bridge to the real model backend.",
   "ao-dir":
     "The user-scoped ao workspace directory stores local runs, audit logs, configuration, and task artifacts outside the repository.",
   "execution-mode":
@@ -130,6 +132,71 @@ const canCreateDirectory = async (path: string): Promise<boolean> => {
   } catch {
     return false;
   }
+};
+
+const LOCAL_CLIENT_PROVIDERS = new Set(["client", "local-client"]);
+
+const resolveLocalClientCommand = (
+  env: NodeJS.ProcessEnv = process.env
+): string => env.AO_WORKER_CLIENT_COMMAND?.trim() || "opencode";
+
+const hasPathSeparator = (value: string): boolean =>
+  value.includes("/") || value.includes("\\");
+
+const hasWindowsDrivePrefix = (value: string): boolean =>
+  /^[a-z]:/iu.test(value);
+
+const buildCommandCandidates = (
+  command: string,
+  env: NodeJS.ProcessEnv
+): string[] => {
+  const isWindows = process.platform === "win32";
+  const pathExt = isWindows
+    ? (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
+        .split(";")
+        .map((ext) => ext.trim())
+        .filter((ext) => ext.length > 0)
+    : [];
+  const hasExplicitExtension = /\.[^./\\]+$/u.test(command);
+  const suffixes = hasExplicitExtension || !isWindows ? [""] : ["", ...pathExt];
+  const bases =
+    isAbsolute(command) || hasWindowsDrivePrefix(command) || hasPathSeparator(command)
+      ? [command]
+      : (env.PATH ?? "")
+          .split(delimiter)
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0)
+          .map((entry) => join(entry, command));
+
+  const candidates: string[] = [];
+
+  for (const base of bases) {
+    for (const suffix of suffixes) {
+      candidates.push(`${base}${suffix}`);
+    }
+  }
+
+  return Array.from(new Set(candidates));
+};
+
+const resolveCommandOnPath = async (
+  command: string,
+  env: NodeJS.ProcessEnv = process.env
+): Promise<string | null> => {
+  const accessMode = process.platform === "win32"
+    ? constants.F_OK
+    : constants.X_OK;
+
+  for (const candidate of buildCommandCandidates(command, env)) {
+    try {
+      await access(candidate, accessMode);
+      return candidate;
+    } catch {
+      // Keep scanning candidates.
+    }
+  }
+
+  return null;
 };
 
 const readRootScripts = async (
@@ -296,6 +363,27 @@ export const runDoctor = async (
     }
   });
 
+  if (
+    LOCAL_CLIENT_PROVIDERS.has(context.leaderModel.provider) ||
+    LOCAL_CLIENT_PROVIDERS.has(context.workerModel.provider)
+  ) {
+    const localClientCommand = resolveLocalClientCommand();
+    const localClientPath = await resolveCommandOnPath(localClientCommand);
+
+    addCheck(checks, {
+      name: "local-client-command",
+      status: localClientPath ? "pass" : "fail",
+      message: localClientPath
+        ? `Local client command '${localClientCommand}' is available.`
+        : `Local client command '${localClientCommand}' was not found on PATH.`,
+      metadata: {
+        command: localClientCommand,
+        resolvedPath: localClientPath,
+        configuredByEnv: Boolean(process.env.AO_WORKER_CLIENT_COMMAND?.trim())
+      }
+    });
+  }
+
   const aoDir = context.aoStorageDir;
   const aoDirExists = await checkExists(aoDir);
   const aoDirWritable = aoDirExists
@@ -372,10 +460,14 @@ export const runDoctor = async (
   ];
 
   apiKeyChecks.forEach((entry) => {
+    const isLocalClientProvider = LOCAL_CLIENT_PROVIDERS.has(entry.provider);
+
     addCheck(checks, {
       name: entry.name,
       status:
         entry.provider === "mock"
+          ? "pass"
+          : isLocalClientProvider
           ? "pass"
           : entry.hasKey
             ? "pass"
@@ -383,6 +475,8 @@ export const runDoctor = async (
       message:
         entry.provider === "mock"
           ? `${entry.name} is using a mock provider and does not require a key.`
+          : isLocalClientProvider
+            ? `${entry.name} is using a local client provider and does not require an API key.`
           : entry.hasKey
             ? `${entry.name} resolved successfully from ${entry.envVar}.`
             : `${entry.name} is not set. Expected ${entry.envVar} for provider ${entry.provider}.`,
@@ -502,10 +596,15 @@ export const runDoctor = async (
   const cliMainExists = await checkExists(cliMainPath);
   addCheck(checks, {
     name: "cli-entrypoint",
-    status: cliMainExists ? "pass" : "warning",
+    status:
+      cliMainExists || !workspaceBinding.matchesCallerWorkingDirectory
+        ? "pass"
+        : "warning",
     message: cliMainExists
       ? "CLI entrypoint source is available."
-      : "CLI entrypoint source was not found in the workspace.",
+      : !workspaceBinding.matchesCallerWorkingDirectory
+        ? "CLI entrypoint source is not in the active workspace, which is expected when ao is launched from a separate tools checkout."
+        : "CLI entrypoint source was not found in the workspace.",
     metadata: {
       path: cliMainPath
     }
@@ -548,6 +647,7 @@ export const runDoctor = async (
         "root-dir",
         "leader-model",
         "worker-model",
+        "local-client-command",
         "ao-config",
         "leader-api-key",
         "worker-api-key"

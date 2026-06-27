@@ -33,6 +33,7 @@ ao cleanup audit
 ao doctor
 ao mcp config
 ao mcp config --root ${workspaceFolder}
+ao mcp config --root ${workspaceFolder} --worker-client-command /path/to/compatible-client
 ao mcp serve
 ao mcp serve --root ${workspaceFolder}
 ao mcp list-tools
@@ -45,6 +46,8 @@ Writes remain in dry-run mode unless a command explicitly enables repository wri
 `--allow-write-session` is narrower than `--allow-write`: it only permits local task artifacts under `aoStorageDir/runs`, not project file writes.
 
 For MCP clients that launch `ao` outside the active repository, use `ao mcp serve --root <workspace-path>` or set `AO_ROOT_DIR` so tools resolve AO storage, git state, and repository files against the intended workspace.
+
+For local client providers, `opencode` is the default command. Set `AO_WORKER_CLIENT_COMMAND` only when you need a different compatible CLI name or path.
 
 ## Review Commands
 

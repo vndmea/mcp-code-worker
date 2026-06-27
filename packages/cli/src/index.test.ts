@@ -287,6 +287,30 @@ describe("cli parsing", () => {
     expect(output.join("\n")).toContain("${workspaceFolder}");
   });
 
+  it("prints an mcp config snippet with local client env overrides", async () => {
+    const { io, output } = createIo();
+    const cli = buildCli(io);
+
+    await cli.parseAsync([
+      "node",
+      "ao",
+      "mcp",
+      "config",
+      "--root",
+      "${workspaceFolder}",
+      "--worker-client-command",
+      "custom-client",
+      "--env",
+      "AO_HOME_DIR=C:\\Users\\me\\.ao"
+    ]);
+
+    expect(output.join("\n")).toContain("\"env\"");
+    expect(output.join("\n")).toContain(
+      "\"AO_WORKER_CLIENT_COMMAND\": \"custom-client\""
+    );
+    expect(output.join("\n")).toContain("\"AO_HOME_DIR\": \"C:\\\\Users\\\\me\\\\.ao\"");
+  });
+
   it("runs worker list", async () => {
     const { io, output } = createIo();
     const cli = buildCli(io);

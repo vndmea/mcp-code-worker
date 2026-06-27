@@ -330,6 +330,7 @@ See [.env.example](https://github.com/vndmea/agent-orchestrator/blob/master/.env
 - `LOG_LEVEL`
 - `AO_ROOT_DIR`
 - `AO_HOME_DIR`
+- `AO_WORKER_CLIENT_COMMAND`
 - `AO_DRY_RUN`
 - `AO_ALLOW_WRITE`
 - `AO_ALLOWED_COMMANDS`

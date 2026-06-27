@@ -23,6 +23,24 @@ By default, the MCP server resolves `rootDir` from the server process cwd. When 
 
 You can also set `AO_ROOT_DIR` in the server environment. Explicit CLI `--root` still wins over `AO_ROOT_DIR`.
 
+If the resolved worker model uses the local client provider, `opencode` is the default command. Set `AO_WORKER_CLIENT_COMMAND` only when your compatible local CLI uses a different executable name or path.
+
+Example:
+
+```json
+{
+  "mcpServers": {
+    "agent-orchestrator": {
+      "command": "ao",
+      "args": ["mcp", "serve", "--root", "${workspaceFolder}"],
+      "env": {
+        "AO_WORKER_CLIENT_COMMAND": "/path/to/compatible-client"
+      }
+    }
+  }
+}
+```
+
 ## Storage Resolution
 
 By default, the MCP server stores AO-managed state under:

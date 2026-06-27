@@ -59,6 +59,7 @@ pnpm exec ao mcp serve
 - MCP clients should launch the server from the repository root.
 - Use `pnpm exec ao mcp config` to print a stdio config snippet.
 - For workspace-scoped IDE use, prefer `pnpm exec ao mcp config --root ${workspaceFolder}` or set `AO_ROOT_DIR` in the MCP server environment.
+- For local client providers, `opencode` is the default command. Use `--worker-client-command <command>` or set `AO_WORKER_CLIENT_COMMAND=<command>` only when your compatible local wrapper uses a different executable name.
 - For cross-checkout or shared-tool setups, also decide whether `AO_HOME_DIR` should be fixed so AO-managed artifacts land in a predictable user-scoped location.
 - For internal trial, prefer the workspace checkout over hardcoded developer-local absolute paths.
 - See `docs/distribution.md` for the explicit distribution decision and current non-goals.

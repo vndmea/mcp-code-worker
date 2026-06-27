@@ -113,4 +113,42 @@ describe("doctor", () => {
     expect(report.summary).toContain("ready:");
     expect(report.recommendedEntrypoints.map((entry) => entry.toolName)).toContain("ao_start_task");
   });
+
+  it("checks the local client command when client providers are configured", async () => {
+    const rootDir = await createWorkspace();
+    const originalCommand = process.env.AO_WORKER_CLIENT_COMMAND;
+    process.env.AO_WORKER_CLIENT_COMMAND = "node";
+
+    try {
+      const report = await runDoctor(
+        createExecutionContextFromEnv(undefined, {
+          rootDir,
+          leaderModel: {
+            provider: "client",
+            model: "qwen3-coder"
+          },
+          workerModel: {
+            provider: "client",
+            model: "qwen3-coder"
+          }
+        })
+      );
+
+      expect(
+        report.checks.find((check) => check.name === "local-client-command")?.status
+      ).toBe("pass");
+      expect(
+        report.checks.find((check) => check.name === "leader-api-key")?.status
+      ).toBe("pass");
+      expect(
+        report.checks.find((check) => check.name === "worker-api-key")?.status
+      ).toBe("pass");
+    } finally {
+      if (originalCommand === undefined) {
+        delete process.env.AO_WORKER_CLIENT_COMMAND;
+      } else {
+        process.env.AO_WORKER_CLIENT_COMMAND = originalCommand;
+      }
+    }
+  });
 });
