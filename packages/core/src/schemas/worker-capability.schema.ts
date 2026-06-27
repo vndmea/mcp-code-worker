@@ -37,6 +37,38 @@ export const WorkerEvaluationScoreSchema = z.object({
   reliability: z.number().min(0).max(1)
 });
 
+export const WorkerAdmissionDecisionSchema = z.object({
+  passed: z.boolean(),
+  blockingReasons: z.array(z.string())
+});
+
+export const WorkerCapabilityPortraitSchema = z.object({
+  scopeDiscipline: z.number().min(0).max(1),
+  repoGrounding: z.number().min(0).max(1),
+  answerDirectness: z.number().min(0).max(1),
+  codeUnderstanding: z.number().min(0).max(1),
+  fixPlanning: z.number().min(0).max(1),
+  implementationPlanning: z.number().min(0).max(1),
+  consistency: z.number().min(0).max(1)
+});
+
+export const WorkerTaskScoreCardSchema = z.object({
+  summarization: z.number().min(0).max(1),
+  codegen: z.number().min(0).max(1),
+  patchGeneration: z.number().min(0).max(1),
+  testGeneration: z.number().min(0).max(1),
+  logAnalysis: z.number().min(0).max(1),
+  jsonExtraction: z.number().min(0).max(1),
+  reviewLite: z.number().min(0).max(1)
+});
+
+export const WorkerInterviewEvidenceSchema = z.object({
+  failedCases: z.array(z.string()),
+  repoGroundedCases: z.array(z.string()),
+  fallbackPatternCases: z.array(z.string()),
+  genericAnswerCases: z.array(z.string())
+});
+
 export const WorkerRoutingPolicySchema = z.object({
   maxTaskComplexity: z.enum(["low", "medium", "high"]),
   requiresLeaderReview: z.boolean(),
@@ -84,7 +116,11 @@ export const WorkerCapabilityProfileSchema = z.object({
   suiteName: z.string().min(1).optional(),
   suiteVersion: z.string().min(1).optional(),
   evaluationSummary: WorkerEvaluationSummarySchema.optional(),
-  interviewDiagnostics: WorkerInterviewDiagnosticsSchema.optional()
+  interviewDiagnostics: WorkerInterviewDiagnosticsSchema.optional(),
+  admission: WorkerAdmissionDecisionSchema.optional(),
+  portrait: WorkerCapabilityPortraitSchema.optional(),
+  taskScores: WorkerTaskScoreCardSchema.optional(),
+  evidence: WorkerInterviewEvidenceSchema.optional()
 });
 
 export const WorkerInterviewTaskSchema = z.object({

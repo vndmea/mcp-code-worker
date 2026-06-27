@@ -58,6 +58,38 @@ export interface WorkerEvaluationScore {
   reliability: number;
 }
 
+export interface WorkerAdmissionDecision {
+  passed: boolean;
+  blockingReasons: string[];
+}
+
+export interface WorkerCapabilityPortrait {
+  scopeDiscipline: number;
+  repoGrounding: number;
+  answerDirectness: number;
+  codeUnderstanding: number;
+  fixPlanning: number;
+  implementationPlanning: number;
+  consistency: number;
+}
+
+export interface WorkerTaskScoreCard {
+  summarization: number;
+  codegen: number;
+  patchGeneration: number;
+  testGeneration: number;
+  logAnalysis: number;
+  jsonExtraction: number;
+  reviewLite: number;
+}
+
+export interface WorkerInterviewEvidence {
+  failedCases: string[];
+  repoGroundedCases: string[];
+  fallbackPatternCases: string[];
+  genericAnswerCases: string[];
+}
+
 export interface WorkerRoutingPolicy {
   maxTaskComplexity: "low" | "medium" | "high";
   requiresLeaderReview: boolean;
@@ -96,6 +128,10 @@ export interface WorkerCapabilityProfile {
   suiteVersion?: string;
   evaluationSummary?: WorkerEvaluationSummary;
   interviewDiagnostics?: WorkerInterviewDiagnostics;
+  admission?: WorkerAdmissionDecision;
+  portrait?: WorkerCapabilityPortrait;
+  taskScores?: WorkerTaskScoreCard;
+  evidence?: WorkerInterviewEvidence;
 }
 
 export interface WorkerEvaluationSummary {
