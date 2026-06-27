@@ -15,6 +15,7 @@ export interface ExecutionContext {
     maxFileBytes: number;
     maxTotalBytes: number;
     ignoredPaths: string[];
+    strictFiles: boolean;
   };
   leaderModel: ModelConfig;
   workerModel: ModelConfig;
@@ -71,6 +72,7 @@ const mergeModelConfig = (
 const DEFAULT_CONTEXT_BUDGET: ExecutionContext["contextBudget"] = {
   maxFileBytes: 20_000,
   maxTotalBytes: 120_000,
+  strictFiles: false,
   ignoredPaths: [
     "node_modules",
     ".git",

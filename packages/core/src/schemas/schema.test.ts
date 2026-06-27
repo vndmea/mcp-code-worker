@@ -235,6 +235,8 @@ describe("core schemas", () => {
             sizeBytes: 100
           }
         ],
+        requestedFiles: ["package.json"],
+        strictFiles: true,
         warnings: [],
         generatedAt: new Date().toISOString()
       })

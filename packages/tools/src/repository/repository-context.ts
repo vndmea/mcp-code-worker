@@ -18,6 +18,7 @@ export interface BuildRepositoryContextOptions {
   maxTotalBytes?: number;
   rootDir: string;
   scope?: string;
+  strictFiles?: boolean;
 }
 
 export const buildRepositoryContextPack = async (
@@ -31,7 +32,8 @@ export const buildRepositoryContextPack = async (
     files: options.files,
     ignoredPaths: options.ignoredPaths ?? context.contextBudget.ignoredPaths,
     maxFileBytes: options.maxFileBytes ?? context.contextBudget.maxFileBytes,
-    maxTotalBytes: options.maxTotalBytes ?? context.contextBudget.maxTotalBytes
+    maxTotalBytes: options.maxTotalBytes ?? context.contextBudget.maxTotalBytes,
+    strictFiles: options.strictFiles ?? context.contextBudget.strictFiles
   });
   const packageMetadata = await readPackageMetadata(
     options.rootDir,
@@ -51,6 +53,8 @@ export const buildRepositoryContextPack = async (
     files: fileSelection.files,
     selectedFiles: fileSelection.selectedFiles,
     selectionReasons: fileSelection.selectionReasons,
+    requestedFiles: options.files ?? [],
+    strictFiles: fileSelection.strictFiles,
     packageMetadata,
     gitDiff,
     warnings: fileSelection.warnings,

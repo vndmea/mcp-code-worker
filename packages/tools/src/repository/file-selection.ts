@@ -53,6 +53,7 @@ export interface SelectRepositoryFilesOptions {
   maxTotalBytes?: number;
   rootDir: string;
   scope?: string;
+  strictFiles?: boolean;
 }
 
 interface ResolvedRepositoryScope {
@@ -258,12 +259,14 @@ export const selectRepositoryFiles = async ({
   errorLog,
   ignoredPaths = [...DEFAULT_IGNORED_PATHS],
   maxFileBytes = 20_000,
-  maxTotalBytes = 120_000
+  maxTotalBytes = 120_000,
+  strictFiles = false
 }: SelectRepositoryFilesOptions): Promise<{
   effectiveScope?: string;
   files: RepositoryFileSummary[];
   selectionReasons: SelectionReason[];
   selectedFiles: RepositoryFileContent[];
+  strictFiles: boolean;
   warnings: string[];
 }> => {
   const scopeResolution = await resolveSelectionScope(
@@ -339,6 +342,17 @@ export const selectRepositoryFiles = async ({
       const nextBytes = totalBytes + Buffer.byteLength(fileContent.content, "utf8");
 
       if (nextBytes > maxTotalBytes) {
+        if (strictFiles) {
+          throw new AgentError(
+            "REPOSITORY_CONTEXT_LIMIT_EXCEEDED",
+            `Explicit file ${path} would exceed maxTotalBytes in strict file mode.`,
+            {
+              maxTotalBytes,
+              path,
+              strictFiles: true
+            }
+          );
+        }
         warnings.push(
           `Explicit file ${path} exceeded maxTotalBytes but was still included because it was explicitly requested.`
         );
@@ -395,6 +409,7 @@ export const selectRepositoryFiles = async ({
     files: summaries,
     selectionReasons,
     selectedFiles,
+    strictFiles,
     warnings
   };
 };

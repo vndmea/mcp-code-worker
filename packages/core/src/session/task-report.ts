@@ -164,7 +164,7 @@ export function renderTaskSessionReport(input: {
     ``,
     `## Repository Context`,
     repositoryContext
-      ? `- Selected Files: ${repositoryContext.selectedFiles.length}\n- Warnings: ${repositoryContext.warnings.length}`
+      ? `- Selected Files: ${repositoryContext.selectedFiles.length}\n- Requested Files: ${repositoryContext.requestedFiles.length}\n- Strict Files: ${repositoryContext.strictFiles ? "yes" : "no"}\n- Warnings: ${repositoryContext.warnings.length}`
       : `- No repository context artifact recorded.`,
     ``,
     `## Step Summary`,

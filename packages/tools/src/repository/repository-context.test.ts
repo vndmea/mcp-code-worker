@@ -99,6 +99,29 @@ describe("repository context pack", () => {
     ).toBe(true);
   });
 
+  it("fails fast in strict file mode when explicit files exceed max total bytes", async () => {
+    const rootDir = await createRootDir();
+
+    await writeText(rootDir, "large-a.txt", "a".repeat(80));
+    await writeText(rootDir, "large-b.txt", "b".repeat(80));
+
+    await expect(
+      selectRepositoryFiles({
+        rootDir,
+        files: ["large-a.txt", "large-b.txt"],
+        maxFileBytes: 20,
+        maxTotalBytes: 25,
+        strictFiles: true
+      })
+    ).rejects.toMatchObject({
+      code: "REPOSITORY_CONTEXT_LIMIT_EXCEEDED",
+      details: {
+        path: "large-b.txt",
+        strictFiles: true
+      }
+    });
+  });
+
   it("rejects path traversal when selecting files", async () => {
     const rootDir = await createRootDir();
 
