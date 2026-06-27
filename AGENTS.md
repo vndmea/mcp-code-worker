@@ -8,7 +8,7 @@
 - Never hardcode model credentials.
 - Use Zod for external and cross-agent data.
 - Write tests for workflow logic.
-- Keep leader-worker responsibilities separated.
+- Keep host/worker responsibilities separated.
 - Prefer deterministic tools over model guessing.
 - Worker outputs must be reviewed before final acceptance.
 - Default to dry-run for file writes and shell execution.

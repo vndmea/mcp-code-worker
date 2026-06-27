@@ -24,7 +24,8 @@ export const mcpToolCatalog: McpToolCatalogEntry[] = [
   {
     name: "ao_run_host_worker",
     category: "workflow-building-blocks",
-    description: "Run one explicit worker task under host control with debug evidence and without introducing a second leader surface."
+    description:
+      "Run one explicit worker task under host control with debug evidence and without introducing another decision-making surface."
   },
   {
     name: "ao_propose_patch",

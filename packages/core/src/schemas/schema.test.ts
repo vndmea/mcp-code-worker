@@ -48,7 +48,7 @@ describe("core schemas", () => {
     ).not.toThrow();
   });
 
-  it("rejects invalid leader decisions and model configs", () => {
+  it("rejects invalid orchestration decisions and model configs", () => {
     expect(() =>
       OrchestratorDecisionSchema.parse({
         taskId: "task-1",

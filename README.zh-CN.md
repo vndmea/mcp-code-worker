@@ -21,11 +21,11 @@
 
 ## 宿主关系
 
-在 Codex 这类宿主驱动场景里，`ao` 不是第二个 leader，也不应该替代宿主做最终判断。
+在 Codex 这类宿主驱动场景里，`ao` 只是受控执行层，不替代宿主做最终判断。
 
 - 宿主负责理解用户目标、决定是否接受结果。
 - `ao` 负责受控执行：worker 路由、repository context、确定性验证、artifact 持久化、patch gate。
-- 对宿主来说，`ao` 的推荐入口是 `ao_start_task` 和其他 host-managed tools，而不是再起一个内部 leader。
+- 对宿主来说，`ao` 的推荐入口是 `ao_start_task` 和其他 host-managed tools。
 - 对于窄范围、repo-grounded 的检查，优先使用显式文件列表配合 strict file mode，这样 `ao` 会在证据不完整时直接失败，而不是悄悄放大范围或跳过关键文件。
 
 ## 架构图

@@ -30,7 +30,7 @@ export const aoRunHostWorkerTool: AoToolDefinition<
 > = {
   name: "ao_run_host_worker",
   description:
-    "Run one explicit worker task under host control without introducing a second leader surface.",
+    "Run one explicit worker task under host control without introducing another decision-making surface.",
   inputSchema,
   execute: async (args) => {
     const context = await resolveExecutionContext();

@@ -4,7 +4,7 @@ The MCP server is a first-class interface for `agent-orchestrator`.
 
 The MCP layer is intentionally thin. It delegates to the same workflow functions used by the CLI and keeps orchestration state in user-scoped AO workspace storage.
 
-In host-driven use, treat `ao` as the controlled execution/runtime layer, not as a second leader:
+In host-driven use, treat `ao` as the controlled execution/runtime layer:
 
 - The host keeps user intent and final acceptance.
 - `ao` keeps worker execution, repository context, validation, artifacts, and patch gates explicit.
@@ -113,7 +113,7 @@ For host-driven coding flows:
 
 1. Use `ao_start_task` when you want AO to manage repository context, validation, task artifacts, and patch lifecycle.
 2. Use `ao_run_host_worker` only when the host wants one narrow worker task under explicit control, and prefer explicit files plus `strictFiles=true` for hard-scope review tasks.
-3. Use `ao_list_workflows` only to inspect the remaining host-managed workflow surfaces; public tools no longer expose the old standalone leader workflow.
+3. Use `ao_list_workflows` only to inspect the remaining host-managed workflow surfaces.
 
 For worker qualification over MCP, use:
 

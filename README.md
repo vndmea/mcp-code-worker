@@ -21,7 +21,7 @@ English | [简体中文](https://github.com/vndmea/agent-orchestrator/blob/maste
 
 ## Host relationship
 
-In host-driven use cases such as Codex, `ao` is not intended to become a second user-facing leader.
+In host-driven use cases such as Codex, `ao` stays as the controlled execution/runtime layer.
 
 - The host agent stays responsible for user intent, final judgment, and acceptance.
 - `ao` provides the controlled runtime: worker routing, repository context packs, deterministic validation, artifact persistence, and patch gates.
