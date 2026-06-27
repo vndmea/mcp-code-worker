@@ -12,7 +12,10 @@ import {
   runRepositoryValidation
 } from "@agent-orchestrator/tools";
 
-import type { HostWorkerWorkflowQualityGate } from "./host-worker-workflow.js";
+import type {
+  HostWorkerWorkflowOutput,
+  HostWorkerWorkflowQualityGate
+} from "./host-worker-workflow.js";
 import { runHostWorkerWorkflow } from "./host-worker-workflow.js";
 
 export interface ReviewWorkflowInput {
@@ -37,13 +40,16 @@ export interface ReviewWorkflowInput {
 
 export interface ReviewWorkflowOutput {
   accepted: boolean;
+  answerStatus: "complete" | "incomplete";
   errors: string[];
   qualityGate: HostWorkerWorkflowQualityGate;
   repositoryContext: RepositoryContextPack;
   reviewSummary: ReviewSummary;
   validationReport: ValidationReport;
+  workflowStatus: "completed" | "needs_review";
   warnings: string[];
   workerReviewResult: AgentResult | null;
+  debug: HostWorkerWorkflowOutput["debug"];
 }
 
 const asStringArray = (value: unknown): string[] =>
@@ -165,11 +171,14 @@ export const runReviewWorkflow = async (
 
   return {
     accepted: workerRun.qualityGate.answered,
+    answerStatus: workerRun.qualityGate.answerStatus,
+    debug: workerRun.debug,
     errors: workerRun.errors,
     qualityGate: workerRun.qualityGate,
     repositoryContext,
     reviewSummary,
     validationReport,
+    workflowStatus: workerRun.qualityGate.workflowStatus,
     warnings: workerRun.warnings,
     workerReviewResult: workerRun.workerResult
   };

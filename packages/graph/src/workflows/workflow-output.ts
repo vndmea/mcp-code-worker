@@ -108,9 +108,13 @@ export const formatReviewWorkflowOutput = (
   return {
     reviewSummary: output.reviewSummary.summary,
     accepted: output.accepted,
+    workflowStatus: output.workflowStatus,
+    answerStatus: output.answerStatus,
     repository: {
       scope: output.repositoryContext.scope,
       requestedFileCount: output.repositoryContext.requestedFiles.length,
+      skippedFileCount: output.repositoryContext.skippedFiles.length,
+      coverageGapDetected: output.repositoryContext.coverageGapDetected,
       selectedFileCount: output.repositoryContext.selectedFiles.length,
       strictFiles: output.repositoryContext.strictFiles,
       warningCount: output.repositoryContext.warnings.length,
@@ -121,24 +125,24 @@ export const formatReviewWorkflowOutput = (
     },
     validation: summarizeValidationReport(output.validationReport, options?.maxBytes),
     workerReviewStatus: output.workerReviewResult?.status ?? "not-run",
-    workflowStatus: output.qualityGate.workflowStatus,
-    answerStatus: output.qualityGate.answerStatus,
     qualityGate: output.qualityGate,
-    debug: output.workerReviewResult
-      ? {
-          workerMetadata: output.workerReviewResult.metadata,
-          workerArtifacts: output.workerReviewResult.artifacts.map((artifact) => ({
-            name: artifact.name,
-            type: artifact.type
-          })),
-          repositoryContext: {
-            requestedFiles: output.repositoryContext.requestedFiles,
-            selectedFiles: output.repositoryContext.selectedFiles.map((file) => file.path),
-            strictFiles: output.repositoryContext.strictFiles,
-            warnings: output.repositoryContext.warnings
-          }
-        }
-      : undefined
+    debug: {
+      promptTransparency: output.debug.promptTransparency,
+      workerMetadata: output.workerReviewResult?.metadata,
+      workerArtifacts:
+        output.workerReviewResult?.artifacts.map((artifact) => ({
+          name: artifact.name,
+          type: artifact.type
+        })) ?? [],
+      repositoryContext: {
+        requestedFiles: output.repositoryContext.requestedFiles,
+        skippedFiles: output.repositoryContext.skippedFiles,
+        selectedFiles: output.repositoryContext.selectedFiles.map((file) => file.path),
+        coverageGapDetected: output.repositoryContext.coverageGapDetected,
+        strictFiles: output.repositoryContext.strictFiles,
+        warnings: output.repositoryContext.warnings
+      }
+    }
   };
 };
 
@@ -190,8 +194,12 @@ export const formatFixErrorWorkflowOutput = (
   return {
     rootCauseAnalysis: output.rootCauseAnalysis,
     candidateFixPlan: output.candidateFixPlan,
+    workflowStatus: output.workflowStatus,
+    answerStatus: output.answerStatus,
     repository: {
       scope: output.repositoryContext.scope,
+      skippedFileCount: output.repositoryContext.skippedFiles.length,
+      coverageGapDetected: output.repositoryContext.coverageGapDetected,
       selectedFileCount: output.repositoryContext.selectedFiles.length,
       warningCount: output.repositoryContext.warnings.length
     },

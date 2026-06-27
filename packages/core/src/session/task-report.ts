@@ -27,12 +27,20 @@ const summarizeReviewDebug = (reviewResult: unknown): string[] => {
     debug?: {
       qualityGate?: {
         answerStatus?: string;
+        coverageGapDetected?: boolean;
         failureStages?: string[];
         workflowStatus?: string;
       };
+      promptTransparency?: {
+        hostPrompt?: string;
+        promptTransformation?: string;
+        workerPrompt?: string | null;
+      };
       repositoryContext?: {
         requestedFiles?: string[];
+        skippedFiles?: string[];
         selectedFiles?: string[];
+        coverageGapDetected?: boolean;
         strictFiles?: boolean;
       };
       worker?: {
@@ -52,12 +60,16 @@ const summarizeReviewDebug = (reviewResult: unknown): string[] => {
   return [
     `- Workflow Status: ${debug.qualityGate?.workflowStatus ?? "unknown"}`,
     `- Answer Status: ${debug.qualityGate?.answerStatus ?? "unknown"}`,
+    `- Coverage Gap: ${debug.qualityGate?.coverageGapDetected ? "yes" : "no"}`,
     `- Failure Stages: ${debug.qualityGate?.failureStages?.join(", ") || "none"}`,
     `- Requested Files: ${debug.repositoryContext?.requestedFiles?.join(", ") || "none"}`,
+    `- Skipped Files: ${debug.repositoryContext?.skippedFiles?.join(", ") || "none"}`,
     `- Selected Files: ${debug.repositoryContext?.selectedFiles?.join(", ") || "none"}`,
     `- Strict Files: ${debug.repositoryContext?.strictFiles ? "yes" : "no"}`,
+    `- Prompt Transformation: ${debug.promptTransparency?.promptTransformation ?? "unknown"}`,
+    `- Host Prompt Present: ${typeof debug.promptTransparency?.hostPrompt === "string" ? "yes" : "no"}`,
     `- Worker Failure Kind: ${debug.worker?.metadata?.failureKind ?? "none"}`,
-    `- Worker Prompt Present: ${typeof debug.worker?.metadata?.prompt === "string" ? "yes" : "no"}`
+    `- Worker Prompt Present: ${typeof debug.promptTransparency?.workerPrompt === "string" ? "yes" : "no"}`
   ];
 };
 
@@ -207,7 +219,7 @@ export function renderTaskSessionReport(input: {
     ``,
     `## Repository Context`,
     repositoryContext
-      ? `- Selected Files: ${repositoryContext.selectedFiles.length}\n- Requested Files: ${repositoryContext.requestedFiles.length}\n- Strict Files: ${repositoryContext.strictFiles ? "yes" : "no"}\n- Warnings: ${repositoryContext.warnings.length}`
+      ? `- Selected Files: ${repositoryContext.selectedFiles.length}\n- Requested Files: ${repositoryContext.requestedFiles.length}\n- Skipped Files: ${repositoryContext.skippedFiles.length}\n- Coverage Gap: ${repositoryContext.coverageGapDetected ? "yes" : "no"}\n- Strict Files: ${repositoryContext.strictFiles ? "yes" : "no"}\n- Warnings: ${repositoryContext.warnings.length}`
       : `- No repository context artifact recorded.`,
     ``,
     `## Step Summary`,

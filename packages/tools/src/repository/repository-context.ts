@@ -54,6 +54,8 @@ export const buildRepositoryContextPack = async (
     selectedFiles: fileSelection.selectedFiles,
     selectionReasons: fileSelection.selectionReasons,
     requestedFiles: options.files ?? [],
+    skippedFiles: fileSelection.skippedFiles,
+    coverageGapDetected: fileSelection.skippedFiles.length > 0,
     strictFiles: fileSelection.strictFiles,
     packageMetadata,
     gitDiff,

@@ -42,6 +42,8 @@ export const RepositoryContextPackSchema = z.object({
   selectedFiles: z.array(RepositoryFileContentSchema),
   selectionReasons: z.array(SelectionReasonSchema).default([]),
   requestedFiles: z.array(z.string()).default([]),
+  skippedFiles: z.array(z.string()).default([]),
+  coverageGapDetected: z.boolean().default(false),
   strictFiles: z.boolean().default(false),
   packageMetadata: PackageMetadataSchema.optional(),
   gitDiff: GitDiffSummarySchema.optional(),

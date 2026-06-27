@@ -264,6 +264,7 @@ export const selectRepositoryFiles = async ({
 }: SelectRepositoryFilesOptions): Promise<{
   effectiveScope?: string;
   files: RepositoryFileSummary[];
+  skippedFiles: string[];
   selectionReasons: SelectionReason[];
   selectedFiles: RepositoryFileContent[];
   strictFiles: boolean;
@@ -278,6 +279,7 @@ export const selectRepositoryFiles = async ({
   const scopedRoot = resolveRepositoryScope(rootDir, effectiveScope);
   const warnings: string[] = [...scopeResolution.warnings];
   const summaries: RepositoryFileSummary[] = [];
+  const skippedFiles: string[] = [];
   const selectedFiles: RepositoryFileContent[] = [];
   let selectionReasons: SelectionReason[] = [];
 
@@ -378,12 +380,14 @@ export const selectRepositoryFiles = async ({
     for (const file of ranked.rankedFiles) {
       if (totalBytes >= maxTotalBytes) {
         warnings.push("Maximum repository context size reached.");
+        skippedFiles.push(file.path);
         continue;
       }
 
       const nextBytes = totalBytes + Buffer.byteLength(file.content, "utf8");
       if (nextBytes > maxTotalBytes) {
         warnings.push(`Skipping ${file.path} because maxTotalBytes was reached.`);
+        skippedFiles.push(file.path);
         continue;
       }
 
@@ -407,6 +411,7 @@ export const selectRepositoryFiles = async ({
   return {
     effectiveScope,
     files: summaries,
+    skippedFiles,
     selectionReasons,
     selectedFiles,
     strictFiles,

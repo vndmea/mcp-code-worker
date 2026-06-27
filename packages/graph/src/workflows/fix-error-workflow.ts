@@ -32,6 +32,7 @@ export interface FixErrorWorkflowInput {
 export interface FixErrorWorkflowOutput {
   accepted: boolean;
   analysisResult: HostWorkerWorkflowOutput;
+  answerStatus: "complete" | "incomplete";
   candidateFixPlan: string[];
   errors: string[];
   repositoryContext: RepositoryContextPack;
@@ -41,6 +42,7 @@ export interface FixErrorWorkflowOutput {
   planResult: HostWorkerWorkflowOutput;
   suggestedPatchArtifact: string;
   validationReport: ValidationReport;
+  workflowStatus: "completed" | "needs_review";
   warnings: string[];
 }
 
@@ -164,6 +166,7 @@ export const runFixErrorWorkflow = async (
   return {
     accepted,
     analysisResult,
+    answerStatus: accepted ? "complete" : "incomplete",
     candidateFixPlan,
     errors: [...analysisResult.errors, ...planResult.errors],
     ...(patchResult
@@ -177,6 +180,11 @@ export const runFixErrorWorkflow = async (
     rootCauseAnalysis,
     suggestedPatchArtifact: "candidate-patch-plan.md",
     validationReport,
+    workflowStatus:
+      analysisResult.qualityGate.workflowStatus === "completed" &&
+      planResult.qualityGate.workflowStatus === "completed"
+        ? "completed"
+        : "needs_review",
     warnings: [
       ...analysisResult.warnings,
       ...planResult.warnings,

@@ -46,6 +46,7 @@ export interface HostWorkerWorkflowInput {
 export type HostWorkerFailureStage =
   | "worker-not-run"
   | "missing-requested-files"
+  | "coverage-gap"
   | "missing-file-citations"
   | "template-fallback"
   | "generic-fallback"
@@ -58,10 +59,12 @@ export type HostWorkerFailureStage =
 export interface HostWorkerWorkflowQualityGate {
   answered: boolean;
   answerStatus: "complete" | "incomplete";
+  coverageGapDetected: boolean;
   failureStages: HostWorkerFailureStage[];
   genericFallbackDetected: boolean;
   mentionedFiles: string[];
   missingRequestedFiles: string[];
+  skippedFiles: string[];
   reasons: string[];
   structuredOutputOk: boolean;
   templateFallbackDetected: boolean;
@@ -72,15 +75,23 @@ export interface HostWorkerWorkflowOutput {
   debug: {
     qualityGate: {
       answerStatus: "complete" | "incomplete";
+      coverageGapDetected: boolean;
       failureStages: HostWorkerFailureStage[];
       reasons: string[];
       structuredOutputOk: boolean;
       workflowStatus: "completed" | "needs_review";
     };
+    promptTransparency: {
+      hostPrompt: string;
+      promptTransformation: "preserved" | "augmented";
+      workerPrompt: string | null;
+    };
     repositoryContext: {
       requestedFiles: string[];
+      skippedFiles: string[];
       scope?: string;
       selectedFiles: string[];
+      coverageGapDetected: boolean;
       strictFiles: boolean;
       warnings: string[];
     };
@@ -170,6 +181,7 @@ const buildQualityGate = (
 ): HostWorkerWorkflowQualityGate => {
   const selectedPaths = repositoryContext.selectedFiles.map((file) => file.path);
   const requestedPaths = input.files ?? [];
+  const skippedFiles = repositoryContext.skippedFiles ?? [];
   const outputText = workerResult ? JSON.stringify(workerResult.output) : "";
   const outputRecord = asOutputRecord(workerResult?.output);
   const mentionedFiles = selectedPaths.filter((path) => outputText.includes(path));
@@ -181,6 +193,8 @@ const buildQualityGate = (
   const templateFallbackDetected = detectTemplateFallback(outputText);
   const genericFallbackDetected =
     input.taskType === "review-lite" && detectGenericFallback(outputText);
+  const coverageGapDetected =
+    repositoryContext.coverageGapDetected === true || skippedFiles.length > 0;
   const reasons: string[] = [];
   const failureStages = new Set<HostWorkerFailureStage>();
 
@@ -199,6 +213,13 @@ const buildQualityGate = (
       `Requested files were not all included in repository context: ${missingRequestedFiles.join(", ")}.`
     );
     failureStages.add("missing-requested-files");
+  }
+
+  if (coverageGapDetected) {
+    reasons.push(
+      `Repository context skipped candidate files and may be incomplete: ${skippedFiles.join(", ") || "unknown skipped files"}.`
+    );
+    failureStages.add("coverage-gap");
   }
 
   if (selectedPaths.length > 0 && mentionedFiles.length === 0) {
@@ -252,10 +273,12 @@ const buildQualityGate = (
   return {
     answered,
     answerStatus: answered ? "complete" : "incomplete",
+    coverageGapDetected,
     failureStages: Array.from(failureStages),
     genericFallbackDetected,
     mentionedFiles,
     missingRequestedFiles,
+    skippedFiles,
     reasons,
     structuredOutputOk,
     templateFallbackDetected,
@@ -363,6 +386,7 @@ export const runHostWorkerWorkflow = async (
       strictFiles: input.strictFiles
     });
   const task = buildTask(input, repositoryContext);
+  const hostPrompt = input.goal;
 
   await writeAuditEvent(context, {
     actor: "workflow",
@@ -432,6 +456,8 @@ export const runHostWorkerWorkflow = async (
       repositoryContext: {
         scope: repositoryContext.scope,
         requestedFiles: repositoryContext.requestedFiles,
+        skippedFiles: repositoryContext.skippedFiles,
+        coverageGapDetected: repositoryContext.coverageGapDetected,
         selectedFiles: repositoryContext.selectedFiles.map((file) => file.path),
         strictFiles: repositoryContext.strictFiles
       },
@@ -473,15 +499,26 @@ export const runHostWorkerWorkflow = async (
     debug: {
       qualityGate: {
         answerStatus: qualityGate.answerStatus,
+        coverageGapDetected: qualityGate.coverageGapDetected,
         failureStages: qualityGate.failureStages,
         reasons: qualityGate.reasons,
         structuredOutputOk: qualityGate.structuredOutputOk,
         workflowStatus: qualityGate.workflowStatus
       },
+      promptTransparency: {
+        hostPrompt,
+        promptTransformation: "augmented",
+        workerPrompt:
+          typeof workerResult?.metadata.prompt === "string"
+            ? workerResult.metadata.prompt
+            : null
+      },
       repositoryContext: {
         requestedFiles: repositoryContext.requestedFiles,
+        skippedFiles: repositoryContext.skippedFiles,
         scope: repositoryContext.scope,
         selectedFiles: repositoryContext.selectedFiles.map((file) => file.path),
+        coverageGapDetected: repositoryContext.coverageGapDetected,
         strictFiles: repositoryContext.strictFiles,
         warnings: repositoryContext.warnings
       },
