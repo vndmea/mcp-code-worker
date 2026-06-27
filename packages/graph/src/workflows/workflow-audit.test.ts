@@ -1,16 +1,24 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { createExecutionContextFromEnv, listAuditEvents } from "@agent-orchestrator/core";
-import { runOrchestratorWorkerWorkflow } from "./orchestrator-worker-workflow.js";
+import { runHostWorkerWorkflow } from "./host-worker-workflow.js";
 import { describe, expect, it } from "vitest";
 
-const createRootDir = async () =>
-  mkdtemp(join(tmpdir(), "ao-workflow-audit-"));
+const createRootDir = async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), "ao-workflow-audit-"));
+  await mkdir(join(rootDir, "packages", "core", "src"), { recursive: true });
+  await writeFile(
+    join(rootDir, "packages", "core", "src", "generateId.ts"),
+    "export const generateId = () => 'id';\n",
+    "utf8"
+  );
+  return rootDir;
+};
 
 describe("workflow audit events", () => {
-  it("writes start and completion audit events for orchestrator-worker workflow", async () => {
+  it("writes start and completion audit events for host-worker workflow", async () => {
     const rootDir = await createRootDir();
     const context = createExecutionContextFromEnv(undefined, {
       allowWrite: true,
@@ -18,9 +26,11 @@ describe("workflow audit events", () => {
       rootDir
     });
 
-    await runOrchestratorWorkerWorkflow({
+    await runHostWorkerWorkflow({
       context,
-      goal: "Review the repository for workflow regressions"
+      goal: "Review the repository for workflow regressions",
+      taskType: "review-lite",
+      files: ["packages/core/src/generateId.ts"]
     });
     const events = await listAuditEvents(rootDir, 20);
 
@@ -29,7 +39,7 @@ describe("workflow audit events", () => {
         (event) =>
           event.actor === "workflow" &&
           event.action === "start" &&
-          event.workflow === "orchestrator-worker-workflow"
+          event.workflow === "host-worker-workflow"
       )
     ).toBe(true);
     expect(
@@ -37,7 +47,7 @@ describe("workflow audit events", () => {
         (event) =>
           event.actor === "workflow" &&
           event.action === "complete" &&
-          event.workflow === "orchestrator-worker-workflow"
+          event.workflow === "host-worker-workflow"
       )
     ).toBe(true);
   });

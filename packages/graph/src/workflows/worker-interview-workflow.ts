@@ -29,7 +29,7 @@ import {
 } from "@agent-orchestrator/core";
 import { ModelRouter, invokeStructured } from "@agent-orchestrator/models";
 
-import { createInitialOrchestratorState } from "../orchestrator/orchestrator-state.js";
+import { createInitialWorkflowState } from "./workflow-state.js";
 
 interface InterviewTaskRuntimeDefinition {
   task: WorkerInterviewTask;
@@ -1335,7 +1335,7 @@ export const runWorkerInterviewWorkflow = async (
       "Assess instruction following, structured output, scope discipline, summarization, code understanding, code generation, and confidence calibration.",
       "Warn when the worker should be limited or blocked."
     ],
-    assignedRole: "leader",
+    assignedRole: "reviewer",
     priority: "high",
     metadata: {
       workflow: "worker-interview-workflow",
@@ -1387,7 +1387,7 @@ export const runWorkerInterviewWorkflow = async (
     .addEdge("run_suite", END)
     .compile();
 
-  const state = await app.invoke(createInitialOrchestratorState(task));
+  const state = await app.invoke(createInitialWorkflowState(task));
   const taskResults = state.toolResults.map(
     (result) => result.output as WorkerInterviewTaskResult
   );

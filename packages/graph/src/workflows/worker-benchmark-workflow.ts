@@ -116,7 +116,7 @@ const buildCodingV1Fixtures = (): BenchmarkFixture[] => [
       "Do not return testPlan as a single string.",
       "Do not return confidence as text or a percentage.",
       'Example valid shape: {"summary":"...","testPlan":["case 1","case 2"],"confidence":0.71}',
-      "Scenario: a regression in orchestrator-worker-workflow skipped warnings for unsupported task types."
+      "Scenario: a regression in host-worker-workflow skipped warnings for unsupported task types."
     ].join("\n"),
     mockResponse: {
       summary: "Add targeted workflow tests around unsupported and skipped worker tasks.",

@@ -1,6 +1,6 @@
 import type { AgentTask, WorkflowState } from "@agent-orchestrator/core";
 
-export const createInitialOrchestratorState = (
+export const createInitialWorkflowState = (
   task: AgentTask
 ): WorkflowState => ({
   task,

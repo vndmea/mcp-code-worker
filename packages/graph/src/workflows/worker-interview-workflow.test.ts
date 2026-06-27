@@ -1,11 +1,31 @@
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { createExecutionContextFromEnv } from "@agent-orchestrator/core";
 import {
   createDefaultWorkerEvaluationSuite,
+  runHostWorkerWorkflow,
   runWorkerInterviewWorkflow
 } from "@agent-orchestrator/graph";
-import { runOrchestratorWorkerWorkflow } from "./orchestrator-worker-workflow.js";
+
+const createWorkspace = async (): Promise<string> => {
+  const rootDir = await mkdtemp(join(tmpdir(), "ao-worker-interview-"));
+  await mkdir(join(rootDir, "packages", "core", "src"), { recursive: true });
+  await writeFile(
+    join(rootDir, "packages", "core", "src", "generateId.ts"),
+    "export const generateId = () => 'id';\n",
+    "utf8"
+  );
+  await writeFile(
+    join(rootDir, "packages", "core", "src", "schemaMinimum.ts"),
+    "export const schemaMinimum = 1;\n",
+    "utf8"
+  );
+  return rootDir;
+};
 
 const createContext = () =>
   createExecutionContextFromEnv(undefined, {
@@ -62,6 +82,7 @@ describe("worker interview workflow", () => {
   });
 
   it("limits routing when code generation quality is too low", async () => {
+    const rootDir = await createWorkspace();
     const interview = await runWorkerInterviewWorkflow({
       context: createContext(),
       simulatedResponses: {
@@ -71,22 +92,26 @@ describe("worker interview workflow", () => {
         }
       }
     });
-    const workflow = await runOrchestratorWorkerWorkflow({
-      context: createContext(),
+    const workflow = await runHostWorkerWorkflow({
+      context: createExecutionContextFromEnv(undefined, {
+        dryRun: true,
+        allowWrite: false,
+        rootDir
+      }),
+      files: ["packages/core/src/generateId.ts"],
       goal: "Generate implementation drafts",
+      taskType: "codegen",
       workerCapabilityProfile: interview.profile
     });
 
     expect(interview.status).toBe("limited");
     expect(interview.profile.routingPolicy.allowCodegen).toBe(false);
-    expect(
-      workflow.state.workerResults.some((result) => result.agentId === "worker.codegen")
-    ).toBe(false);
-    expect(workflow.state.workerResults.length).toBe(2);
-    expect(workflow.state.warnings.join("\n")).toContain("not qualified for codegen");
+    expect(workflow.workerResult).toBeNull();
+    expect(workflow.warnings.join("\n")).toContain("not qualified for codegen");
   });
 
   it("prevents blocked workers from receiving production tasks", async () => {
+    const rootDir = await createWorkspace();
     const interview = await runWorkerInterviewWorkflow({
       context: createContext(),
       simulatedResponses: {
@@ -94,16 +119,22 @@ describe("worker interview workflow", () => {
         summarization: "bad"
       }
     });
-    const workflow = await runOrchestratorWorkerWorkflow({
-      context: createContext(),
+    const workflow = await runHostWorkerWorkflow({
+      context: createExecutionContextFromEnv(undefined, {
+        dryRun: true,
+        allowWrite: false,
+        rootDir
+      }),
+      files: ["packages/core/src/generateId.ts"],
       goal: "Draft tests for workflow routing",
+      taskType: "review-lite",
       workerCapabilityProfile: interview.profile
     });
 
     expect(interview.status).toBe("blocked");
-    expect(workflow.state.workerResults).toHaveLength(0);
-    expect(workflow.state.warnings.join("\n")).toContain("blocked");
-    expect(workflow.finalResult?.status).toBe("needs_review");
+    expect(workflow.workerResult).toBeNull();
+    expect(workflow.warnings.join("\n")).toContain("blocked");
+    expect(workflow.finalResult.status).toBe("needs_review");
   });
 
   it("uses interview prompts with concrete fixtures and explicit field names", () => {
