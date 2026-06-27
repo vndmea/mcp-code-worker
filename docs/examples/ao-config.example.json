@@ -7,8 +7,7 @@
   "workerModel": {
     "provider": "openai-compatible",
     "model": "deepseek-v4-flash",
-    "baseURL": "https://api.deepseek.com",
-    "apiKeyEnvVar": "DEEPSEEK_API_KEY"
+    "baseURL": "https://api.deepseek.com"
   },
   "safety": {
     "dryRun": true,

@@ -4,7 +4,6 @@ export const AoModelConfigSchema = z.object({
   provider: z.string().min(1),
   model: z.string().min(1),
   baseURL: z.string().url().optional(),
-  apiKeyEnvVar: z.string().regex(/^[A-Z_][A-Z0-9_]*$/u).optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().positive().optional()
 });

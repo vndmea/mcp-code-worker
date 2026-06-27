@@ -68,7 +68,6 @@ interface SetupOptions {
   allowWrite: boolean;
   disableValidationAutoDiscover: boolean;
   interviewWorker: boolean;
-  leaderApiKeyEnvVar?: string;
   leaderBaseUrl?: string;
   leaderModel?: string;
   leaderProvider?: string;
@@ -76,7 +75,6 @@ interface SetupOptions {
   registerWorker: boolean;
   testScript: string[];
   typecheckScript: string[];
-  workerApiKeyEnvVar?: string;
   workerBaseUrl?: string;
   workerId?: string;
   workerModel?: string;
@@ -106,7 +104,6 @@ const relativePath = (rootDir: string, path: string): string =>
 const mergeModelConfig = (
   existing: AoConfig["leaderModel"],
   updates: {
-    apiKeyEnvVar?: string;
     baseURL?: string;
     model?: string;
     provider?: string;
@@ -115,8 +112,7 @@ const mergeModelConfig = (
   const hasUpdate =
     Boolean(updates.provider) ||
     Boolean(updates.model) ||
-    Boolean(updates.baseURL) ||
-    Boolean(updates.apiKeyEnvVar);
+    Boolean(updates.baseURL);
 
   if (!existing && !hasUpdate) {
     return undefined;
@@ -126,8 +122,7 @@ const mergeModelConfig = (
     ...(existing ?? {}),
     ...(updates.provider ? { provider: updates.provider } : {}),
     ...(updates.model ? { model: updates.model } : {}),
-    ...(updates.baseURL ? { baseURL: updates.baseURL } : {}),
-    ...(updates.apiKeyEnvVar ? { apiKeyEnvVar: updates.apiKeyEnvVar } : {})
+    ...(updates.baseURL ? { baseURL: updates.baseURL } : {})
   };
 };
 
@@ -141,14 +136,12 @@ const buildDesiredConfig = (
     leaderModel: mergeModelConfig(existing.leaderModel, {
       provider: options.leaderProvider,
       model: options.leaderModel,
-      baseURL: options.leaderBaseUrl,
-      apiKeyEnvVar: options.leaderApiKeyEnvVar
+      baseURL: options.leaderBaseUrl
     }),
     workerModel: mergeModelConfig(existing.workerModel, {
       provider: options.workerProvider,
       model: options.workerModel,
-      baseURL: options.workerBaseUrl,
-      apiKeyEnvVar: options.workerApiKeyEnvVar
+      baseURL: options.workerBaseUrl
     }),
     validation: {
       ...existing.validation,
@@ -355,11 +348,9 @@ export const registerSetupCommand = (program: Command, io: CliIo): void => {
     .option("--leader-provider <provider>", "Leader provider")
     .option("--leader-model <model>", "Leader model")
     .option("--leader-base-url <url>", "Leader base URL")
-    .option("--leader-api-key-env-var <name>", "Leader API key env var")
     .option("--worker-provider <provider>", "Worker provider")
     .option("--worker-model <model>", "Worker model")
     .option("--worker-base-url <url>", "Worker base URL")
-    .option("--worker-api-key-env-var <name>", "Worker API key env var")
     .option("--worker-id <workerId>", "Explicit worker id used for register/interview")
     .option("--register-worker", "Register the configured worker in the ao workspace registry", false)
     .option("--interview-worker", "Run worker onboarding interview and persist the profile when allowed", false)
@@ -557,9 +548,6 @@ export const registerSetupCommand = (program: Command, io: CliIo): void => {
               provider: workerModel.provider,
               model: workerModel.model,
               baseURL: workerModel.baseURL,
-              apiKeyEnvVar:
-                desiredConfig.workerModel?.apiKeyEnvVar ??
-                options.workerApiKeyEnvVar,
               enabled: true,
               tags: ["setup"],
               createdAt: new Date().toISOString(),
@@ -704,8 +692,18 @@ export const registerSetupCommand = (program: Command, io: CliIo): void => {
         summary: readinessSummary,
         steps,
         recommendedEnv: unique([
-          desiredConfig.leaderModel?.apiKeyEnvVar,
-          desiredConfig.workerModel?.apiKeyEnvVar
+          desiredConfig.leaderModel &&
+          !["mock", "client", "local-client"].includes(
+            desiredConfig.leaderModel.provider
+          )
+            ? "LEADER_MODEL_API_KEY"
+            : undefined,
+          desiredConfig.workerModel &&
+          !["mock", "client", "local-client"].includes(
+            desiredConfig.workerModel.provider
+          )
+            ? "WORKER_MODEL_API_KEY"
+            : undefined
         ]).map((name) => `export ${name}=...`),
         minimalSuccessPath,
         recommendedEntrypoints,

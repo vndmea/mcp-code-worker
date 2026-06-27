@@ -151,7 +151,6 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
     .requiredOption("--provider <provider>", "Worker provider")
     .requiredOption("--model <model>", "Worker model")
     .option("--base-url <url>", "Worker base URL")
-    .option("--api-key-env-var <name>", "Environment variable containing the API key")
     .option("--tag <tag>", "Worker tag", (value, previous: string[]) => [
       ...previous,
       value
@@ -161,7 +160,6 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
     .action(
       async (options: {
         allowWrite: boolean;
-        apiKeyEnvVar?: string;
         baseUrl?: string;
         model: string;
         notes?: string;
@@ -194,7 +192,6 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
             provider: options.provider,
             model: options.model,
             baseURL: options.baseUrl,
-            apiKeyEnvVar: options.apiKeyEnvVar,
             enabled: existing?.enabled ?? true,
             tags: options.tag,
             notes: options.notes,

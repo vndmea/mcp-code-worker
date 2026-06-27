@@ -5,7 +5,7 @@ Use this document when qualifying DeepSeek through the OpenAI-compatible worker 
 ## Supported Shape
 
 - Provider: `openai-compatible`
-- API key env var: `DEEPSEEK_API_KEY`
+- API key env var: `WORKER_MODEL_API_KEY`
 - Primary base URL: `https://api.deepseek.com`
 - Compatibility base URL worth testing in some clients: `https://api.deepseek.com/v1`
 - Verified worker models in the 2026-06-26 internal trial: `deepseek-v4-flash`, `deepseek-v4-pro`
@@ -18,7 +18,6 @@ pnpm exec ao worker register \
   --provider openai-compatible \
   --model deepseek-v4-flash \
   --base-url https://api.deepseek.com \
-  --api-key-env-var DEEPSEEK_API_KEY \
   --allow-write
 ```
 
@@ -52,19 +51,19 @@ Expected files:
 PowerShell:
 
 ```powershell
-$env:DEEPSEEK_API_KEY="..."
+$env:WORKER_MODEL_API_KEY="..."
 
 Invoke-RestMethod `
   -Method Get `
   -Uri "https://api.deepseek.com/models" `
-  -Headers @{ Authorization = "Bearer $env:DEEPSEEK_API_KEY" }
+  -Headers @{ Authorization = "Bearer $env:WORKER_MODEL_API_KEY" }
 ```
 
 curl:
 
 ```bash
 curl https://api.deepseek.com/chat/completions \
-  -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
+  -H "Authorization: Bearer $WORKER_MODEL_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "deepseek-v4-flash",
@@ -75,7 +74,7 @@ curl https://api.deepseek.com/chat/completions \
 ## Common Failure Modes
 
 - `Not Found`: test both documented base URLs and confirm the exact model name.
-- auth failures: verify `apiKeyEnvVar` points to an environment variable that is actually populated in the current shell or MCP server environment.
+- auth failures: verify `WORKER_MODEL_API_KEY` is actually populated in the current shell or MCP server environment.
 - provider invocation failures during interview: do not treat the resulting blocked output as a completed qualification. Re-run after fixing provider access.
 
 ## Retry Guidance

@@ -29,19 +29,17 @@ describe("ao config", () => {
     expect(result.config.safety.dryRun).toBe(true);
   });
 
-  it("loads valid config and resolves apiKeyEnvVar through runtime env", async () => {
+  it("loads valid config and resolves fixed model api key env vars", async () => {
     const rootDir = await createWorkspace();
     await writeConfig(rootDir, {
       version: 1,
       leaderModel: {
         provider: "litellm",
-        model: "qwen3-coder",
-        apiKeyEnvVar: "TEST_LEADER_KEY"
+        model: "qwen3-coder"
       },
       workerModel: {
         provider: "litellm",
-        model: "qwen3-coder-mini",
-        apiKeyEnvVar: "TEST_WORKER_KEY"
+        model: "qwen3-coder-mini"
       },
       safety: {
         dryRun: false,
@@ -54,14 +52,13 @@ describe("ao config", () => {
     const context = await resolveExecutionContext({
       rootDir,
       env: {
-        TEST_LEADER_KEY: "leader-secret",
-        TEST_WORKER_KEY: "worker-secret"
+        LEADER_MODEL_API_KEY: "leader-secret",
+        WORKER_MODEL_API_KEY: "worker-secret"
       }
     });
 
     expect(result.exists).toBe(true);
     expect(result.error).toBeUndefined();
-    expect(result.config.leaderModel?.apiKeyEnvVar).toBe("TEST_LEADER_KEY");
     expect(context.leaderModel.provider).toBe("litellm");
     expect(context.leaderModel.apiKey).toBe("leader-secret");
     expect(context.workerModel.apiKey).toBe("worker-secret");
@@ -77,14 +74,14 @@ describe("ao config", () => {
       leaderModel: {
         provider: "litellm",
         model: "qwen3-coder",
-        apiKeyEnvVar: "bad-name"
+        baseURL: "not-a-url"
       }
     });
 
     const result = await loadAoConfig(rootDir);
 
     expect(result.exists).toBe(true);
-    expect(result.error).toContain("apiKeyEnvVar");
+    expect(result.error).toContain("baseURL");
     expect(result.config.safety.dryRun).toBe(true);
   });
 

@@ -446,15 +446,13 @@ export const runDoctor = async (
     {
       name: "leader-api-key",
       provider: context.leaderModel.provider,
-      envVar:
-        config.config.leaderModel?.apiKeyEnvVar ?? "LEADER_MODEL_API_KEY",
+      envVar: "LEADER_MODEL_API_KEY",
       hasKey: Boolean(context.leaderModel.apiKey)
     },
     {
       name: "worker-api-key",
       provider: context.workerModel.provider,
-      envVar:
-        config.config.workerModel?.apiKeyEnvVar ?? "WORKER_MODEL_API_KEY",
+      envVar: "WORKER_MODEL_API_KEY",
       hasKey: Boolean(context.workerModel.apiKey)
     }
   ];

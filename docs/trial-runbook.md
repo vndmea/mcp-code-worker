@@ -86,14 +86,13 @@ Compatibility path worth testing in some SDKs:
 - `https://api.deepseek.com/v1`
 
 ```powershell
-$env:DEEPSEEK_API_KEY="..."
+$env:WORKER_MODEL_API_KEY="..."
 
 ao worker register `
   --worker openai-compatible:deepseek-v4-flash `
   --provider openai-compatible `
   --model deepseek-v4-flash `
   --base-url https://api.deepseek.com `
-  --api-key-env-var DEEPSEEK_API_KEY `
   --allow-write
 
 ao worker interview `
@@ -113,12 +112,12 @@ DeepSeek troubleshooting:
 Invoke-RestMethod `
   -Method Get `
   -Uri "https://api.deepseek.com/models" `
-  -Headers @{ Authorization = "Bearer $env:DEEPSEEK_API_KEY" }
+  -Headers @{ Authorization = "Bearer $env:WORKER_MODEL_API_KEY" }
 ```
 
 ```bash
 curl https://api.deepseek.com/chat/completions \
-  -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
+  -H "Authorization: Bearer $WORKER_MODEL_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "deepseek-v4-flash",
@@ -126,7 +125,7 @@ curl https://api.deepseek.com/chat/completions \
   }'
 ```
 
-If you get `Not Found`, test both base URLs, verify the model name, and confirm that `apiKeyEnvVar` points to an environment variable that is actually populated.
+If you get `Not Found`, test both base URLs, verify the model name, and confirm that `WORKER_MODEL_API_KEY` is populated in the current runtime.
 
 If interview output reports provider invocation failures, do not treat the resulting blocked status as a completed onboarding result. `ao worker interview --save` now skips persistence in that case and returns recovery actions instead.
 

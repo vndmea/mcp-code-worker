@@ -300,7 +300,7 @@ describe("core schemas", () => {
         leaderModel: {
           provider: "litellm",
           model: "qwen3-coder",
-          apiKeyEnvVar: "invalid-name"
+          baseURL: "not-a-url"
         }
       })
     ).toThrow();

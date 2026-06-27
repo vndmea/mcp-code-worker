@@ -14,7 +14,6 @@ const inputSchema = z.object({
   provider: z.string().min(1),
   model: z.string().min(1),
   baseURL: z.string().url().optional(),
-  apiKeyEnvVar: z.string().optional(),
   tags: z.array(z.string()).optional(),
   notes: z.string().optional(),
   allowWrite: z.boolean().optional()
@@ -53,7 +52,6 @@ export const aoRegisterWorkerTool: AoToolDefinition<
         provider: args.provider,
         model: args.model,
         baseURL: args.baseURL,
-        apiKeyEnvVar: args.apiKeyEnvVar,
         enabled: existing?.enabled ?? true,
         tags: args.tags ?? [],
         notes: args.notes,

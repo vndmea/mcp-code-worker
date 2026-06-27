@@ -65,13 +65,7 @@ const mergeModelConfig = (
   const baseURL =
     cliOverride?.baseURL ??
     (hasEnvValue(env, `${envPrefix}_MODEL_BASE_URL`) ? base.baseURL : configModel?.baseURL ?? base.baseURL);
-  const apiKey =
-    cliOverride?.apiKey ??
-    (hasEnvValue(env, `${envPrefix}_MODEL_API_KEY`)
-      ? base.apiKey
-      : configModel?.apiKeyEnvVar
-        ? env[configModel.apiKeyEnvVar]
-        : base.apiKey);
+  const apiKey = cliOverride?.apiKey ?? base.apiKey;
   const temperature = cliOverride?.temperature ?? configModel?.temperature ?? base.temperature;
   const maxTokens = cliOverride?.maxTokens ?? configModel?.maxTokens ?? base.maxTokens;
 

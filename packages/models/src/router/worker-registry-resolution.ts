@@ -24,15 +24,19 @@ export interface ResolveWorkerModelResult {
 }
 
 const modelConfigFromRegistration = (
-  registration: WorkerRegistration
+  registration: WorkerRegistration,
+  context: ExecutionContext
 ): ModelConfig => ({
   provider: registration.provider,
   model: registration.model,
-  baseURL: registration.baseURL,
-  apiKey: registration.apiKeyEnvVar
-    ? process.env[registration.apiKeyEnvVar]
-    : undefined
+  baseURL: registration.baseURL ?? context.workerModel.baseURL,
+  apiKey: context.workerModel.apiKey,
+  temperature: context.workerModel.temperature,
+  maxTokens: context.workerModel.maxTokens
 });
+
+const requiresApiKey = (config: ModelConfig): boolean =>
+  !["client", "local-client", "mock"].includes(config.provider);
 
 export const resolveWorkerModel = async ({
   context,
@@ -55,10 +59,21 @@ export const resolveWorkerModel = async ({
       );
     }
 
+    const modelConfig = modelConfigFromRegistration(registration, context);
+    if (requiresApiKey(modelConfig) && !modelConfig.apiKey) {
+      throw new AgentError(
+        "WORKER_MODEL_API_KEY_MISSING",
+        `Worker ${resolvedWorkerId} requires WORKER_MODEL_API_KEY to be set before it can run.`,
+        {
+          workerId: resolvedWorkerId
+        }
+      );
+    }
+
     return {
       workerId: resolvedWorkerId,
       registration,
-      modelConfig: modelConfigFromRegistration(registration),
+      modelConfig,
       source: "registry",
       warnings: []
     };
@@ -69,6 +84,16 @@ export const resolveWorkerModel = async ({
       "WORKER_NOT_REGISTERED",
       `Worker ${workerId} is not registered.`,
       { workerId }
+    );
+  }
+
+  if (requiresApiKey(context.workerModel) && !context.workerModel.apiKey) {
+    throw new AgentError(
+      "WORKER_MODEL_API_KEY_MISSING",
+      `Worker ${defaultWorkerId} requires WORKER_MODEL_API_KEY to be set before it can run.`,
+      {
+        workerId: defaultWorkerId
+      }
     );
   }
 

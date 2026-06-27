@@ -39,7 +39,7 @@ describe("doctor", () => {
         leaderModel: {
           provider: "litellm",
           model: "qwen3-coder",
-          apiKeyEnvVar: "bad-name"
+          baseURL: "not-a-url"
         }
       }),
       "utf8"

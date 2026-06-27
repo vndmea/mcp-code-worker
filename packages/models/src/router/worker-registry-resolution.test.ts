@@ -44,7 +44,7 @@ const createRegistration = (overrides: Record<string, unknown> = {}) => {
 describe("resolveWorkerModel", () => {
   it("returns registry-derived config for registered workers", async () => {
     const rootDir = await createRootDir();
-    process.env.AO_TEST_WORKER_KEY = "secret-value";
+    process.env.WORKER_MODEL_API_KEY = "secret-value";
     await writeRegistry(rootDir, [
       createRegistration({ apiKeyEnvVar: "AO_TEST_WORKER_KEY" })
     ]);
@@ -60,7 +60,7 @@ describe("resolveWorkerModel", () => {
     expect(result.modelConfig.apiKey).toBe("secret-value");
     expect(result.warnings.join("\n")).not.toContain("secret-value");
 
-    delete process.env.AO_TEST_WORKER_KEY;
+    delete process.env.WORKER_MODEL_API_KEY;
   });
 
   it("fails for disabled and unknown explicit workers", async () => {
@@ -82,10 +82,11 @@ describe("resolveWorkerModel", () => {
 
   it("falls back to the environment default without an explicit worker", async () => {
     const rootDir = await createRootDir();
+    process.env.WORKER_MODEL_API_KEY = "env-secret";
     const context = createExecutionContextFromEnv(undefined, {
       rootDir,
       workerModel: {
-        provider: "mock",
+        provider: "openai-compatible",
         model: "env-worker"
       }
     });
@@ -93,6 +94,24 @@ describe("resolveWorkerModel", () => {
     const result = await resolveWorkerModel({ context });
 
     expect(result.source).toBe("env-default");
-    expect(result.workerId).toBe("mock:env-worker");
+    expect(result.workerId).toBe("openai-compatible:env-worker");
+
+    delete process.env.WORKER_MODEL_API_KEY;
+  });
+
+  it("fails early with a unified worker api key error", async () => {
+    const rootDir = await createRootDir();
+    delete process.env.WORKER_MODEL_API_KEY;
+    const context = createExecutionContextFromEnv(undefined, {
+      rootDir,
+      workerModel: {
+        provider: "openai-compatible",
+        model: "deepseek-v4-pro"
+      }
+    });
+
+    await expect(resolveWorkerModel({ context })).rejects.toMatchObject({
+      code: "WORKER_MODEL_API_KEY_MISSING"
+    });
   });
 });
