@@ -35,7 +35,7 @@ pnpm test
 ## Local Setup
 
 ```bash
-pnpm exec cw setup --allow-write
+pnpm exec cw init
 pnpm exec cw doctor
 ```
 

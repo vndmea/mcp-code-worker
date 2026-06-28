@@ -86,7 +86,7 @@ cw mcp list-tools
 pnpm install
 pnpm build
 pnpm exec cw doctor
-pnpm exec cw setup --allow-write
+pnpm exec cw init
 pnpm exec cw doctor
 pnpm typecheck
 pnpm test
@@ -95,7 +95,7 @@ pnpm test
 ## 首次使用
 
 ```bash
-pnpm exec cw setup --allow-write
+pnpm exec cw init
 pnpm exec cw doctor
 pnpm exec cw mcp config
 ```
@@ -103,9 +103,11 @@ pnpm exec cw mcp config
 当前 internal-trial 安装路径下，除非特别说明，下面所有 `cw ...` 示例都等价于在仓库根目录执行 `pnpm exec cw ...`。
 当前官方内部交付形态见 [docs/distribution.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/distribution.md)。
 
+默认建议使用 `cw init` 完成引导式初始化；只有在你明确想走更底层、脚本化的配置流程时，再使用 `cw setup --allow-write`。
+
 当前版本不会读取仓库内旧 `.cw/` 目录；旧路径不受支持，也不会被兼容处理。
 
-`cw setup` 默认会在 `~/.cw/workspaces/<workspace-id>/` 下创建用户级 CW 工作区存储：
+`cw init` 和 `cw setup` 默认都会在 `~/.cw/workspaces/<workspace-id>/` 下创建用户级 CW 工作区存储：
 
 - `config.json`
 - `workers.json`
@@ -165,7 +167,7 @@ cw worker profile litellm:qwen3-coder
 
 评估结果会生成 `WorkerCapabilityProfile`，并直接影响路由：
 
-- `active`：可以接收其通过评估的任务类型
+- `qualified`：可以接收其通过评估的任务类型
 - `limited`：只允许低风险任务，并且需要宿主复核
 - `blocked`：禁止进入生产工作流，并输出告警
 
@@ -243,7 +245,8 @@ cw audit list
 cw review repo --scope packages/graph
 cw review diff --base main --head HEAD
 cw review files --file packages/graph/src/index.ts
-cw validate --typecheck --lint --test
+cw validate --all
+cw validate --all --stop-on-failure --execute
 cw fix error --error-log-file ./tmp/tsc-error.log --scope packages/core
 ```
 
@@ -413,7 +416,7 @@ cw mcp list-tools
 - 文件写入需要显式的策略授权。
 - Shell 执行通过 allowlist 控制。
 - `git diff` 这类只读 git 检查命令即使在 dry-run 下也允许执行，因此 review workflow 不需要开启写权限。
-- `cw setup`、`cw cleanup`、worker registry 写入和 task session 持久化都只作用于 CW 本地存储。
+- `cw init`、`cw setup`、`cw cleanup`、worker registry 写入和 task session 持久化都只作用于 CW 本地存储。
 - 仓库读取必须留在 repo root 内，并会阻止 `.env`、私钥等 secret-like 文件进入上下文。
 - 专用 review / fix 流程只返回结构化 JSON，不会自动应用 patch。
 - patch proposal / inspection / apply 被显式拆开，保证写入动作始终可审查。

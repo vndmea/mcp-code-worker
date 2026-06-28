@@ -14,7 +14,7 @@ cw mcp list-tools
 
 ```bash
 npm i -g mcp-code-worker
-cw setup --allow-write
+cw init
 cw doctor
 cw mcp config
 cw mcp serve
@@ -23,6 +23,7 @@ cw mcp serve
 Notes:
 
 - The published npm package installs the `cw` command.
+- Use `cw init` as the default guided onboarding path. Reach for `cw setup --allow-write` only when you need the lower-level scripted setup flow.
 - `cw mcp serve` resolves the workspace from the current directory by default.
 - When launching outside the target repository checkout, set `CW_ROOT_DIR` for the MCP client process.
 - Repository-local legacy `.cw/` directories are unsupported and ignored by current builds.
@@ -43,7 +44,7 @@ From the repository root:
 ```bash
 pnpm install
 pnpm build
-pnpm exec cw setup --allow-write
+pnpm exec cw init
 pnpm exec cw doctor
 pnpm exec cw mcp config
 pnpm exec cw mcp serve

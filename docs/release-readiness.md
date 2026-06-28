@@ -135,7 +135,7 @@ Operational checks ensure the packaged build still respects the documented safet
 
 ### Storage checks
 
-- Run `cw setup --allow-write` and confirm user-scoped CW storage is created under `~/.cw/workspaces/<workspace-id>/`.
+- Run `cw init` and confirm user-scoped CW storage is created under `~/.cw/workspaces/<workspace-id>/`.
 - Confirm CW-managed files live in user-scoped storage rather than the repository checkout.
 - Confirm `config.json`, `workers.json`, `worker-profiles.json`, `runs/`, and `audit/` appear where the documentation says they should.
 - Confirm no API key was written into persisted config state during the validation run.

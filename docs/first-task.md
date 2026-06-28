@@ -12,7 +12,7 @@ You should already have either:
 Before starting the task:
 
 ```bash
-cw setup --allow-write
+cw init
 cw doctor
 cw mcp config
 ```

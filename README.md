@@ -87,7 +87,7 @@ node --version
 pnpm install
 pnpm build
 pnpm exec cw doctor
-pnpm exec cw setup --allow-write
+pnpm exec cw init
 pnpm exec cw doctor
 pnpm typecheck
 pnpm test
@@ -96,10 +96,12 @@ pnpm test
 ## First run
 
 ```bash
-pnpm exec cw setup --allow-write
+pnpm exec cw init
 pnpm exec cw doctor
 pnpm exec cw mcp config
 ```
+
+Use `cw init` as the default onboarding path. Reach for `cw setup --allow-write` when you want the lower-level, explicitly scripted setup flow instead of the guided interview.
 
 Internal-trial installation and MCP launch guidance lives in [docs/install.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/install.md).
 The current official internal distribution shape is documented in [docs/distribution.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/distribution.md).
@@ -108,7 +110,7 @@ Unless noted otherwise, read every `cw ...` example below as `pnpm exec cw ...` 
 
 Legacy repository-local `.cw/` directories are unsupported and ignored by current builds.
 
-`cw setup` creates user-scoped CW workspace storage under `~/.cw/workspaces/<workspace-id>/` by default:
+`cw init` and `cw setup` write user-scoped CW workspace storage under `~/.cw/workspaces/<workspace-id>/` by default:
 
 - `config.json`
 - `workers.json`
@@ -168,7 +170,7 @@ The interview workflow evaluates:
 
 Interview results produce a `WorkerCapabilityProfile` that affects routing:
 
-- `active`: worker can receive the task types it qualified for
+- `qualified`: worker can receive the task types it qualified for
 - `limited`: worker is restricted to low-risk tasks and requires host review
 - `blocked`: worker is excluded from production workflows and emits warnings
 
@@ -246,7 +248,8 @@ Use the dedicated repository workflows for day-to-day engineering checks:
 cw review repo --scope packages/graph
 cw review diff --base main --head HEAD
 cw review files --file packages/graph/src/index.ts
-cw validate --typecheck --lint --test
+cw validate --all
+cw validate --all --stop-on-failure --execute
 cw fix error --error-log-file ./tmp/tsc-error.log --scope packages/core
 ```
 

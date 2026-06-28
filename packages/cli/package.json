@@ -13,8 +13,6 @@
   },
   "files": [
     "dist",
-    "README.md",
-    "README.zh-CN.md",
     "package.json"
   ],
   "engines": {
