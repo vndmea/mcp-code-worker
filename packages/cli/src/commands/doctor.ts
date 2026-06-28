@@ -50,7 +50,8 @@ const HOST_MCP_RUNTIME_ENV_KEYS = new Set([
   "CW_WORKER_CLIENT_COMMAND"
 ]);
 const SERVER_KEY = "mcp-code-worker";
-const MCP_CONNECTION_TIMEOUT_MS = 8_000;
+const MCP_CONNECTION_TIMEOUT_MS = 20_000;
+const MCP_CONNECTION_ATTEMPTS = 2;
 
 interface HostMcpConfigInspection {
   args: string[];
@@ -429,6 +430,11 @@ const toProcessEnvRecord = (
   };
 };
 
+const sleep = async (timeoutMs: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, timeoutMs);
+  });
+
 const checkMcpConnection = async (
   context: ExecutionContext,
   inspection: HostMcpConfigInspection
@@ -441,51 +447,70 @@ const checkMcpConnection = async (
     };
   }
 
-  const transport = new StdioClientTransport({
-    command: inspection.command,
-    args: inspection.args,
-    cwd: context.rootDir,
-    env: toProcessEnvRecord(process.env, inspection.env),
-    stderr: "pipe"
-  });
-  const stderrStream = transport.stderr;
-  let stderr = "";
+  let lastError = "Unknown MCP connection failure.";
+  let lastStderr = "";
 
-  stderrStream?.on("data", (chunk: Buffer | string) => {
-    stderr += chunk.toString();
-  });
+  for (let attempt = 1; attempt <= MCP_CONNECTION_ATTEMPTS; attempt += 1) {
+    const transport = new StdioClientTransport({
+      command: inspection.command,
+      args: inspection.args,
+      cwd: context.rootDir,
+      env: toProcessEnvRecord(process.env, inspection.env),
+      stderr: "pipe"
+    });
+    const stderrStream = transport.stderr;
+    let stderr = "";
 
-  const client = new Client(
-    {
-      name: "cw-doctor",
-      version: "0.1.0"
-    },
-    {
-      capabilities: {}
-    }
-  );
+    stderrStream?.on("data", (chunk: Buffer | string) => {
+      stderr += chunk.toString();
+    });
 
-  try {
-    await withTimeout(client.connect(transport), MCP_CONNECTION_TIMEOUT_MS, "MCP connect");
-    const tools = await withTimeout(
-      client.listTools(),
-      MCP_CONNECTION_TIMEOUT_MS,
-      "MCP listTools"
+    const client = new Client(
+      {
+        name: "cw-doctor",
+        version: "0.1.0"
+      },
+      {
+        capabilities: {}
+      }
     );
 
-    return {
-      stderr: stderr.trim(),
-      toolNames: tools.tools.map((tool) => tool.name).sort()
-    };
-  } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : String(error),
-      stderr: stderr.trim(),
-      toolNames: []
-    };
-  } finally {
-    await transport.close().catch(() => undefined);
+    try {
+      await withTimeout(
+        client.connect(transport),
+        MCP_CONNECTION_TIMEOUT_MS,
+        `MCP connect (attempt ${attempt})`
+      );
+      const tools = await withTimeout(
+        client.listTools(),
+        MCP_CONNECTION_TIMEOUT_MS,
+        `MCP listTools (attempt ${attempt})`
+      );
+
+      return {
+        stderr: stderr.trim(),
+        toolNames: tools.tools.map((tool) => tool.name).sort()
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      lastError =
+        attempt === 1 && MCP_CONNECTION_ATTEMPTS > 1
+          ? `${message} Retrying once.`
+          : message;
+      lastStderr = stderr.trim();
+      if (attempt < MCP_CONNECTION_ATTEMPTS) {
+        await sleep(250);
+      }
+    } finally {
+      await transport.close().catch(() => undefined);
+    }
   }
+
+  return {
+    error: lastError,
+    stderr: lastStderr,
+    toolNames: []
+  };
 };
 
 const createHostMcpDoctorChecks = async (
