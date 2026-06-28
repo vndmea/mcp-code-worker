@@ -4,6 +4,12 @@ Use this guide when connecting `mcp-code-worker` to Claude Desktop through the c
 
 ## Recommended Server Snippet
 
+Generate the snippet with:
+
+```bash
+cw mcp config --host claude-desktop
+```
+
 ```json
 {
   "mcpServers": {

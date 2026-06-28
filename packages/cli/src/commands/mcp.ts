@@ -9,17 +9,56 @@ import { normalizeFileSystemPath } from "@mcp-code-worker/core";
 import type { CliIo } from "../index.js";
 import { writeOutput } from "../output.js";
 
+const MCP_HOSTS = [
+  "generic",
+  "codex",
+  "cursor",
+  "vscode",
+  "claude-desktop",
+  "opencode"
+] as const;
+
+type McpHost = (typeof MCP_HOSTS)[number];
+
+const isMcpHost = (value: string): value is McpHost =>
+  MCP_HOSTS.includes(value as McpHost);
+
+const getHostPresetRootDir = (host: McpHost): string | undefined => {
+  switch (host) {
+    case "codex":
+    case "cursor":
+    case "vscode":
+      return "${workspaceFolder}";
+    default:
+      return undefined;
+  }
+};
+
 export const buildMcpConfigSnippet = (options: {
   args?: string[];
   command?: string;
   cwHomeDir?: string;
+  host?: string;
   rootDir?: string;
 } = {}) => {
   const args = [...(options.args ?? ["mcp", "serve"])];
   const env: Record<string, string> = {};
+  const requestedHost = options.host ?? "generic";
+
+  if (!isMcpHost(requestedHost)) {
+    throw new Error(
+      `Unsupported MCP host '${requestedHost}'. Expected one of: ${MCP_HOSTS.join(", ")}.`
+    );
+  }
 
   if (options.rootDir) {
     env.CW_ROOT_DIR = normalizeFileSystemPath(options.rootDir);
+  } else {
+    const hostRootDir = getHostPresetRootDir(requestedHost);
+
+    if (hostRootDir) {
+      env.CW_ROOT_DIR = hostRootDir;
+    }
   }
 
   if (options.cwHomeDir) {
@@ -72,6 +111,11 @@ export const registerMcpCommand = (program: Command, io: CliIo): void => {
     .option("--command <command>", "Command to launch the server", "cw")
     .option("--args <args...>", "Arguments passed to the command")
     .option(
+      "--host <name>",
+      `Target host preset: ${MCP_HOSTS.join(", ")}`,
+      "generic"
+    )
+    .option(
       "--root-dir <path>",
       "Embed CW_ROOT_DIR in the snippet when the host does not launch cw from the target workspace root."
     )
@@ -82,14 +126,22 @@ export const registerMcpCommand = (program: Command, io: CliIo): void => {
     .action((options: {
       args?: string[];
       command: string;
+      host: string;
       homeDir?: string;
       rootDir?: string;
     }) => {
+      if (!isMcpHost(options.host)) {
+        throw new Error(
+          `Unsupported MCP host '${options.host}'. Expected one of: ${MCP_HOSTS.join(", ")}.`
+        );
+      }
+
       io.write(
         JSON.stringify(
           buildMcpConfigSnippet({
             args: options.args,
             command: options.command,
+            host: options.host,
             ...(options.homeDir ? { cwHomeDir: options.homeDir } : {}),
             ...(options.rootDir ? { rootDir: options.rootDir } : {})
           }),

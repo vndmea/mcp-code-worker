@@ -4,6 +4,12 @@ Use this guide when connecting `mcp-code-worker` to a VS Code MCP-capable extens
 
 ## Recommended Server Snippet
 
+Generate the snippet with:
+
+```bash
+cw mcp config --host vscode
+```
+
 ```json
 {
   "mcpServers": {

@@ -4,6 +4,12 @@ Use this guide when `mcp-code-worker` is launched as an MCP server from OpenCode
 
 ## Recommended Server Snippet
 
+Generate the snippet with:
+
+```bash
+cw mcp config --host opencode
+```
+
 ```json
 {
   "mcpServers": {

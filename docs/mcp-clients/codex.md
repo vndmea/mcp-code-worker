@@ -4,6 +4,12 @@ Use this guide when `mcp-code-worker` is launched as an MCP server from Codex.
 
 ## Recommended Server Snippet
 
+Generate the snippet with:
+
+```bash
+cw mcp config --host codex
+```
+
 ```json
 {
   "mcpServers": {

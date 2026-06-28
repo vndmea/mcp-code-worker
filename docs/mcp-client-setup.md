@@ -26,6 +26,27 @@ For most clients, the recommended command shape is:
 
 Use `cw mcp config` as the copy source for this snippet. The host snippet should only define how to launch `cw`; worker/provider/base URL/local client defaults should live in `config.json`.
 
+When a host has a first-party preset, prefer the host-specific form:
+
+```bash
+cw mcp config --host codex
+cw mcp config --host cursor
+cw mcp config --host vscode
+cw mcp config --host claude-desktop
+cw mcp config --host opencode
+```
+
+Current built-in host presets:
+
+| Host | Built-in behavior |
+| ---- | ----------------- |
+| `generic` | Minimal stdio snippet with no host-specific env defaults |
+| `codex` | Adds `CW_ROOT_DIR=${workspaceFolder}` by default |
+| `cursor` | Adds `CW_ROOT_DIR=${workspaceFolder}` by default |
+| `vscode` | Adds `CW_ROOT_DIR=${workspaceFolder}` by default |
+| `claude-desktop` | Minimal stdio snippet; add `CW_ROOT_DIR` only when Claude Desktop launches outside the target repo |
+| `opencode` | Minimal stdio snippet; add `CW_ROOT_DIR` only when OpenCode launches outside the target repo |
+
 If the client launches from a shared tools checkout instead of the active repository, set `CW_ROOT_DIR` in the server environment.
 
 ## Validation Before Client Setup
@@ -94,4 +115,4 @@ Use the guide that matches your host or editor:
 - [Cursor](https://github.com/vndmea/mcp-code-worker/blob/master/docs/mcp-clients/cursor.md)
 - [VS Code](https://github.com/vndmea/mcp-code-worker/blob/master/docs/mcp-clients/vscode.md)
 
-Each guide uses the same `cw mcp serve` runtime and explains the minimum configuration and verification loop.
+Each guide uses the same `cw mcp serve` runtime and explains the minimum configuration and verification loop. Prefer `cw mcp config --host <name>` as the snippet source so the docs and CLI stay aligned.

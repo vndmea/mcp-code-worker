@@ -352,6 +352,34 @@ describe("cli parsing", () => {
     expect(output.join("\n")).toContain("\"serve\"");
   });
 
+  it("prints a host-aware mcp config snippet for codex", async () => {
+    const { io, output } = createIo();
+    const cli = buildCli(io);
+
+    await cli.parseAsync(["node", "cw", "mcp", "config", "--host", "codex"]);
+
+    expect(output.join("\n")).toContain("\"CW_ROOT_DIR\": \"${workspaceFolder}\"");
+  });
+
+  it("lets an explicit root dir override the host preset snippet", async () => {
+    const { io, output } = createIo();
+    const cli = buildCli(io);
+
+    await cli.parseAsync([
+      "node",
+      "cw",
+      "mcp",
+      "config",
+      "--host",
+      "vscode",
+      "--root-dir",
+      "C:\\workspace\\repo"
+    ]);
+
+    expect(output.join("\n")).toContain("\"CW_ROOT_DIR\": \"C:\\\\workspace\\\\repo\"");
+    expect(output.join("\n")).not.toContain("${workspaceFolder}");
+  });
+
   it("prints an mcp config snippet with explicit launch path env", async () => {
     const { io, output } = createIo();
     const cli = buildCli(io);

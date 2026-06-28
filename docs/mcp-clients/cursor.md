@@ -4,6 +4,12 @@ Use this guide when configuring `mcp-code-worker` inside Cursor.
 
 ## Recommended Server Snippet
 
+Generate the snippet with:
+
+```bash
+cw mcp config --host cursor
+```
+
 ```json
 {
   "mcpServers": {
