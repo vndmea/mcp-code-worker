@@ -79,6 +79,7 @@ The following documents must exist and be reviewed on the release branch:
 
 - `docs/release-readiness.md`
 - `docs/install.md`
+- `docs/supported-matrix.md`
 - `docs/upgrade-rollback.md`
 - `docs/mcp-client-setup.md`
 - `docs/provider-config.md`

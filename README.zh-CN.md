@@ -70,6 +70,8 @@ docs/
 
 当前 CI 只验证 Node 22。其他 Node.js `>=22` 版本暂时属于 best-effort，只有进入 CI matrix 后才视为正式验证。
 
+明确的 OS、Node.js 和 MCP host 支持边界见 [docs/supported-matrix.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/supported-matrix.md)。
+
 ## 安装
 
 全局 npm 安装：

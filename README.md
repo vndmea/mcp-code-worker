@@ -70,6 +70,8 @@ docs/
 
 This repository targets actively maintained Node.js LTS releases only. CI currently validates Node 22. Other Node.js `>=22` versions are best-effort until they are added to the CI matrix.
 
+See [docs/supported-matrix.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/supported-matrix.md) for the explicit OS, Node.js, and MCP host support boundary.
+
 ## Install
 
 Global npm install:

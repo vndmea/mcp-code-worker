@@ -2,6 +2,8 @@
 
 This document explains how to connect `mcp-code-worker` to MCP-capable hosts and editor clients.
 
+See [docs/supported-matrix.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/supported-matrix.md) for which MCP host categories are currently supported versus documented best-effort.
+
 `cw` is the MCP server entrypoint. The same runtime can be launched from:
 
 - a public npm install (`npm i -g mcp-code-worker`)

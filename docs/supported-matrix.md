@@ -1,0 +1,74 @@
+# Supported Matrix
+
+This document defines the explicit support boundary for `mcp-code-worker`.
+
+If a platform, runtime, or MCP host is not listed here as supported, do not imply GA-level support for it in release notes, docs, or user guidance.
+
+## Support Levels
+
+- `supported`: part of the intended public support surface for the current release
+- `documented best-effort`: documented guidance exists, but the target is not yet part of the release-grade validation matrix
+- `unsupported`: not part of the promised public support surface
+
+## Installation Path
+
+| Surface | Level | Notes |
+| ------- | ----- | ----- |
+| Global npm install: `npm i -g mcp-code-worker` | supported | Primary end-user path |
+| Repository checkout: `pnpm exec cw ...` | supported for development | Development and contributor path, not the primary end-user onboarding path |
+
+## Operating Systems
+
+| OS | Level | Validation basis | Notes |
+| --- | ----- | ---------------- | ----- |
+| Ubuntu Linux x64 | supported | CI validates quality gates and smoke flows | Current release automation runs on `ubuntu-latest` |
+| Windows 11 x64 with PowerShell | documented best-effort | Maintainer-validated local development and smoke coverage | Not yet part of the automated release matrix |
+| macOS 14+ | documented best-effort | Path normalization and documented install flow only | Add release-grade validation before promoting to supported |
+
+## Node.js
+
+| Node.js version | Level | Notes |
+| --------------- | ----- | ----- |
+| 22.x LTS | supported | Current CI-validated runtime |
+| Other `>=22` versions | documented best-effort | Do not market as fully supported until they are added to CI and release evidence |
+| `<22` | unsupported | Outside the declared engine boundary |
+
+## Package Manager
+
+| Tool | Level | Notes |
+| ---- | ----- | ----- |
+| npm for global install | supported | Public install path |
+| pnpm `>=10` for repository development | supported | Required for workspace development, build, and test commands |
+
+## MCP Hosts
+
+The MCP runtime contract is stdio-based. A host must be able to:
+
+- launch `cw mcp serve`
+- pass environment variables such as `CW_ROOT_DIR` and `CW_HOME_DIR` when needed
+- communicate with a stdio MCP server correctly
+
+| Host / surface | Level | Notes |
+| -------------- | ----- | ----- |
+| Generic stdio MCP host that can launch `cw` and pass env | supported | This is the core MCP contract |
+| Codex | supported | First-class host-driven use case and documented setup path |
+| VS Code MCP-capable integrations | documented best-effort | Docs exist, but no release-grade host-specific automation yet |
+| Cursor | documented best-effort | Docs exist, but no release-grade host-specific automation yet |
+| Claude Desktop | documented best-effort | Docs exist, but no release-grade host-specific automation yet |
+| OpenCode | documented best-effort | Docs exist, but no release-grade host-specific automation yet |
+
+## Worker Provider Configuration
+
+| Surface | Level | Notes |
+| ------- | ----- | ----- |
+| `config.json` for persisted non-secret runtime defaults | supported | Primary config surface for worker, validation, safety, and local client defaults |
+| Environment variables for secrets and launch bootstrap | supported | Use for `WORKER_MODEL_API_KEY`, `CW_ROOT_DIR`, `CW_HOME_DIR`, and similar values |
+| Host MCP config as the place for worker/provider defaults | unsupported | Host snippets should stay launch-focused, not become the main runtime config surface |
+
+## Release Rule
+
+A release is not ready to claim support beyond this matrix unless:
+
+1. the new target is validated on the release commit
+2. the corresponding docs are updated
+3. the release evidence explicitly records that validation

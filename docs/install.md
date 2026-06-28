@@ -10,6 +10,8 @@ cw mcp list-tools
 
 `cw` stores user-scoped local state under `~/.cw/workspaces/<workspace-id>/` by default. Use `CW_HOME_DIR` if you need a non-default CW home root.
 
+See [docs/supported-matrix.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/supported-matrix.md) before claiming support for a specific OS, Node.js version, or MCP host.
+
 ## Recommended npm flow
 
 ```bash
