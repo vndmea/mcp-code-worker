@@ -159,6 +159,8 @@ Use `mock` when you need deterministic local behavior without a real provider.
 
 - Good for tests and local workflow validation.
 - No API key is required.
+- Contract:
+  - [docs/provider-contracts/mock.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/mock.md)
 
 ### `openai-compatible`
 
@@ -173,7 +175,12 @@ WORKER_MODEL_BASE_URL=<base-url>
 WORKER_MODEL_API_KEY=<secret>
 ```
 
-For DeepSeek-specific guidance, see [docs/provider-contracts/deepseek.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/deepseek.md).
+Contracts:
+
+- Generic:
+  - [docs/provider-contracts/openai-compatible-generic.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/openai-compatible-generic.md)
+- DeepSeek-specific:
+  - [docs/provider-contracts/deepseek.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/deepseek.md)
 
 ### `litellm`
 
@@ -188,6 +195,10 @@ LITELLM_BASE_URL=<gateway-base-url>
 ```
 
 If the worker should target a non-default endpoint, `WORKER_MODEL_BASE_URL` can still be used as the effective worker endpoint.
+
+Contract:
+
+- [docs/provider-contracts/litellm.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/litellm.md)
 
 ### `client` / `local-client`
 
@@ -210,12 +221,17 @@ Example:
 }
 ```
 
+Contract:
+
+- [docs/provider-contracts/local-client.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/local-client.md)
+
 ## Minimal Validation Flow
 
 After changing provider configuration, run:
 
 ```bash
 cw doctor
+cw doctor --probe
 cw worker list
 ```
 
@@ -234,40 +250,22 @@ cw worker benchmark --suite coding-v1 --worker <workerId> --save
 
 Only use `--update-profile-capabilities` after reviewing the benchmark result explicitly.
 
-## DeepSeek / OpenAI-compatible Health Checks
-
-PowerShell:
-
-```powershell
-$env:WORKER_MODEL_API_KEY="..."
-
-Invoke-RestMethod `
-  -Method Get `
-  -Uri "https://api.deepseek.com/models" `
-  -Headers @{ Authorization = "Bearer $env:WORKER_MODEL_API_KEY" }
-```
-
-curl:
-
-```bash
-curl https://api.deepseek.com/chat/completions \
-  -H "Authorization: Bearer $WORKER_MODEL_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "deepseek-v4-flash",
-    "messages": [{"role": "user", "content": "Return JSON: {\"ok\":true}"}]
-  }'
-```
-
-If `Not Found` occurs, test both documented base URLs, confirm the exact model name, and verify that `WORKER_MODEL_API_KEY` is available in the same runtime that launches `cw`.
-
 ## Troubleshooting Signals
 
 Use these signals to narrow provider issues quickly:
 
 - `cw doctor` reports missing or inconsistent worker model settings.
+- `cw doctor --probe` shows whether the resolved worker can answer with the current runtime wiring.
 - `cw worker interview --save` returns provider invocation failures.
 - `cw mcp serve` works but worker-routed tasks fail because the MCP server environment does not contain the same provider variables as your shell.
 - A local client provider fails because `workerClientCommand` or `CW_WORKER_CLIENT_COMMAND` points to the wrong executable, or an override is unnecessary.
 
 If provider invocation fails during interview, do not treat the resulting blocked output as a completed onboarding result. Fix connectivity or auth first, then rerun the interview.
+
+For provider-specific health checks and failure signatures, use the matching contract document:
+
+- [Mock](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/mock.md)
+- [OpenAI-compatible generic](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/openai-compatible-generic.md)
+- [DeepSeek](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/deepseek.md)
+- [LiteLLM](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/litellm.md)
+- [Local client](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/local-client.md)
