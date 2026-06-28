@@ -718,7 +718,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
             warnings: interviewResult.warnings
           }
         });
-      } else if (interviewSave.mode === "dry-run") {
+      } else if (!normalizedOptions.allowWrite) {
         steps.push({
           id: "interview-worker",
           status: "dry-run",
@@ -739,7 +739,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
         steps.push({
           id: "interview-worker",
           status: "completed",
-          path: relativePath(context.rootDir, interviewSave.path ?? profilesPath),
+          path: relativePath(context.rootDir, interviewSave?.path ?? profilesPath),
           summary: `Interviewed and persisted worker profile ${workerId}.`,
           command: "cw worker profile",
           details: {

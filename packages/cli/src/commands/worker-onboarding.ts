@@ -86,12 +86,9 @@ export const saveInterviewProfile = async (input: {
     reason: string;
     recommendedActions: string[];
   };
-}): Promise<SavedWorkerProfileResult> => {
+}): Promise<SavedWorkerProfileResult | null> => {
   if (!input.save) {
-    return {
-      mode: "dry-run",
-      path: undefined
-    };
+    return null;
   }
 
   if (!input.persistenceAdvice.canPersist) {

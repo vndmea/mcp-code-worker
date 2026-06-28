@@ -102,7 +102,7 @@ const summarizePatch = (
   }
 
   if (patchInspection && !patchInspection.ok) {
-    return `Patch ${patchProposal.id} was blocked: ${patchInspection.blockedReasons.join("; ")}`;
+    return `Patch ${patchProposal.id} was denied: ${patchInspection.blockedReasons.join("; ")}`;
   }
 
   return `Patch ${patchProposal.id} was proposed for manual review.`;
@@ -131,7 +131,7 @@ const renderNextAction = (
   patchApplyResult: PatchApplyResult | undefined
 ): string => {
   if (patchInspection && !patchInspection.ok) {
-    return "Inspect blocked patch paths and revise the proposal before retrying.";
+    return "Inspect denied patch paths and revise the proposal before retrying.";
   }
 
   if (patchApplyResult?.recovery) {

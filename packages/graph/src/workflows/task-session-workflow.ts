@@ -241,6 +241,21 @@ const syncSessionState = async (
   await updateTaskSession(context, session, allowWriteSession);
 };
 
+const settleTaskSessionState = async (input: {
+  allowWriteSession: boolean;
+  context: ExecutionContext;
+  failureStatus?: TaskSessionStatus;
+  session: TaskSession;
+  successStatus: TaskSessionStatus;
+  succeeded: boolean;
+}): Promise<void> =>
+  syncSessionState(
+    input.context,
+    input.session,
+    input.succeeded ? input.successStatus : input.failureStatus ?? "needs-review",
+    input.allowWriteSession
+  );
+
 const persistArtifact = async (
   context: ExecutionContext,
   session: TaskSession,
@@ -514,7 +529,7 @@ const buildNextRecommendedActions = (input: {
       {
         ...reportAction,
         reason:
-          "Patch inspection blocked the proposal. Review blocked paths and warnings before regenerating or editing the patch."
+          "Patch inspection denied the proposal. Review denied paths and warnings before regenerating or editing the patch."
       },
       ...persistenceAction
     ];
@@ -562,7 +577,7 @@ const buildNextRecommendedActions = (input: {
       {
         ...reportAction,
         reason:
-          "Patch application was blocked by a safety gate. Review the report and resolve the blocking condition before retrying."
+          "Patch application was denied by a safety gate. Review the report and resolve the blocking condition before retrying."
       },
       ...persistenceAction
     ];
@@ -746,12 +761,13 @@ const executeReviewStep = async (input: {
       errors: reviewResult.errors
     }
   );
-  await syncSessionState(
-    input.context,
-    input.session,
-    reviewResult.accepted ? "running" : "needs-review",
-    input.allowWriteSession
-  );
+  await settleTaskSessionState({
+    allowWriteSession: input.allowWriteSession,
+    context: input.context,
+    session: input.session,
+    successStatus: "running",
+    succeeded: reviewResult.accepted
+  });
   const validationArtifactPath = await persistArtifact(
     input.context,
     input.session,
@@ -772,18 +788,17 @@ const executeReviewStep = async (input: {
       errors: reviewResult.errors
     }
   );
-  await syncSessionState(
-    input.context,
-    input.session,
-    reviewResult.accepted && reviewResult.validationReport.ok
-      ? "running"
-      : "needs-review",
-    input.allowWriteSession
-  );
+  await settleTaskSessionState({
+    allowWriteSession: input.allowWriteSession,
+    context: input.context,
+    session: input.session,
+    successStatus: "running",
+    succeeded: reviewResult.accepted && reviewResult.validationReport.ok
+  });
   return reviewResult;
 };
 
-const blockRemainingExecutionSteps = async (input: {
+const denyRemainingExecutionSteps = async (input: {
   allowWriteSession: boolean;
   context: ExecutionContext;
   reason: string;
@@ -852,12 +867,13 @@ const executeFixStep = async (input: {
     warnings: fixResult.warnings,
     errors: fixResult.errors
   });
-  await syncSessionState(
-    input.context,
-    input.session,
-    fixResult.accepted ? "running" : "needs-review",
-    input.allowWriteSession
-  );
+  await settleTaskSessionState({
+    allowWriteSession: input.allowWriteSession,
+    context: input.context,
+    session: input.session,
+    successStatus: "running",
+    succeeded: fixResult.accepted
+  });
   return fixResult;
 };
 
@@ -924,18 +940,13 @@ const executePatchProposalStep = async (input: {
     }
   );
   input.session.artifacts[ARTIFACT_NAMES.patchInspection] = inspectionPath;
-  await syncSessionState(
-    input.context,
-    input.session,
-    "running",
-    input.allowWriteSession
-  );
-  await syncSessionState(
-    input.context,
-    input.session,
-    patchResult.inspection.ok ? "running" : "needs-review",
-    input.allowWriteSession
-  );
+  await settleTaskSessionState({
+    allowWriteSession: input.allowWriteSession,
+    context: input.context,
+    session: input.session,
+    successStatus: "running",
+    succeeded: patchResult.inspection.ok
+  });
   return patchResult;
 };
 
@@ -979,12 +990,13 @@ const executePatchApplyStep = async (input: {
       warnings: applyResult.warnings
     }
   );
-  await syncSessionState(
-    input.context,
-    input.session,
-    applyResult.applied ? "completed" : "needs-review",
-    input.allowWriteSession
-  );
+  await settleTaskSessionState({
+    allowWriteSession: input.allowWriteSession,
+    context: input.context,
+    session: input.session,
+    successStatus: "completed",
+    succeeded: applyResult.applied
+  });
   return applyResult;
 };
 
@@ -1143,7 +1155,7 @@ export const runTaskSessionWorkflow = async (
       allowWriteSession
     });
   } else if (reviewBlockReason) {
-    await blockRemainingExecutionSteps({
+    await denyRemainingExecutionSteps({
       allowWriteSession,
       context: resolved.context,
       reason: reviewBlockReason,
@@ -1180,7 +1192,7 @@ export const runTaskSessionWorkflow = async (
       allowWriteSession
     });
   } else if (fixBlockReason) {
-    await blockRemainingExecutionSteps({
+    await denyRemainingExecutionSteps({
       allowWriteSession,
       context: resolved.context,
       reason: fixBlockReason,
@@ -1431,7 +1443,7 @@ export const resumeTaskSessionWorkflow = async (
     repositoryContext = fixResult.repositoryContext;
     validationReport = fixResult.validationReport;
   } else if (reviewBlockReason) {
-    await blockRemainingExecutionSteps({
+    await denyRemainingExecutionSteps({
       allowWriteSession: input.allowWriteSession ?? false,
       context: resolved.context,
       reason: reviewBlockReason,
@@ -1468,7 +1480,7 @@ export const resumeTaskSessionWorkflow = async (
     patchProposal = patchResult.proposal;
     patchInspection = patchResult.inspection;
   } else if (fixBlockReason) {
-    await blockRemainingExecutionSteps({
+    await denyRemainingExecutionSteps({
       allowWriteSession: input.allowWriteSession ?? false,
       context: resolved.context,
       reason: fixBlockReason,
