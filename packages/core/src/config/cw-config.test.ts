@@ -29,14 +29,15 @@ describe("cw config", () => {
     expect(result.config.safety.dryRun).toBe(true);
   });
 
-  it("loads valid config and resolves fixed model api key env vars", async () => {
+  it("loads valid config and resolves persisted model api keys", async () => {
     const rootDir = await createWorkspace();
     await writeConfig(rootDir, {
       version: 1,
       workerClientCommand: "custom-client",
       workerModel: {
         provider: "litellm",
-        model: "qwen3-coder-mini"
+        model: "qwen3-coder-mini",
+        apiKey: "persisted-secret"
       },
       safety: {
         dryRun: false,
@@ -46,17 +47,12 @@ describe("cw config", () => {
     });
 
     const result = await loadCwConfig(rootDir);
-    const context = await resolveExecutionContext({
-      rootDir,
-      env: {
-        WORKER_MODEL_API_KEY: "worker-secret"
-      }
-    });
+    const context = await resolveExecutionContext({ rootDir });
 
     expect(result.exists).toBe(true);
     expect(result.error).toBeUndefined();
     expect(context.workerModel.provider).toBe("litellm");
-    expect(context.workerModel.apiKey).toBe("worker-secret");
+    expect(context.workerModel.apiKey).toBe("persisted-secret");
     expect(context.workerModel.clientCommand).toBe("custom-client");
     expect(context.allowWrite).toBe(true);
     expect(context.dryRun).toBe(false);
@@ -87,7 +83,8 @@ describe("cw config", () => {
       version: 1,
       workerModel: {
         provider: "litellm",
-        model: "config-worker"
+        model: "config-worker",
+        apiKey: "config-secret"
       },
       workerClientCommand: "config-client",
       safety: {
@@ -102,11 +99,13 @@ describe("cw config", () => {
       env: {
         WORKER_MODEL_PROVIDER: "env-provider",
         WORKER_MODEL_NAME: "env-worker",
+        WORKER_MODEL_API_KEY: "env-secret",
         CW_DRY_RUN: "true"
       },
       cliOverrides: {
         allowWrite: true,
         workerModel: {
+          apiKey: "cli-secret",
           provider: "cli-provider",
           model: "cli-worker"
         }
@@ -115,6 +114,7 @@ describe("cw config", () => {
 
     expect(context.workerModel.provider).toBe("cli-provider");
     expect(context.workerModel.model).toBe("cli-worker");
+    expect(context.workerModel.apiKey).toBe("cli-secret");
     expect(context.workerModel.clientCommand).toBe("config-client");
     expect(context.dryRun).toBe(false);
     expect(context.allowWrite).toBe(true);

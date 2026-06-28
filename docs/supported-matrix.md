@@ -61,8 +61,8 @@ The MCP runtime contract is stdio-based. A host must be able to:
 
 | Surface | Level | Notes |
 | ------- | ----- | ----- |
-| `config.json` for persisted non-secret runtime defaults | supported | Primary config surface for worker, validation, safety, and local client defaults |
-| Environment variables for secrets and launch bootstrap | supported | Use for `WORKER_MODEL_API_KEY`, `CW_ROOT_DIR`, `CW_HOME_DIR`, and similar values |
+| `config.json` for persisted runtime defaults | supported | Primary config surface for worker, validation, safety, local client defaults, and optional user-scoped provider API keys |
+| Environment variables for launch bootstrap and optional secret overrides | supported | Use for `WORKER_MODEL_API_KEY`, `CW_ROOT_DIR`, `CW_HOME_DIR`, and similar values |
 | Host MCP config as the place for worker/provider defaults | unsupported | Host snippets should stay launch-focused, not become the main runtime config surface |
 
 ## Release Rule

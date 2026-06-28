@@ -4,8 +4,8 @@
 - Prefer small packages with clear boundaries.
 - Do not build a Codex, OpenCode, Cursor, or Claude Code clone.
 - Do not add unnecessary UI.
-- Avoid leaking secrets.
-- Never hardcode model credentials.
+- Avoid leaking secrets in logs, issues, docs, or tracked files.
+- Never hardcode real model credentials in tracked source or examples. User-scoped `config.json` may persist provider API keys locally when explicitly intended.
 - Use Zod for external and cross-agent data.
 - Write tests for workflow logic.
 - Keep host/worker responsibilities separated.

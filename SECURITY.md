@@ -37,8 +37,8 @@ If no private intake channel is available yet, open a minimal public issue witho
 
 ## Hardening Guidance For Operators
 
-- Keep API keys in environment variables such as `WORKER_MODEL_API_KEY`.
-- Do not commit provider secrets into `config.json` or repository files.
+- API keys may be provided through `WORKER_MODEL_API_KEY` or persisted in the user-scoped CW `config.json`.
+- Do not commit provider secrets into repository files, and never paste real keys into issues, logs, or shared transcripts.
 - Review patch proposals before any apply attempt.
 - Use `--require-profile` for higher-trust worker routing scenarios.
 - Validate `CW_ROOT_DIR` and `CW_HOME_DIR` intentionally in shared environments.

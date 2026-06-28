@@ -367,7 +367,7 @@ cw mcp list-tools
 3. 环境变量
 4. 内置默认值
 
-`config.json` 应作为 worker、validation、安全策略和 MCP 相关运行时默认值的主配置面；`WORKER_MODEL_API_KEY`、`CW_ROOT_DIR`、`CW_HOME_DIR` 这类密钥或启动定位变量仍通过环境变量提供。
+`config.json` 应作为 worker、validation、安全策略和 MCP 相关运行时默认值的主配置面；如果你希望把 provider API key 也统一收口到本地配置，也可以持久化在用户级 `config.json`。`CW_ROOT_DIR`、`CW_HOME_DIR` 这类启动定位变量仍通过环境变量提供，且真实密钥不应提交或写入日志。
 
 用户级 CW `config.json` 里的 repository context 配置用于控制 review、fix、patch 和 task workflow 的默认 `ignoredPaths` 与 `strictFiles` 行为。
 

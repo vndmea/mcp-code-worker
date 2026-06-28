@@ -69,7 +69,10 @@ const mergeModelConfig = (
     (configWorkerClientCommand
       ? normalizeCommandInput(configWorkerClientCommand)
       : base.clientCommand);
-  const apiKey = cliOverride?.apiKey ?? base.apiKey;
+  const apiKey =
+    cliOverride?.apiKey ??
+    configModel?.apiKey ??
+    base.apiKey;
   const temperature = cliOverride?.temperature ?? configModel?.temperature ?? base.temperature;
   const maxTokens = cliOverride?.maxTokens ?? configModel?.maxTokens ?? base.maxTokens;
 

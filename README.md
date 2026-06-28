@@ -370,7 +370,7 @@ Runtime configuration resolves in this order:
 3. Environment variables
 4. built-in defaults
 
-Use `config.json` as the primary home for persisted worker, validation, safety, and MCP-adjacent runtime defaults. Keep secrets and launch-location bootstrap values such as `WORKER_MODEL_API_KEY`, `CW_ROOT_DIR`, and `CW_HOME_DIR` in environment variables.
+Use `config.json` as the primary home for persisted worker, validation, safety, and MCP-adjacent runtime defaults, including provider API keys when you intentionally want one local config surface. Keep launch-location bootstrap values such as `CW_ROOT_DIR` and `CW_HOME_DIR` in environment variables, and never commit real keys or include them in logs.
 
 Repository context settings in the user-scoped CW `config.json` control default `ignoredPaths` and `strictFiles` behavior for review, fix, patch, and task workflows.
 
@@ -434,7 +434,7 @@ Set `WORKER_MODEL_PROVIDER=litellm`, then provide:
 - In host-driven flows, worker outputs are not final until the host accepts them.
 - Workers must pass onboarding evaluation before they should receive production tasks.
 - Workers that fail structured output or reliability checks are limited or blocked.
-- Secrets are expected from environment variables and should never be logged.
+- Secrets may come from environment variables or the user-scoped CW `config.json` and should never be logged.
 
 See [docs/permissions.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/permissions.md) for the concrete permission layers and write-gate examples.
 

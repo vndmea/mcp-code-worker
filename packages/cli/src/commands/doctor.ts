@@ -66,7 +66,7 @@ const formatDoctorReport = (report: DoctorReport): string[] => {
     if (env && typeof env === "object") {
       const runtimeEnv = env as Record<string, unknown>;
       lines.push(
-        `env: CW_ROOT_DIR=${readMetadataString(runtimeEnv, "CW_ROOT_DIR", "(default)")} | CW_HOME_DIR=${readMetadataString(runtimeEnv, "CW_HOME_DIR", "(default)")} | apiKey=${readMetadataString(runtimeEnv, "WORKER_MODEL_API_KEY", "(missing)")}`
+        `env: CW_ROOT_DIR=${readMetadataString(runtimeEnv, "CW_ROOT_DIR", "(default)")} | CW_HOME_DIR=${readMetadataString(runtimeEnv, "CW_HOME_DIR", "(default)")} | apiKeyEnv=${readMetadataString(runtimeEnv, "WORKER_MODEL_API_KEY", "(missing)")}`
       );
     }
   }

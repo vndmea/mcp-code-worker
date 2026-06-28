@@ -11,7 +11,7 @@ Runtime configuration resolves in this order:
 3. Environment variables
 4. built-in defaults
 
-This means a CLI override wins over persisted user-scoped CW config, and persisted CW config wins over environment defaults for non-secret runtime settings.
+This means a CLI override wins over persisted user-scoped CW config, and persisted CW config wins over environment defaults for runtime settings.
 
 ## Core Environment Variables
 
@@ -53,16 +53,17 @@ By default, the resolved config file lives at:
 - macOS / Linux: `~/.cw/workspaces/<workspace-id>/config.json`
 - Windows: `%USERPROFILE%/.cw/workspaces/<workspace-id>/config.json`
 
-The persisted config is intended for non-secret defaults such as:
+The persisted config is intended for workspace-local runtime defaults such as:
 
 - worker model provider, model, and base URL
+- optional worker model API key
 - local client bridge command via `workerClientCommand`
 - validation script preferences
 - default ignored paths
 - session retention settings
 - worker and MCP-adjacent runtime defaults that should stay consistent across CLI and MCP entrypoints
 
-Do not put secrets into persisted config. API credentials should remain in environment variables. Launch-location bootstrap values such as `CW_ROOT_DIR` and `CW_HOME_DIR` also remain environment-driven.
+If you choose to persist an API key in the user-scoped config, keep it local to the machine, never commit it into repository files, and avoid pasting it into logs or shared transcripts. Launch-location bootstrap values such as `CW_ROOT_DIR` and `CW_HOME_DIR` remain environment-driven.
 
 Path-like inputs such as `CW_ROOT_DIR`, `CW_HOME_DIR`, and `workerClientCommand` are normalized before use so mixed slash styles like `C:/Users/me//tool.exe` and `.\bin\client` do not crash the runtime on the current platform.
 

@@ -31,7 +31,7 @@ Runtime configuration resolves in this order:
 3. Environment variables
 4. Built-in defaults
 
-Do not store raw API keys in repository files or in persisted `config.json`. Provide secrets through environment variables such as `WORKER_MODEL_API_KEY`. Treat `config.json` as the primary source for persisted non-secret worker settings used by both CLI and MCP flows.
+Treat `config.json` as the primary source for persisted worker settings used by both CLI and MCP flows. API keys can live either in the user-scoped `config.json` or in environment variables such as `WORKER_MODEL_API_KEY`; prefer the user-scoped config when you want one local config surface, and never commit real keys into repository files or logs.
 
 ## 3-Minute Quickstarts
 
@@ -81,7 +81,7 @@ npm i -g mcp-code-worker
 cw init
 ```
 
-2. Persist the non-secret runtime defaults in `config.json`:
+2. Persist the runtime defaults in `config.json`:
 
 ```json
 {
@@ -89,12 +89,13 @@ cw init
   "workerModel": {
     "provider": "openai-compatible",
     "model": "deepseek-v4-flash",
-    "baseURL": "https://api.deepseek.com"
+    "baseURL": "https://api.deepseek.com",
+    "apiKey": "sk-..."
   }
 }
 ```
 
-3. Set the secret in the same runtime that will launch `cw`:
+3. If you prefer environment variables instead, set the secret in the same runtime that will launch `cw`:
 
 PowerShell:
 
@@ -129,7 +130,7 @@ npm i -g mcp-code-worker
 cw init
 ```
 
-2. Persist the non-secret runtime defaults in `config.json`:
+2. Persist the runtime defaults in `config.json`:
 
 ```json
 {
@@ -137,12 +138,13 @@ cw init
   "workerModel": {
     "provider": "claude-compatible",
     "model": "claude-3-5-sonnet-latest",
-    "baseURL": "https://api.anthropic.com"
+    "baseURL": "https://api.anthropic.com",
+    "apiKey": "sk-ant-..."
   }
 }
 ```
 
-3. Set the secret in the same runtime that will launch `cw`:
+3. If you prefer environment variables instead, set the secret in the same runtime that will launch `cw`:
 
 PowerShell:
 

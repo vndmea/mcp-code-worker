@@ -515,6 +515,8 @@ describe("cli parsing", () => {
         "mock",
         "--worker-model",
         "setup-worker",
+        "--worker-api-key",
+        "setup-secret",
         "--worker-client-command",
         "node",
         "--register-worker",
@@ -548,7 +550,7 @@ describe("cli parsing", () => {
       ) as {
         defaultWorkerId?: string;
         workerClientCommand?: string;
-        workerModel?: { model?: string };
+        workerModel?: { apiKey?: string; model?: string };
         validation?: {
           scripts?: {
             lint?: string[];
@@ -566,6 +568,7 @@ describe("cli parsing", () => {
       ) as Array<{ workerId: string }>;
 
       expect(savedConfig.workerModel?.model).toBe("setup-worker");
+      expect(savedConfig.workerModel?.apiKey).toBe("setup-secret");
       expect(savedConfig.defaultWorkerId).toBe("mock:setup-worker");
       expect(savedConfig.workerClientCommand).toBe("node");
       expect(savedConfig.validation?.scripts?.typecheck).toContain("check-types");

@@ -75,6 +75,7 @@ export interface SetupOptions {
   root?: string;
   registerWorker: boolean;
   testScript: string[];
+  workerApiKey?: string;
   typecheckScript: string[];
   workerBaseUrl?: string;
   workerClientCommand?: string;
@@ -106,12 +107,14 @@ const relativePath = (rootDir: string, path: string): string =>
 const mergeModelConfig = (
   existing: CwConfig["workerModel"],
   updates: {
+    apiKey?: string;
     baseURL?: string;
     model?: string;
     provider?: string;
   }
 ) => {
   const hasUpdate =
+    Boolean(updates.apiKey) ||
     Boolean(updates.provider) ||
     Boolean(updates.model) ||
     Boolean(updates.baseURL);
@@ -122,6 +125,7 @@ const mergeModelConfig = (
 
   return {
     ...(existing ?? {}),
+    ...(updates.apiKey ? { apiKey: updates.apiKey } : {}),
     ...(updates.provider ? { provider: updates.provider } : {}),
     ...(updates.model ? { model: updates.model } : {}),
     ...(updates.baseURL ? { baseURL: updates.baseURL } : {})
@@ -155,6 +159,7 @@ const buildDesiredConfig = (
             }
           : existing.safety,
     workerModel: mergeModelConfig(existing.workerModel, {
+      apiKey: options.workerApiKey,
       provider: options.workerProvider,
       model: options.workerModel,
       baseURL: options.workerBaseUrl
@@ -725,6 +730,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     steps,
     recommendedEnv: unique([
       configToWrite.workerModel &&
+      !configToWrite.workerModel.apiKey &&
       !["mock", "client", "local-client"].includes(
         configToWrite.workerModel.provider
       )
@@ -745,6 +751,7 @@ export const registerSetupCommand = (program: Command, io: CliIo): void => {
     .option("--worker-provider <provider>", "Worker provider")
     .option("--worker-model <model>", "Worker model")
     .option("--worker-base-url <url>", "Worker base URL")
+    .option("--worker-api-key <key>", "Persist a worker API key in the user-scoped cw config.")
     .option(
       "--worker-client-command <command>",
       "Persist a non-default local client bridge command in cw config."

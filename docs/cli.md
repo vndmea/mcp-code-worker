@@ -116,7 +116,7 @@ The persisted directory name uses a filesystem-safe worker id. Example:
 
 ## DeepSeek / OpenAI-Compatible Notes
 
-Do not commit raw API keys into `config.json` or repository files. Provide worker secrets through `WORKER_MODEL_API_KEY`.
+You can persist worker API keys in the user-scoped CW `config.json` or provide them through `WORKER_MODEL_API_KEY`. Never commit real keys into repository files or include them in logs.
 
 For DeepSeek-compatible workers:
 

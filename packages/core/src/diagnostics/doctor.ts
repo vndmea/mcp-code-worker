@@ -486,7 +486,12 @@ export const runDoctor = async (
       name: "worker-api-key",
       provider: context.workerModel.provider,
       envVar: "WORKER_MODEL_API_KEY",
-      hasKey: Boolean(context.workerModel.apiKey)
+      hasKey: Boolean(context.workerModel.apiKey),
+      source: hasEnvValue(env.WORKER_MODEL_API_KEY)
+        ? "WORKER_MODEL_API_KEY"
+        : config.config.workerModel?.apiKey
+          ? "config.json"
+          : undefined
     }
   ];
 
@@ -509,11 +514,12 @@ export const runDoctor = async (
           : isLocalClientProvider
             ? `${entry.name} is using a local client provider and does not require an API key.`
           : entry.hasKey
-            ? `${entry.name} resolved successfully from ${entry.envVar}.`
-            : `${entry.name} is not set. Expected ${entry.envVar} for provider ${entry.provider}.`,
+            ? `${entry.name} resolved successfully from ${entry.source ?? "runtime config"}.`
+            : `${entry.name} is not set. Expected workerModel.apiKey in config.json or ${entry.envVar} for provider ${entry.provider}.`,
       metadata: {
         envVar: entry.envVar,
-        provider: entry.provider
+        provider: entry.provider,
+        source: entry.source
       }
     });
   });

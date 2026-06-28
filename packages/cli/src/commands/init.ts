@@ -53,6 +53,7 @@ interface InitOptions {
 }
 
 interface InitWorkerPlan {
+  apiKey?: string;
   baseUrl?: string;
   interviewWorker: boolean;
   isDefault: boolean;
@@ -410,6 +411,7 @@ const collectInitSetupOptions = async (
     registerWorker: false,
     testScript: [],
     typecheckScript: [],
+    workerApiKey: undefined,
     workerBaseUrl: undefined,
     workerClientCommand: undefined,
     workerId: undefined,
@@ -455,6 +457,7 @@ const collectInitSetupOptions = async (
     }
 
     let baseUrl: string | undefined;
+    let apiKey: string | undefined;
 
     if (
       workerMode === "api" &&
@@ -470,6 +473,19 @@ const collectInitSetupOptions = async (
         }
       );
       baseUrl = promptedBaseUrl.length > 0 ? promptedBaseUrl : undefined;
+    }
+
+    if (
+      workerMode === "api" &&
+      !["mock", "client", "local-client"].includes(workerProvider)
+    ) {
+      const promptedApiKey = await prompter.text(
+        "Worker API key? Leave blank to skip.",
+        {
+          allowEmpty: true
+        }
+      );
+      apiKey = promptedApiKey.length > 0 ? promptedApiKey : undefined;
     }
 
     if (
@@ -494,6 +510,7 @@ const collectInitSetupOptions = async (
     );
 
     return {
+      apiKey,
       baseUrl,
       interviewWorker,
       isDefault,
@@ -512,6 +529,7 @@ const collectInitSetupOptions = async (
 
   if (configureWorker) {
     const defaultWorker = await promptWorkerPlan(true);
+    setup.workerApiKey = defaultWorker.apiKey;
     setup.workerBaseUrl = defaultWorker.baseUrl;
     setup.interviewWorker = defaultWorker.interviewWorker;
     setup.registerWorker = defaultWorker.registerWorker;

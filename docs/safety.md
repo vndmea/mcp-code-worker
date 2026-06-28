@@ -11,5 +11,5 @@ For the concrete permission model and write gates, see `docs/permissions.md`.
 - Benchmarks are a separate coding-ability signal; they do not replace interview onboarding.
 - `patch-generation` should only be enabled through an explicit persisted profile update after a qualifying benchmark.
 - Workers with weak structured-output or codegen performance are limited or blocked.
-- Secrets are expected from environment variables and should never be logged.
+- Secrets may come from environment variables or the user-scoped CW `config.json`, and should never be logged.
 - MCP tools do not expose unrestricted shell access.
