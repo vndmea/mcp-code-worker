@@ -5,6 +5,7 @@ import {
   AgentError,
   type AvailabilityStatus,
   CwConfigSchema,
+  createExecutionContextWithWorkerModel,
   getCwConfigPath,
   getCwWorkspaceAuditDirFromStorageDir,
   getCwWorkspaceRunsDirFromStorageDir,
@@ -22,11 +23,12 @@ import {
   runWorkerInterviewWorkflow,
 } from "@mcp-code-worker/graph";
 import {
+  applyWorkerAvailabilityToDoctorReport,
   buildWorkerAvailabilitySnapshot,
   createWorkerDoctorChecks,
-  deriveWorkerRegistrationId,
   getWorkerProfileStorePath,
   getWorkerRegistryPath,
+  getWorkerRegistration,
   inspectLocalClientCommand,
   readPersistedWorkerProfiles,
   readWorkerRegistry,
@@ -55,6 +57,44 @@ interface SetupStepResult {
   summary: string;
 }
 
+export interface SetupWorkerPlan {
+  apiKey?: string;
+  baseUrl?: string;
+  benchmarkWorker: boolean;
+  interviewWorker: boolean;
+  isDefault: boolean;
+  probeWorker: boolean;
+  registerWorker: boolean;
+  workerId: string;
+  workerMode?: "api" | "client";
+  workerModel: string;
+  workerProvider: string;
+}
+
+export interface SetupWorkerSummary {
+  benchmarkStatus?: SetupStepStatus;
+  benchmarkWorker: boolean;
+  configured: boolean;
+  interviewWorker: boolean;
+  interviewStatus?: SetupStepStatus;
+  isDefault: boolean;
+  probeStatus?: SetupStepStatus;
+  probeWorker: boolean;
+  readinessStatus?:
+    | Awaited<ReturnType<typeof buildWorkerAvailabilitySnapshot>>["status"]
+    | "dry-run"
+    | "skipped";
+  readinessUnavailableReasonType?: Awaited<
+    ReturnType<typeof buildWorkerAvailabilitySnapshot>
+  >["unavailableReasonType"];
+  registerWorker: boolean;
+  registerStatus?: SetupStepStatus;
+  workerId: string;
+  workerMode?: "api" | "client";
+  workerModel: string;
+  workerProvider: string;
+}
+
 export interface SetupResult {
   minimalSuccessPath: string[];
   mode: "execute" | "dry-run";
@@ -70,9 +110,11 @@ export interface SetupResult {
   status: AvailabilityStatus;
   steps: SetupStepResult[];
   summary: string;
+  workers: SetupWorkerSummary[];
 }
 
 export interface SetupOptions {
+  additionalWorkers?: SetupWorkerPlan[];
   allowWrite: boolean;
   benchmarkWorker: boolean;
   disableValidationAutoDiscover: boolean;
@@ -293,24 +335,100 @@ const resolveSetupWorkerModel = (
   ...(desiredConfig.workerModel ?? {})
 });
 
-const resolveSetupWorkerId = (
+const resolveWorkerMode = (provider: string): "api" | "client" =>
+  provider === "client" ? "client" : "api";
+
+const buildPrimaryWorkerPlan = (
   options: SetupOptions,
   modelConfig: ModelConfig
-): string => {
-  const requiresNamedWorker =
+): SetupWorkerPlan | null => {
+  const requiresNamedWorkerWorkflow =
     options.registerWorker ||
     options.probeWorker ||
     options.interviewWorker ||
     options.benchmarkWorker;
 
-  if (requiresNamedWorker && !options.workerId) {
+  if (!requiresNamedWorkerWorkflow && !options.workerId) {
+    return null;
+  }
+
+  if (!options.workerId) {
     throw new Error(
       "A user-defined worker id is required before cw can register, probe, interview, or benchmark a worker."
     );
   }
 
-  return options.workerId ?? deriveWorkerRegistrationId(modelConfig);
+  return {
+    apiKey: options.workerApiKey,
+    baseUrl: options.workerBaseUrl,
+    benchmarkWorker: options.benchmarkWorker,
+    interviewWorker: options.interviewWorker,
+    isDefault: true,
+    probeWorker: options.probeWorker,
+    registerWorker: options.registerWorker,
+    workerId: options.workerId,
+    workerMode: resolveWorkerMode(modelConfig.provider),
+    workerModel: modelConfig.model,
+    workerProvider: modelConfig.provider
+  };
 };
+
+const buildSetupWorkerPlans = (
+  options: SetupOptions,
+  primaryWorkerModel: ModelConfig
+): SetupWorkerPlan[] => {
+  const plans: SetupWorkerPlan[] = [];
+  const primary = buildPrimaryWorkerPlan(options, primaryWorkerModel);
+
+  if (primary) {
+    plans.push(primary);
+  }
+
+  const seenWorkerIds = new Set(plans.map((plan) => plan.workerId));
+
+  for (const worker of options.additionalWorkers ?? []) {
+    if (seenWorkerIds.has(worker.workerId)) {
+      throw new Error(
+        `Worker id '${worker.workerId}' was provided more than once in setup. Use unique worker ids.`
+      );
+    }
+
+    seenWorkerIds.add(worker.workerId);
+    plans.push({
+      ...worker,
+      workerMode: worker.workerMode ?? resolveWorkerMode(worker.workerProvider)
+    });
+  }
+
+  return plans;
+};
+
+const buildWorkerStepId = (baseId: string, plan: SetupWorkerPlan): string =>
+  plan.isDefault ? baseId : `${baseId}:${plan.workerId}`;
+
+const buildPlannedWorkerModel = (
+  context: ExecutionContext,
+  plan: SetupWorkerPlan
+): ModelConfig => ({
+  ...context.workerModel,
+  provider: plan.workerProvider,
+  model: plan.workerModel,
+  ...(plan.baseUrl ? { baseURL: plan.baseUrl } : {}),
+  ...(plan.apiKey ? { apiKey: plan.apiKey } : {})
+});
+
+const createWorkerSummary = (plan: SetupWorkerPlan): SetupWorkerSummary => ({
+  benchmarkWorker: plan.benchmarkWorker,
+  configured: true,
+  interviewWorker: plan.interviewWorker,
+  isDefault: plan.isDefault,
+  probeWorker: plan.probeWorker,
+  registerWorker: plan.registerWorker,
+  workerId: plan.workerId,
+  workerMode: plan.workerMode,
+  workerModel: plan.workerModel,
+  workerProvider: plan.workerProvider
+});
 
 const buildValidationSummary = (options: SetupOptions): string => {
   const mappings = [
@@ -346,6 +464,314 @@ const buildProbeChecks = async (
     defaultWorkerId: workerId,
     workerModel
   }, { probe: true, includeLocalClient: false });
+
+const runSetupWorkerPlan = async (input: {
+  allowWrite: boolean;
+  context: ExecutionContext;
+  plan: SetupWorkerPlan;
+  profileStoreError: string | undefined;
+  profileStorePath: string;
+  registryStoreError: string | undefined;
+}): Promise<{
+  probeChecks: DoctorCheck[];
+  steps: SetupStepResult[];
+  summary: SetupWorkerSummary;
+}> => {
+  const workerModel = buildPlannedWorkerModel(input.context, input.plan);
+  const steps: SetupStepResult[] = [];
+  const summary = createWorkerSummary(input.plan);
+  const existingRegistration = input.registryStoreError
+    ? null
+    : await getWorkerRegistration(
+        input.context.rootDir,
+        input.plan.workerId,
+        input.context.cwStorageDir
+      );
+  let probeChecks: DoctorCheck[] = [];
+  let interviewedProfile:
+    | Awaited<ReturnType<typeof runWorkerInterviewWorkflow>>["profile"]
+    | null = null;
+  let interviewPersisted = false;
+  const registrationAvailable =
+    Boolean(existingRegistration) || input.plan.registerWorker;
+
+  if (input.plan.registerWorker) {
+    if (input.registryStoreError) {
+      summary.registerStatus = "unavailable";
+      steps.push({
+        id: buildWorkerStepId("register-worker", input.plan),
+        status: "unavailable",
+        summary:
+          "Worker registration was requested, but the registry store is invalid.",
+        command: "cw doctor"
+      });
+    } else {
+      const now = new Date().toISOString();
+      const registrationResult = await saveWorkerRegistration(
+        input.context,
+        {
+          workerId: input.plan.workerId,
+          provider: workerModel.provider,
+          model: workerModel.model,
+          baseURL: workerModel.baseURL,
+          enabled: true,
+          tags: input.plan.isDefault ? ["setup"] : ["setup", "init"],
+          createdAt: existingRegistration?.createdAt ?? now,
+          updatedAt: now
+        },
+        input.allowWrite
+      );
+      summary.registerStatus =
+        registrationResult.mode === "execute" ? "completed" : "dry-run";
+      steps.push({
+        id: buildWorkerStepId("register-worker", input.plan),
+        status: summary.registerStatus,
+        path: relativePath(input.context.rootDir, registrationResult.path),
+        summary:
+          registrationResult.mode === "execute"
+            ? `Registered worker ${input.plan.workerId}.`
+            : `Would register worker ${input.plan.workerId}.`,
+        command: "cw worker registry list",
+        details: {
+          workerId: input.plan.workerId,
+          provider: workerModel.provider,
+          model: workerModel.model
+        }
+      });
+    }
+  } else {
+    summary.registerStatus = existingRegistration ? "completed" : "skipped";
+    steps.push({
+      id: buildWorkerStepId("register-worker", input.plan),
+      status: existingRegistration ? "completed" : "skipped",
+      summary: existingRegistration
+        ? `Worker ${input.plan.workerId} is already registered.`
+        : "Worker registration was skipped.",
+      command:
+        existingRegistration
+          ? "cw worker registry list"
+          : `cw worker register --worker ${input.plan.workerId} --provider <provider> --model <model> --allow-write`
+    });
+  }
+
+  if (input.plan.probeWorker) {
+    if (!registrationAvailable) {
+      summary.probeStatus = "unavailable";
+      steps.push({
+        id: buildWorkerStepId("probe-worker", input.plan),
+        status: "unavailable",
+        summary:
+          "Worker probe requires a registered named worker. Register the worker before probing.",
+        command: `cw worker register --worker ${input.plan.workerId} --provider <provider> --model <model> --allow-write`
+      });
+    } else {
+      probeChecks = await buildProbeChecks(
+        input.context,
+        input.plan.workerId,
+        workerModel
+      );
+      const probeCheck = probeChecks[0];
+      summary.probeStatus =
+        probeCheck?.status === "pass" ? "completed" : "unavailable";
+      steps.push({
+        id: buildWorkerStepId("probe-worker", input.plan),
+        status: summary.probeStatus,
+        summary:
+          probeCheck?.message ??
+          `Worker ${input.plan.workerId} probe did not produce a connectivity result.`,
+        command: `cw worker readiness --worker ${input.plan.workerId} --probe`,
+        details: probeCheck?.metadata
+      });
+    }
+  } else {
+    summary.probeStatus = "skipped";
+    steps.push({
+      id: buildWorkerStepId("probe-worker", input.plan),
+      status: "skipped",
+      summary:
+        "Worker probe was skipped. Run a live readiness probe later if needed.",
+      command: `cw worker readiness --worker ${input.plan.workerId} --probe`
+    });
+  }
+
+  if (input.plan.interviewWorker) {
+    if (input.profileStoreError) {
+      summary.interviewStatus = "unavailable";
+      steps.push({
+        id: buildWorkerStepId("interview-worker", input.plan),
+        status: "unavailable",
+        summary:
+          "Worker interview was requested, but the profile store is invalid.",
+        command: "cw doctor"
+      });
+    } else if (!registrationAvailable) {
+      summary.interviewStatus = "unavailable";
+      steps.push({
+        id: buildWorkerStepId("interview-worker", input.plan),
+        status: "unavailable",
+        summary:
+          "Worker interview now requires a registered named worker. Register the worker before interviewing.",
+        command: `cw worker register --worker ${input.plan.workerId} --provider <provider> --model <model> --allow-write`
+      });
+    } else {
+      const interviewResult = await runWorkerInterviewWorkflow({
+        context: input.context,
+        workerId: input.plan.workerId,
+        modelConfig: workerModel
+      });
+      const interviewSave = await saveInterviewProfile({
+        context: input.context,
+        profile: interviewResult.profile,
+        save: input.allowWrite,
+        persistenceAdvice: interviewResult.persistenceAdvice
+      });
+
+      if (interviewSave?.mode === "skipped") {
+        summary.interviewStatus = "unavailable";
+        steps.push({
+          id: buildWorkerStepId("interview-worker", input.plan),
+          status: "unavailable",
+          summary: interviewSave.reason ?? interviewResult.persistenceAdvice.reason,
+          command: `cw worker interview --worker ${input.plan.workerId} --save`,
+          details: {
+            recommendedActions:
+              interviewSave.recommendedActions ??
+              interviewResult.persistenceAdvice.recommendedActions,
+            warnings: interviewResult.warnings
+          }
+        });
+      } else if (!input.allowWrite) {
+        interviewedProfile = interviewResult.profile;
+        summary.interviewStatus = "dry-run";
+        steps.push({
+          id: buildWorkerStepId("interview-worker", input.plan),
+          status: "dry-run",
+          path: relativePath(input.context.rootDir, input.profileStorePath),
+          summary:
+            `Would persist interviewed worker profile ${input.plan.workerId} after rerunning with --allow-write.`,
+          command: `cw worker interview --worker ${input.plan.workerId} --save`,
+          details: {
+            workerId: input.plan.workerId,
+            profileStatus: interviewResult.profile.status,
+            supportedTaskTypes: interviewResult.profile.supportedTaskTypes
+          }
+        });
+      } else {
+        interviewedProfile = interviewResult.profile;
+        interviewPersisted = true;
+        summary.interviewStatus = "completed";
+        steps.push({
+          id: buildWorkerStepId("interview-worker", input.plan),
+          status: "completed",
+          path: relativePath(
+            input.context.rootDir,
+            interviewSave?.path ?? input.profileStorePath
+          ),
+          summary: `Interviewed and persisted worker profile ${input.plan.workerId}.`,
+          command: `cw worker profile ${input.plan.workerId}`,
+          details: {
+            workerId: input.plan.workerId,
+            profileStatus: interviewResult.profile.status,
+            supportedTaskTypes: interviewResult.profile.supportedTaskTypes
+          }
+        });
+      }
+    }
+  } else {
+    summary.interviewStatus = "skipped";
+    steps.push({
+      id: buildWorkerStepId("interview-worker", input.plan),
+      status: "skipped",
+      summary:
+        "Worker interview was skipped. Run it later when you want persisted routing evidence.",
+      command: `cw worker interview --worker ${input.plan.workerId} --save`
+    });
+  }
+
+  if (input.plan.benchmarkWorker) {
+    if (!input.plan.interviewWorker) {
+      summary.benchmarkStatus = "unavailable";
+      steps.push({
+        id: buildWorkerStepId("benchmark-worker", input.plan),
+        status: "unavailable",
+        summary:
+          "Worker benchmark requires an interviewed worker profile. Enable interview before benchmarking.",
+        command: `cw worker interview --worker ${input.plan.workerId} --save`
+      });
+    } else if (!interviewedProfile) {
+      summary.benchmarkStatus = "unavailable";
+      steps.push({
+        id: buildWorkerStepId("benchmark-worker", input.plan),
+        status: "unavailable",
+        summary:
+          "Worker benchmark could not run because the interview did not produce a usable profile.",
+        command: `cw worker interview --worker ${input.plan.workerId} --save`
+      });
+    } else if (!interviewPersisted) {
+      summary.benchmarkStatus = input.allowWrite ? "unavailable" : "dry-run";
+      steps.push({
+        id: buildWorkerStepId("benchmark-worker", input.plan),
+        status: summary.benchmarkStatus,
+        summary: input.allowWrite
+          ? "Worker benchmark was skipped because the interviewed profile was not persisted."
+          : "Would benchmark the worker after rerunning with --allow-write so the interviewed profile can be persisted first.",
+        command:
+          `cw worker benchmark --worker ${input.plan.workerId} --suite coding-v1 --save --update-profile-capabilities`
+      });
+    } else {
+      const benchmarkUpdate = await runBenchmarkCapabilityUpdate({
+        context: input.context,
+        modelConfig: workerModel,
+        save: true,
+        updateProfileCapabilities: true,
+        workerId: input.plan.workerId
+      });
+      summary.benchmarkStatus = "completed";
+      steps.push({
+        id: buildWorkerStepId("benchmark-worker", input.plan),
+        status: "completed",
+        path: relativePath(
+          input.context.rootDir,
+          benchmarkUpdate.persistence?.path ?? ""
+        ),
+        summary: `Benchmarked worker ${input.plan.workerId} and refreshed persisted capability routing.`,
+        command:
+          `cw worker benchmark --worker ${input.plan.workerId} --suite coding-v1 --save --update-profile-capabilities`,
+        details: {
+          artifactPath: relativePath(
+            input.context.rootDir,
+            benchmarkUpdate.persistence?.path ?? ""
+          ),
+          capabilityStatus: benchmarkUpdate.profileUpdate?.patchGenerationQualified
+            ? "qualified"
+            : "not-qualified",
+          profilePath: relativePath(
+            input.context.rootDir,
+            benchmarkUpdate.profilePersistence?.path ?? ""
+          ),
+          suiteName: benchmarkUpdate.benchmarkResult.suiteName,
+          workerId: input.plan.workerId
+        }
+      });
+    }
+  } else {
+    summary.benchmarkStatus = "skipped";
+    steps.push({
+      id: buildWorkerStepId("benchmark-worker", input.plan),
+      status: "skipped",
+      summary:
+        "Worker benchmark was skipped. Run it later after interview if you want capability qualification evidence.",
+      command:
+        `cw worker benchmark --worker ${input.plan.workerId} --suite coding-v1 --save --update-profile-capabilities`
+    });
+  }
+
+  return {
+    probeChecks,
+    steps,
+    summary
+  };
+};
 
 export const formatSetupResult = (result: SetupResult): string[] => {
   const unavailableSteps = result.steps.filter((step) => step.status === "unavailable");
@@ -424,12 +850,15 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
   const steps: SetupStepResult[] = [];
   const configResult = await loadCwConfig(context.rootDir);
   const desiredConfig = buildDesiredConfig(configResult.config, normalizedOptions);
-  const setupWorkerModel = resolveSetupWorkerModel(context, desiredConfig);
-  const setupWorkerId = resolveSetupWorkerId(normalizedOptions, setupWorkerModel);
-  const configToWrite = normalizedOptions.registerWorker
+  const primaryWorkerModel = resolveSetupWorkerModel(context, desiredConfig);
+  const workerPlans = buildSetupWorkerPlans(normalizedOptions, primaryWorkerModel);
+  const defaultWorkerPlan = workerPlans.find(
+    (plan) => plan.isDefault && plan.registerWorker
+  );
+  const configToWrite = defaultWorkerPlan
     ? CwConfigSchema.parse({
         ...desiredConfig,
-        defaultWorkerId: setupWorkerId
+        defaultWorkerId: defaultWorkerPlan.workerId
       })
     : desiredConfig;
   const registryState = await readWorkerRegistry(
@@ -593,245 +1022,24 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     }
   });
 
-  const workerModel = resolveSetupWorkerModel(context, configToWrite);
-  const workerId = resolveSetupWorkerId(normalizedOptions, workerModel);
+  const setupWorkers = workerPlans.length > 0
+    ? workerPlans
+    : [];
+  const workerSummaries: SetupWorkerSummary[] = [];
   let probeChecks: DoctorCheck[] = [];
-  let interviewedProfile:
-    | Awaited<ReturnType<typeof runWorkerInterviewWorkflow>>["profile"]
-    | null = null;
-  let interviewPersisted = false;
 
-  if (normalizedOptions.registerWorker) {
-    if (registryState.error) {
-      steps.push({
-        id: "register-worker",
-        status: "unavailable",
-        summary:
-          "Worker registration was requested, but the registry store is invalid.",
-        command: "cw doctor"
-      });
-    } else {
-      const registrationResult = await saveWorkerRegistration(
-        context,
-        {
-          workerId,
-          provider: workerModel.provider,
-          model: workerModel.model,
-          baseURL: workerModel.baseURL,
-          enabled: true,
-          tags: ["setup"],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        normalizedOptions.allowWrite
-      );
-      steps.push({
-        id: "register-worker",
-        status: registrationResult.mode === "execute" ? "completed" : "dry-run",
-        path: relativePath(context.rootDir, registrationResult.path),
-        summary:
-          registrationResult.mode === "execute"
-            ? `Registered worker ${workerId}.`
-            : `Would register worker ${workerId}.`,
-        command: "cw worker registry list",
-        details: {
-          workerId,
-          provider: workerModel.provider,
-          model: workerModel.model
-        }
-      });
-    }
-  } else {
-    steps.push({
-      id: "register-worker",
-      status: "skipped",
-      summary:
-        "Worker registration was skipped. This is fine unless you want explicit worker routing beyond the default worker.",
-      command:
-        "cw worker register --provider <provider> --model <model> --allow-write"
+  for (const plan of setupWorkers) {
+    const workerResult = await runSetupWorkerPlan({
+      allowWrite: normalizedOptions.allowWrite,
+      context,
+      plan,
+      profileStoreError: profileState.error,
+      profileStorePath: profilesPath,
+      registryStoreError: registryState.error
     });
-  }
-
-  if (normalizedOptions.probeWorker) {
-    if (!normalizedOptions.registerWorker) {
-      steps.push({
-        id: "probe-worker",
-        status: "unavailable",
-        summary:
-          "Worker probe was requested, but worker registration is disabled for this setup run.",
-        command: "cw init"
-      });
-    } else {
-      probeChecks = await buildProbeChecks(context, workerId, workerModel);
-      const probeCheck = probeChecks[0];
-
-      steps.push({
-        id: "probe-worker",
-        status: probeCheck?.status === "pass" ? "completed" : "unavailable",
-        summary:
-          probeCheck?.message ??
-          `Worker ${workerId} probe did not produce a connectivity result.`,
-        command: "cw doctor --probe",
-        details: probeCheck?.metadata
-      });
-    }
-  } else {
-    steps.push({
-      id: "probe-worker",
-      status: "skipped",
-      summary:
-        "Worker probe was skipped. Run `cw doctor --probe` later if you want a live connectivity check.",
-      command: "cw doctor --probe"
-    });
-  }
-
-  if (normalizedOptions.interviewWorker) {
-    if (profileState.error) {
-      steps.push({
-        id: "interview-worker",
-        status: "unavailable",
-        summary:
-          "Worker interview was requested, but the profile store is invalid.",
-        command: "cw doctor"
-      });
-    } else {
-      const interviewResult = await runWorkerInterviewWorkflow({
-        context,
-        workerId,
-        modelConfig: workerModel
-      });
-
-      const interviewSave = await saveInterviewProfile({
-        context,
-        profile: interviewResult.profile,
-        save: normalizedOptions.allowWrite,
-        persistenceAdvice: interviewResult.persistenceAdvice
-      });
-
-      if (interviewSave?.mode === "skipped") {
-        steps.push({
-          id: "interview-worker",
-          status: "unavailable",
-          summary: interviewSave.reason ?? interviewResult.persistenceAdvice.reason,
-          command: "cw worker interview --save",
-          details: {
-            recommendedActions:
-              interviewSave.recommendedActions ??
-              interviewResult.persistenceAdvice.recommendedActions,
-            warnings: interviewResult.warnings
-          }
-        });
-      } else if (!normalizedOptions.allowWrite) {
-        steps.push({
-          id: "interview-worker",
-          status: "dry-run",
-          path: relativePath(context.rootDir, profilesPath),
-          summary:
-            `Would persist interviewed worker profile ${workerId} after rerunning with --allow-write.`,
-          command: "cw worker interview --save",
-          details: {
-            workerId,
-            profileStatus: interviewResult.profile.status,
-            supportedTaskTypes: interviewResult.profile.supportedTaskTypes
-          }
-        });
-        interviewedProfile = interviewResult.profile;
-      } else {
-        interviewedProfile = interviewResult.profile;
-        interviewPersisted = true;
-        steps.push({
-          id: "interview-worker",
-          status: "completed",
-          path: relativePath(context.rootDir, interviewSave?.path ?? profilesPath),
-          summary: `Interviewed and persisted worker profile ${workerId}.`,
-          command: "cw worker profile",
-          details: {
-            workerId,
-            profileStatus: interviewResult.profile.status,
-            supportedTaskTypes: interviewResult.profile.supportedTaskTypes
-          }
-        });
-      }
-    }
-  } else {
-    steps.push({
-      id: "interview-worker",
-      status: "skipped",
-      summary:
-        "Worker interview was skipped. Run it when you want persisted routing confidence instead of default fallback behavior.",
-      command: "cw worker interview --save"
-    });
-  }
-
-  if (normalizedOptions.benchmarkWorker) {
-    if (!normalizedOptions.interviewWorker) {
-      steps.push({
-        id: "benchmark-worker",
-        status: "unavailable",
-        summary:
-          "Worker benchmark requires an interviewed worker profile. Enable interview before benchmarking.",
-        command: "cw worker interview --save"
-      });
-    } else if (!interviewedProfile) {
-      steps.push({
-        id: "benchmark-worker",
-        status: "unavailable",
-        summary:
-          "Worker benchmark could not run because the interview did not produce a usable profile.",
-        command: "cw worker interview --save"
-      });
-    } else if (!interviewPersisted) {
-      steps.push({
-        id: "benchmark-worker",
-        status: normalizedOptions.allowWrite ? "unavailable" : "dry-run",
-        summary: normalizedOptions.allowWrite
-          ? "Worker benchmark was skipped because the interviewed profile was not persisted."
-          : "Would benchmark the worker after rerunning with --allow-write so the interviewed profile can be persisted first.",
-        command: "cw worker benchmark --suite coding-v1 --save --update-profile-capabilities"
-      });
-    } else {
-      const benchmarkUpdate = await runBenchmarkCapabilityUpdate({
-        context,
-        modelConfig: workerModel,
-        save: true,
-        updateProfileCapabilities: true,
-        workerId
-      });
-
-      steps.push({
-        id: "benchmark-worker",
-        status: "completed",
-        path: relativePath(
-          context.rootDir,
-          benchmarkUpdate.persistence?.path ?? ""
-        ),
-        summary: `Benchmarked worker ${workerId} and refreshed persisted capability routing.`,
-        command: "cw worker benchmark --suite coding-v1 --save --update-profile-capabilities",
-        details: {
-          artifactPath: relativePath(
-            context.rootDir,
-            benchmarkUpdate.persistence?.path ?? ""
-          ),
-          capabilityStatus: benchmarkUpdate.profileUpdate?.patchGenerationQualified
-            ? "qualified"
-            : "not-qualified",
-          profilePath: relativePath(
-            context.rootDir,
-            benchmarkUpdate.profilePersistence?.path ?? ""
-          ),
-          suiteName: benchmarkUpdate.benchmarkResult.suiteName,
-          workerId
-        }
-      });
-    }
-  } else {
-    steps.push({
-      id: "benchmark-worker",
-      status: "skipped",
-      summary:
-        "Worker benchmark was skipped. Run it later after interview if you want capability qualification evidence.",
-      command: "cw worker benchmark --suite coding-v1 --save --update-profile-capabilities"
-    });
+    probeChecks = [...probeChecks, ...workerResult.probeChecks];
+    workerSummaries.push(workerResult.summary);
+    steps.push(...workerResult.steps);
   }
 
   const finalContext = await resolveExecutionContext({
@@ -843,17 +1051,64 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
       ...probeChecks
     ]
   });
+  const readinessWorkerPlan =
+    workerPlans.find((plan) => plan.isDefault) ?? workerPlans[0];
+
+  for (const summary of workerSummaries) {
+    const plan = workerPlans.find((candidate) => candidate.workerId === summary.workerId);
+
+    if (!plan) {
+      continue;
+    }
+
+    if (!normalizedOptions.allowWrite) {
+      summary.readinessStatus =
+        plan.registerWorker ||
+        plan.probeWorker ||
+        plan.interviewWorker ||
+        plan.benchmarkWorker
+          ? "dry-run"
+          : "skipped";
+      continue;
+    }
+
+    const readinessContext = {
+      ...createExecutionContextWithWorkerModel(
+        finalContext,
+        buildPlannedWorkerModel(finalContext, plan)
+      ),
+      defaultWorkerId: plan.workerId
+    };
+    const workerReadiness = await buildWorkerAvailabilitySnapshot({
+      context: readinessContext,
+      probe: plan.probeWorker,
+      workerId: plan.workerId
+    });
+    summary.readinessStatus = workerReadiness.status;
+    summary.readinessUnavailableReasonType =
+      workerReadiness.unavailableReasonType;
+  }
+
   const readiness = await buildWorkerAvailabilitySnapshot({
-    context: finalContext,
-    probe: normalizedOptions.probeWorker,
-    workerId
+    context: readinessWorkerPlan
+      ? {
+          ...createExecutionContextWithWorkerModel(
+            finalContext,
+            buildPlannedWorkerModel(finalContext, readinessWorkerPlan)
+          ),
+          defaultWorkerId: readinessWorkerPlan.workerId
+        }
+      : finalContext,
+    probe: readinessWorkerPlan?.probeWorker ?? normalizedOptions.probeWorker,
+    ...(readinessWorkerPlan ? { workerId: readinessWorkerPlan.workerId } : {})
   });
-  const readinessSummary: string = readiness.summary;
+  applyWorkerAvailabilityToDoctorReport(finalDoctor, readiness);
+  const readinessSummary: string = finalDoctor.summary;
   const readinessCapabilities: SetupStepResult["details"] = {
     capabilities: finalDoctor.capabilities,
-    workerAvailability: readiness
+    workerAvailability: finalDoctor.workerAvailability
   };
-  const resultStatus: SetupResult["status"] = readiness.status;
+  const resultStatus: SetupResult["status"] = finalDoctor.status;
   const minimalSuccessPath: SetupResult["minimalSuccessPath"] = [
     ...finalDoctor.minimalSuccessPath
   ];
@@ -887,9 +1142,9 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     minimalSuccessPath,
     recommendedEntrypoints,
     recommendedActions: unique([
-      ...readiness.nextSteps,
       ...finalDoctor.recommendedActions
     ]).slice(0, 6),
-    readiness
+    readiness,
+    workers: workerSummaries
   };
 };

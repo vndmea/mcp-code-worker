@@ -11,7 +11,6 @@ export * from "./router/worker-profile-doctor.js";
 export * from "./router/worker-profile-store.js";
 export * from "./router/worker-profile-resolution.js";
 export * from "./router/worker-connectivity-doctor.js";
-export * from "./router/worker-registry-resolution.js";
 export * from "./router/worker-registry-store.js";
 export * from "./router/worker-target-resolution.js";
 export * from "./router/worker-routing.js";

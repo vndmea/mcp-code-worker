@@ -76,6 +76,34 @@ const writeProfiles = async (rootDir: string, profiles: unknown[]): Promise<void
   );
 };
 
+const writeRegistry = async (
+  rootDir: string,
+  workers: Array<Record<string, unknown>>
+): Promise<void> => {
+  const registryPath = getCwWorkspaceFilePath(rootDir, "workers.json");
+  await mkdir(dirname(registryPath), { recursive: true });
+  await writeFile(
+    registryPath,
+    JSON.stringify({ version: 1, workers }, null, 2),
+    "utf8"
+  );
+};
+
+const createRegistration = (overrides: Record<string, unknown> = {}) => {
+  const now = new Date().toISOString();
+
+  return {
+    workerId: "default-worker",
+    provider: "mock",
+    model: "gpt-5.4-mini",
+    enabled: true,
+    tags: [],
+    createdAt: now,
+    updatedAt: now,
+    ...overrides
+  };
+};
+
 const createPatchProposal = async (rootDir: string) => {
   const targetPath = join(rootDir, "packages", "core", "src", "index.ts");
   const originalContents = "export const value = 2;\n";
@@ -433,6 +461,7 @@ describe("mcp tool registration", () => {
           model: "gpt-5.4-mini"
         }
       });
+      await writeRegistry(rootDir, [createRegistration()]);
       await writeProfiles(rootDir, [createLimitedProfile()]);
 
       const result = await cwBenchmarkWorkerTool.execute({
@@ -449,7 +478,13 @@ describe("mcp tool registration", () => {
   });
 
   it("runs a fresh worker interview and can persist the generated profile through MCP", async () => {
-    await withTempCwd(async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeRegistry(rootDir, [
+        createRegistration({
+          workerId: "interview-worker",
+          model: "interview-worker"
+        })
+      ]);
       const result = await cwRunWorkerInterviewTool.execute({
         workerId: "interview-worker",
         provider: "mock",

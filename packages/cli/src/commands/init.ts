@@ -7,28 +7,15 @@ import { homedir } from "node:os";
 import type { Command } from "commander";
 
 import {
-  createExecutionContextWithWorkerModel,
   getCwConfigPath,
   getCwHomeDir,
   getCwWorkspaceDir,
   normalizeFileSystemPath,
   resolveExecutionContext,
   type DoctorStatus,
-  type ExecutionContext,
-  type ModelConfig,
   type WorkerAvailabilityReasonCode
 } from "@mcp-code-worker/core";
-import { runWorkerInterviewWorkflow } from "@mcp-code-worker/graph";
-import {
-  buildWorkerAvailabilitySnapshot,
-  createWorkerDoctorChecks,
-  getWorkerRegistration,
-  saveWorkerRegistration
-} from "@mcp-code-worker/models";
-import {
-  runBenchmarkCapabilityUpdate,
-  saveInterviewProfile
-} from "./worker-onboarding.js";
+import { getWorkerRegistration } from "@mcp-code-worker/models";
 
 import type { CliIo } from "../index.js";
 import { formatDisplayPath, writeOutput } from "../output.js";
@@ -44,7 +31,9 @@ import {
   formatSetupResult,
   runSetup,
   type SetupOptions,
-  type SetupResult
+  type SetupResult,
+  type SetupWorkerPlan,
+  type SetupWorkerSummary
 } from "./setup.js";
 
 export interface InitPrompter {
@@ -73,19 +62,7 @@ interface InitOptions extends Omit<SetupOptions, "repositoryWriteMode"> {
   repositoryWriteMode?: string;
 }
 
-interface InitWorkerPlan {
-  apiKey?: string;
-  baseUrl?: string;
-  benchmarkWorker: boolean;
-  interviewWorker: boolean;
-  isDefault: boolean;
-  probeWorker: boolean;
-  registerWorker: boolean;
-  workerId: string;
-  workerMode: "api" | "client";
-  workerModel: string;
-  workerProvider: string;
-}
+type InitWorkerPlan = SetupWorkerPlan;
 
 type InitWorkerStepStatus =
   | "unavailable"
@@ -432,31 +409,37 @@ const formatInitResult = (result: InitResult): string[] => {
   return lines;
 };
 
-const readSetupStepStatus = (
-  result: SetupResult,
-  stepId: string
-): InitWorkerStepStatus | undefined => {
-  const step = result.steps.find((entry) => entry.id === stepId);
-
-  if (!step) {
-    return undefined;
-  }
-
-  return step.status === "needs-input" ? "unavailable" : step.status;
-};
-
-const mergePrimaryWorkerSummary = (
-  worker: InitResult["worker"],
-  setup: SetupResult
-): InitResult["worker"] => ({
-  ...worker,
-  benchmarkStatus: readSetupStepStatus(setup, "benchmark-worker"),
-  configured: worker.configured || Boolean(worker.workerId),
-  interviewStatus: readSetupStepStatus(setup, "interview-worker"),
-  probeStatus: readSetupStepStatus(setup, "probe-worker"),
-  readinessStatus: setup.readiness.status,
-  readinessUnavailableReasonType: setup.readiness.unavailableReasonType,
-  registerStatus: readSetupStepStatus(setup, "register-worker")
+const mapSetupWorkerSummary = (
+  worker: SetupWorkerSummary
+): InitWorkerSummary => ({
+  benchmarkStatus:
+    worker.benchmarkStatus === "needs-input"
+      ? "unavailable"
+      : worker.benchmarkStatus,
+  benchmarkWorker: worker.benchmarkWorker,
+  configured: worker.configured,
+  interviewStatus:
+    worker.interviewStatus === "needs-input"
+      ? "unavailable"
+      : worker.interviewStatus,
+  interviewWorker: worker.interviewWorker,
+  isDefault: worker.isDefault,
+  probeStatus:
+    worker.probeStatus === "needs-input"
+      ? "unavailable"
+      : worker.probeStatus,
+  probeWorker: worker.probeWorker,
+  readinessStatus: worker.readinessStatus,
+  readinessUnavailableReasonType: worker.readinessUnavailableReasonType,
+  registerStatus:
+    worker.registerStatus === "needs-input"
+      ? "unavailable"
+      : worker.registerStatus,
+  registerWorker: worker.registerWorker,
+  workerId: worker.workerId,
+  workerMode: worker.workerMode,
+  workerModel: worker.workerModel,
+  workerProvider: worker.workerProvider
 });
 
 const hasScriptedSetupInputs = (options: InitOptions): boolean =>
@@ -804,6 +787,8 @@ const collectInitSetupOptions = async (
     }
   }
 
+  setup.additionalWorkers = additionalWorkers;
+
   return {
     additionalWorkers,
     enableMcp,
@@ -821,145 +806,6 @@ const collectInitSetupOptions = async (
     },
     workers: workerSummaries
   };
-};
-
-const registerAdditionalWorkers = async (
-  rootDir: string,
-  workers: InitWorkerPlan[]
-): Promise<InitWorkerSummary[]> => {
-  if (workers.length === 0) {
-    return [];
-  }
-
-  const context = await resolveExecutionContext({
-    rootDir,
-    cliOverrides: {
-      allowWrite: true,
-      dryRun: false
-    }
-  });
-
-  const runProbe = async (
-    resolvedContext: ExecutionContext,
-    worker: InitWorkerPlan
-  ): Promise<InitWorkerStepStatus> => {
-    if (!worker.probeWorker) {
-      return "skipped";
-    }
-
-    const checks = await createWorkerDoctorChecks({
-      ...resolvedContext,
-      defaultWorkerId: worker.workerId,
-      workerModel: {
-        ...resolvedContext.workerModel,
-        provider: worker.workerProvider,
-        model: worker.workerModel,
-        baseURL: worker.baseUrl
-      }
-    }, { probe: true, includeLocalClient: false });
-
-    return checks[0]?.status === "pass" ? "completed" : "unavailable";
-  };
-
-  for (const worker of workers) {
-    await saveWorkerRegistration(
-      context,
-      {
-        workerId: worker.workerId,
-        provider: worker.workerProvider,
-        model: worker.workerModel,
-        baseURL: worker.baseUrl,
-        enabled: true,
-        tags: ["setup", "init"],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      true
-    );
-  }
-
-  const summaries: InitWorkerSummary[] = [];
-
-  for (const worker of workers) {
-    const modelConfig: ModelConfig = {
-      ...context.workerModel,
-      provider: worker.workerProvider,
-      model: worker.workerModel,
-      baseURL: worker.baseUrl,
-      apiKey: context.workerModel.apiKey
-    };
-    const probeStatus = await runProbe(context, worker);
-    let interviewStatus: InitWorkerStepStatus = worker.interviewWorker
-      ? "unavailable"
-      : "skipped";
-    let benchmarkStatus: InitWorkerStepStatus = worker.benchmarkWorker
-      ? "unavailable"
-      : "skipped";
-
-    if (worker.interviewWorker) {
-      const interviewResult = await runWorkerInterviewWorkflow({
-        context,
-        workerId: worker.workerId,
-        modelConfig
-      });
-
-      const interviewSave = await saveInterviewProfile({
-        context,
-        profile: interviewResult.profile,
-        save: true,
-        persistenceAdvice: interviewResult.persistenceAdvice
-      });
-
-      if (interviewSave?.mode === "skipped") {
-        interviewStatus = "unavailable";
-        benchmarkStatus = worker.benchmarkWorker ? "unavailable" : "skipped";
-      } else {
-        interviewStatus = "completed";
-
-        if (worker.benchmarkWorker) {
-          await runBenchmarkCapabilityUpdate({
-            context,
-            modelConfig,
-            save: true,
-            updateProfileCapabilities: true,
-            workerId: worker.workerId
-          });
-          benchmarkStatus = "completed";
-        }
-      }
-    }
-
-    const workerContext = createExecutionContextWithWorkerModel(context, modelConfig);
-    const readiness = await buildWorkerAvailabilitySnapshot({
-      context: {
-        ...workerContext,
-        defaultWorkerId: worker.workerId
-      },
-      probe: worker.probeWorker,
-      workerId: worker.workerId
-    });
-
-    summaries.push({
-      benchmarkStatus,
-      benchmarkWorker: worker.benchmarkWorker,
-      configured: true,
-      interviewStatus,
-      interviewWorker: worker.interviewWorker,
-      isDefault: false,
-      probeStatus,
-      probeWorker: worker.probeWorker,
-      readinessUnavailableReasonType: readiness.unavailableReasonType,
-      readinessStatus: readiness.status,
-      registerStatus: "completed",
-      registerWorker: true,
-      workerId: worker.workerId,
-      workerMode: worker.workerMode,
-      workerModel: worker.workerModel,
-      workerProvider: worker.workerProvider
-    });
-  }
-
-  return summaries;
 };
 
 export const registerInitCommand = (
@@ -1076,28 +922,20 @@ export const registerInitCommand = (
           ...collected.setup,
           allowWrite: applyNow
         });
-        const additionalWorkerSummaries = applyNow
-          ? await registerAdditionalWorkers(
-              setup.rootDir,
-              collected.additionalWorkers
-            )
-          : collected.additionalWorkers.map<InitWorkerSummary>((worker) => ({
-              benchmarkStatus: worker.benchmarkWorker ? "dry-run" : "skipped",
-              benchmarkWorker: worker.benchmarkWorker,
-              configured: true,
-              interviewStatus: worker.interviewWorker ? "dry-run" : "skipped",
-              interviewWorker: worker.interviewWorker,
-              isDefault: false,
-              probeStatus: worker.probeWorker ? "dry-run" : "skipped",
-              probeWorker: worker.probeWorker,
-              readinessStatus: worker.probeWorker ? "dry-run" : "skipped",
-              registerStatus: "dry-run",
-              registerWorker: true,
-              workerId: worker.workerId,
-              workerMode: worker.workerMode,
-              workerModel: worker.workerModel,
-              workerProvider: worker.workerProvider
-            }));
+        const initWorkers = setup.workers.map(mapSetupWorkerSummary);
+        const primaryWorker =
+          initWorkers.find((worker) => worker.isDefault) ??
+          initWorkers[0] ?? {
+            benchmarkWorker: false,
+            configured: false,
+            interviewWorker: false,
+            isDefault: false,
+            probeWorker: false,
+            registerWorker: false
+          };
+        const additionalWorkerSummaries = initWorkers.filter(
+          (worker) => !worker.isDefault
+        );
         const paths = buildInitPaths(setup.rootDir);
         let openedConfigDirectory = false;
 
@@ -1127,13 +965,12 @@ export const registerInitCommand = (
             enableMcp: collected.enableMcp,
             paths
           }),
-          worker: mergePrimaryWorkerSummary(collected.worker, setup),
-          workers: [
-            mergePrimaryWorkerSummary(collected.worker, setup),
-            ...additionalWorkerSummaries
-          ]
+          worker: {
+            ...primaryWorker,
+            additionalWorkers: additionalWorkerSummaries
+          },
+          workers: initWorkers
         };
-        result.worker.additionalWorkers = additionalWorkerSummaries;
 
         writeOutput(io, result, formatInitResult(result));
       } finally {

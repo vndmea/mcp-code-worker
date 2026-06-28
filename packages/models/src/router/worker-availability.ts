@@ -177,6 +177,15 @@ const buildNextSteps = (input: {
 }): string[] => {
   const actions: string[] = [];
 
+  if (
+    input.checks.registry.status === "unavailable" &&
+    input.workerId === "unconfigured-worker"
+  ) {
+    actions.push(
+      "Configure a named default worker in config.json or rerun with --worker <id> before checking formal worker readiness."
+    );
+  }
+
   if (input.checks.registry.status === "missing") {
     actions.push(
       `Register the worker first: cw worker register --worker ${input.workerId} --provider <provider> --model <model> --allow-write`
@@ -230,14 +239,7 @@ export const buildWorkerAvailabilitySnapshot = async (input: {
 }): Promise<WorkerAvailabilitySnapshot> => {
   const configResult = await loadCwConfig(input.context.rootDir);
   const requestedWorkerId = input.workerId ?? input.context.defaultWorkerId;
-  const fallbackWorkerId = requestedWorkerId ?? "default-worker";
-  const registration = requestedWorkerId
-    ? await getWorkerRegistration(
-        input.context.rootDir,
-        fallbackWorkerId,
-        input.context.cwStorageDir
-      )
-    : null;
+  const resolvedRequestWorkerId = requestedWorkerId ?? "unconfigured-worker";
   const checks: WorkerAvailabilityChecks = {
     config: configResult.error
       ? defaultCheck("invalid", `cw config is invalid: ${configResult.error}`)
@@ -247,20 +249,15 @@ export const buildWorkerAvailabilitySnapshot = async (input: {
             "missing",
             "No cw config.json was found. Runtime defaults are coming from env/defaults."
           ),
-    registry: requestedWorkerId && registration
+    registry: requestedWorkerId
       ? defaultCheck(
-          "registered",
-          `Worker ${fallbackWorkerId} is registered in the local registry.`
-        )
-      : requestedWorkerId
-        ? defaultCheck(
           "missing",
-          `Worker ${fallbackWorkerId} is not registered in the local registry.`
+          `Worker ${resolvedRequestWorkerId} has not been resolved yet.`
         )
-        : defaultCheck(
-            "missing",
-            "No named worker is configured. Availability is being inferred from the active workerModel runtime configuration."
-          ),
+      : defaultCheck(
+          "unavailable",
+          "No named worker is configured. Formal worker readiness now requires an explicit worker id or config.json defaultWorkerId."
+        ),
     profile: defaultCheck("not-produced", "Worker profile was not checked yet."),
     probe: defaultCheck("not-run", "No live probe was requested."),
     benchmark: defaultCheck(
@@ -273,48 +270,65 @@ export const buildWorkerAvailabilitySnapshot = async (input: {
     )
   };
 
-  let resolvedWorkerId = fallbackWorkerId;
+  let resolvedWorkerId = resolvedRequestWorkerId;
   let resolvedContext = input.context;
   let resolvedWorkerModelError: string | null = null;
 
-  try {
-    const resolvedWorker = await resolveWorkerTarget({
-      context: input.context,
-      ...(requestedWorkerId ? { workerId: requestedWorkerId } : {})
-    });
-
-    resolvedWorkerId = resolvedWorker.workerId ?? requestedWorkerId ?? fallbackWorkerId;
-    resolvedContext = {
-      ...createExecutionContextWithWorkerModel(
-        input.context,
-        resolvedWorker.modelConfig
-      ),
-      defaultWorkerId: resolvedWorker.workerId ?? requestedWorkerId
-    };
-    checks.registry = resolvedWorker.source === "registry"
+  if (requestedWorkerId) {
+    const registration = await getWorkerRegistration(
+      input.context.rootDir,
+      requestedWorkerId,
+      input.context.cwStorageDir
+    );
+    checks.registry = registration
       ? defaultCheck(
           "registered",
-          `Worker ${resolvedWorkerId} resolves through the local registry.`
+          `Worker ${requestedWorkerId} is registered in the local registry.`
         )
       : defaultCheck(
           "missing",
-          `Worker ${resolvedWorkerId} resolves from config.json/runtime settings, but it is not registered in the local registry.`
+          `Worker ${requestedWorkerId} is not registered in the local registry.`
         );
-  } catch (error) {
-    resolvedWorkerModelError = error instanceof Error ? error.message : String(error);
-    checks.registry = defaultCheck("unavailable", resolvedWorkerModelError);
-  }
 
-  const profileResolution = resolvedWorkerModelError
-    ? null
-    : await resolveWorkerProfile({
-        context: resolvedContext,
-        ...(requestedWorkerId || resolvedWorkerId
-          ? { workerId: resolvedWorkerId }
-          : {})
+    try {
+      const resolvedWorker = await resolveWorkerTarget({
+        context: input.context,
+        workerId: requestedWorkerId
       });
 
-  if (!profileResolution) {
+      resolvedWorkerId = resolvedWorker.workerId ?? requestedWorkerId;
+      resolvedContext = {
+        ...createExecutionContextWithWorkerModel(
+          input.context,
+          resolvedWorker.modelConfig
+        ),
+        defaultWorkerId: resolvedWorker.workerId ?? requestedWorkerId
+      };
+      checks.registry = defaultCheck(
+        "registered",
+        `Worker ${resolvedWorkerId} resolves through the local registry.`
+      );
+    } catch (error) {
+      resolvedWorkerModelError =
+        error instanceof Error ? error.message : String(error);
+      checks.registry = defaultCheck("unavailable", resolvedWorkerModelError);
+    }
+  }
+
+  const profileResolution =
+    resolvedWorkerModelError || !requestedWorkerId
+      ? null
+      : await resolveWorkerProfile({
+          context: resolvedContext,
+          workerId: resolvedWorkerId
+        });
+
+  if (!requestedWorkerId) {
+    checks.profile = defaultCheck(
+      "resolution-failed",
+      "Worker profile cannot be evaluated until a named worker is configured."
+    );
+  } else if (!profileResolution) {
     checks.profile = defaultCheck(
       "resolution-failed",
       "Worker profile could not be evaluated because worker model resolution failed."
@@ -338,12 +352,14 @@ export const buildWorkerAvailabilitySnapshot = async (input: {
     );
   }
 
-  checks.probe = await readProbeCheck(
-    resolvedContext,
-    resolvedWorkerId,
-    input.probe ?? false
-  );
-  checks.benchmark = await readBenchmarkCheck(resolvedContext, resolvedWorkerId);
+  if (requestedWorkerId) {
+    checks.probe = await readProbeCheck(
+      resolvedContext,
+      resolvedWorkerId,
+      input.probe ?? false
+    );
+    checks.benchmark = await readBenchmarkCheck(resolvedContext, resolvedWorkerId);
+  }
 
   if (profileResolution?.profile) {
     checks.patchGeneration = profileResolution.profile.routingPolicy.allowPatchGeneration

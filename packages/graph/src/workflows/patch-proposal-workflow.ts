@@ -82,8 +82,7 @@ export const runPatchProposalWorkflow = async (
   const workerId =
     workerProfileResolution?.workerId ??
     workerModelResolution?.workerId ??
-    context.defaultWorkerId ??
-    "default-worker";
+    "ad-hoc-worker";
   const fallbackProposal = buildFallbackPatchProposal(
     {
       goal: input.goal,

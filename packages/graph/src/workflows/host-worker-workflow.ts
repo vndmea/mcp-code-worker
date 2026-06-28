@@ -505,11 +505,7 @@ export const runHostWorkerWorkflow = async (
     context,
     workerId: input.workerId
   });
-  const resolvedWorkerId =
-    workerModelResolution.workerId ??
-    input.workerId ??
-    context.defaultWorkerId ??
-    "default-worker";
+  const resolvedWorkerId = workerModelResolution.workerId ?? "ad-hoc-worker";
   const workerContext = createExecutionContextWithWorkerModel(
     context,
     workerModelResolution.modelConfig

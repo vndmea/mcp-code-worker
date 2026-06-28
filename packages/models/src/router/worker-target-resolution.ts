@@ -1,11 +1,11 @@
 import {
   AgentError,
   type ExecutionContext,
-  type ModelConfig
+  type ModelConfig,
+  type WorkerRegistration
 } from "@mcp-code-worker/core";
 
 import { getWorkerRegistration } from "./worker-registry-store.js";
-import { resolveWorkerModel } from "./worker-registry-resolution.js";
 
 export interface ResolveWorkerTargetInput {
   baseURL?: string;
@@ -25,6 +25,19 @@ export interface ResolveWorkerTargetResult {
 
 const requiresApiKey = (config: ModelConfig): boolean =>
   !["client", "mock"].includes(config.provider);
+
+const modelConfigFromRegistration = (
+  registration: WorkerRegistration,
+  context: ExecutionContext
+): ModelConfig => ({
+  provider: registration.provider,
+  model: registration.model,
+  baseURL: registration.baseURL ?? context.workerModel.baseURL,
+  apiKey: context.workerModel.apiKey,
+  clientCommand: context.workerModel.clientCommand,
+  temperature: context.workerModel.temperature,
+  maxTokens: context.workerModel.maxTokens
+});
 
 const mergeTargetModelConfig = (
   base: ModelConfig,
@@ -70,8 +83,6 @@ export const resolveWorkerTarget = async (
   input: ResolveWorkerTargetInput
 ): Promise<ResolveWorkerTargetResult> => {
   const chosenWorkerId = input.workerId ?? input.context.defaultWorkerId;
-  const hasOverrides =
-    Boolean(input.provider) || Boolean(input.model) || Boolean(input.baseURL);
 
   if (!chosenWorkerId) {
     if (input.requireNamedWorker) {
@@ -91,50 +102,43 @@ export const resolveWorkerTarget = async (
     };
   }
 
-  const registration = await getWorkerRegistration(
+    const registration = await getWorkerRegistration(
     input.context.rootDir,
     chosenWorkerId,
     input.context.cwStorageDir
   );
 
   if (!registration) {
-    if (input.workerId && !hasOverrides) {
-      throw new AgentError(
-        "WORKER_NOT_REGISTERED",
-        `Worker '${chosenWorkerId}' was not found in the worker registry. Check the worker id or register it before continuing.`,
-        {
-          workerId: chosenWorkerId
-        }
-      );
-    }
-
-    const modelConfig = mergeTargetModelConfig(input.context.workerModel, input);
-    assertApiKeyIfNeeded(chosenWorkerId, modelConfig);
-
-    return {
-      workerId: chosenWorkerId,
-      modelConfig,
-      source: input.workerId ? "ad-hoc" : "config-default",
-      warnings: registration
-        ? []
-        : input.workerId
-          ? [
-              `Worker ${chosenWorkerId} is not registered; using the explicitly supplied worker settings for this run only.`
-            ]
-          : [
-              `Worker ${chosenWorkerId} is not registered; using config.json/runtime worker settings for this named default worker.`
-            ]
-    };
+    throw new AgentError(
+      "WORKER_NOT_REGISTERED",
+      input.workerId
+        ? `Worker '${chosenWorkerId}' was not found in the worker registry. Check the worker id or register it before continuing.`
+        : `Configured default worker '${chosenWorkerId}' was not found in the worker registry. Fix config.json or register that worker before continuing.`,
+      {
+        workerId: chosenWorkerId
+      }
+    );
   }
 
-  const resolved = await resolveWorkerModel({
-    context: input.context,
-    workerId: chosenWorkerId
-  });
+  if (!registration.enabled) {
+    throw new AgentError(
+      "WORKER_DISABLED",
+      `Worker ${chosenWorkerId} is registered but disabled.`,
+      {
+        workerId: chosenWorkerId
+      }
+    );
+  }
+
+  const modelConfig = mergeTargetModelConfig(
+    modelConfigFromRegistration(registration, input.context),
+    input
+  );
+  assertApiKeyIfNeeded(chosenWorkerId, modelConfig);
 
   return {
-    workerId: resolved.workerId,
-    modelConfig: mergeTargetModelConfig(resolved.modelConfig, input),
+    workerId: chosenWorkerId,
+    modelConfig,
     source: "registry",
     warnings: []
   };

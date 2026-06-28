@@ -1134,7 +1134,13 @@ describe("cli parsing", () => {
 
   it("interviews registered workers and rejects unknown worker-only interviews", async () => {
     await withTempCwd(async (rootDir) => {
-      await writeRegistry(rootDir, [createRegistration()]);
+      await writeRegistry(rootDir, [
+        createRegistration(),
+        createRegistration({
+          workerId: "mock:manual-worker",
+          model: "manual-worker"
+        })
+      ]);
       const { io, output } = createIo();
       const cli = buildCli(io);
 
@@ -1156,11 +1162,7 @@ describe("cli parsing", () => {
         "worker",
         "interview",
         "--worker",
-        "mock:manual-worker",
-        "--provider",
-        "mock",
-        "--model",
-        "manual-worker"
+        "mock:manual-worker"
       ]);
 
       expect(output.join("\n")).toContain("\"workerId\": \"mock:manual-worker\"");

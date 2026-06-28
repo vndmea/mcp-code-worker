@@ -7,7 +7,6 @@ import {
 } from "@mcp-code-worker/core";
 
 import { getWorkerProfile } from "./worker-profile-store.js";
-import { deriveWorkerProfileId } from "./worker-profile-store.js";
 import { requireConfiguredWorkerId } from "./worker-target-resolution.js";
 
 export interface ResolveWorkerProfileInput {
@@ -94,9 +93,20 @@ export const resolveWorkerProfile = async ({
           "worker profile resolution"
         )
       : workerId ?? context.defaultWorkerId;
-  const resolvedWorkerId =
-    configuredWorkerId ??
-    deriveWorkerProfileId(effectiveModelConfig);
+  const resolvedWorkerId = configuredWorkerId ?? "unconfigured-worker";
+
+  if (!configuredWorkerId) {
+    return failIfRequired(
+      buildFailure(
+        resolvedWorkerId,
+        null,
+        "missing",
+        "No named worker is configured. Set defaultWorkerId or pass --worker before resolving a persisted worker profile."
+      ),
+      requireProfile
+    );
+  }
+
   const profile = await getWorkerProfile(
     context.rootDir,
     resolvedWorkerId,
