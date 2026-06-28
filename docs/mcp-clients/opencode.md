@@ -9,7 +9,7 @@ Use this guide when `mcp-code-worker` is launched as an MCP server from OpenCode
   "mcpServers": {
     "mcp-code-worker": {
       "command": "cw",
-      "args": ["mcp", "serve", "--root", "${workspaceFolder}"]
+      "args": ["mcp", "serve"]
     }
   }
 }
@@ -17,8 +17,8 @@ Use this guide when `mcp-code-worker` is launched as an MCP server from OpenCode
 
 ## Root Resolution
 
-Prefer an explicit `--root` so repository files, git state, and CW-managed artifacts resolve against the intended workspace.
+Launch the server from the intended workspace root. If OpenCode starts it from elsewhere, set `CW_ROOT_DIR` in the MCP server environment.
 
 ## Local Client Provider Note
 
-If you also use the local client provider bridge, `opencode` is the default compatible command behind `CW_WORKER_CLIENT_COMMAND`. Set that variable only when you need a different executable name or path.
+If you also use the local client provider bridge, `opencode` is the default compatible command. Persist a different executable name or path with `workerClientCommand` in `config.json` when needed.

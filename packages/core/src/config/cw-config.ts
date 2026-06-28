@@ -52,6 +52,7 @@ const resolveRootDir = (
 const mergeModelConfig = (
   base: ExecutionContext["workerModel"],
   configModel: CwModelConfig | undefined,
+  configWorkerClientCommand: string | undefined,
   env: NodeJS.ProcessEnv,
   envPrefix: "WORKER",
   cliOverride?: ExecutionContextOverrides["workerModel"]
@@ -65,6 +66,11 @@ const mergeModelConfig = (
   const baseURL =
     cliOverride?.baseURL ??
     (hasEnvValue(env, `${envPrefix}_MODEL_BASE_URL`) ? base.baseURL : configModel?.baseURL ?? base.baseURL);
+  const clientCommand =
+    cliOverride?.clientCommand ??
+    (hasEnvValue(env, "CW_WORKER_CLIENT_COMMAND")
+      ? base.clientCommand
+      : configWorkerClientCommand ?? base.clientCommand);
   const apiKey = cliOverride?.apiKey ?? base.apiKey;
   const temperature = cliOverride?.temperature ?? configModel?.temperature ?? base.temperature;
   const maxTokens = cliOverride?.maxTokens ?? configModel?.maxTokens ?? base.maxTokens;
@@ -73,6 +79,7 @@ const mergeModelConfig = (
     provider,
     model,
     baseURL,
+    clientCommand,
     apiKey,
     temperature,
     maxTokens
@@ -155,6 +162,7 @@ export async function resolveExecutionContext(
   const workerModel = mergeModelConfig(
     baseContext.workerModel,
     config.workerModel,
+    config.workerClientCommand,
     env,
     "WORKER",
     cliOverrides.workerModel
@@ -162,6 +170,8 @@ export async function resolveExecutionContext(
 
   return createExecutionContextFromEnv(env, {
     ...cliOverrides,
+    defaultWorkerId:
+      cliOverrides.defaultWorkerId ?? config.defaultWorkerId,
     rootDir,
     dryRun,
     allowWrite,

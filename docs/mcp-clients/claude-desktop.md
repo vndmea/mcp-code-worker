@@ -9,7 +9,7 @@ Use this guide when connecting `mcp-code-worker` to Claude Desktop through the c
   "mcpServers": {
     "mcp-code-worker": {
       "command": "cw",
-      "args": ["mcp", "serve", "--root", "${workspaceFolder}"]
+      "args": ["mcp", "serve"]
     }
   }
 }
@@ -21,6 +21,6 @@ Before saving the client configuration:
 
 - run `cw doctor`
 - run `cw mcp list-tools`
-- confirm `cw mcp serve --root <workspace-path>` starts cleanly
+- confirm `cw mcp serve` starts cleanly from the target workspace root
 
-If Claude Desktop launches the server from a location other than the repository root, keep the explicit `--root` argument.
+If Claude Desktop launches the server from a location other than the repository root, set `CW_ROOT_DIR` in the MCP server environment.

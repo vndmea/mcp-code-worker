@@ -2,8 +2,11 @@ import { homedir } from "node:os";
 import { relative, resolve } from "node:path";
 
 import type { WorkflowOutputOptions } from "@mcp-code-worker/graph";
+import { Chalk } from "chalk";
 
 import type { CliIo } from "./index.js";
+
+const humanChalk = new Chalk({ level: 1 });
 
 export interface CliDetailOptions {
   artifactRefs?: boolean;
@@ -25,6 +28,88 @@ export const writeJson = (io: CliIo, value: unknown): void => {
 };
 
 export const isHumanOutput = (io: CliIo): boolean => io.outputMode === "human";
+
+const styleHumanLine = (line: string): string => {
+  if (line.startsWith("blocking:")) {
+    return humanChalk.red(`✖ ${line}`);
+  }
+
+  if (line.startsWith("warnings:")) {
+    return humanChalk.yellow(`⚠ ${line}`);
+  }
+
+  if (line.startsWith("next:")) {
+    return humanChalk.cyan(`→ ${line}`);
+  }
+
+  if (line.startsWith("cw doctor:")) {
+    return humanChalk.bold(
+      line.includes(": ready")
+        ? humanChalk.green(`✔ ${line}`)
+        : line.includes(": degraded")
+          ? humanChalk.yellow(`⚠ ${line}`)
+          : line.includes(": blocked")
+            ? humanChalk.red(`✖ ${line}`)
+            : humanChalk.cyan(`• ${line}`)
+    );
+  }
+
+  if (line.startsWith("cw setup:")) {
+    return humanChalk.bold(
+      line.includes(": ready")
+        ? humanChalk.green(`✔ ${line}`)
+        : line.includes(": degraded")
+          ? humanChalk.yellow(`⚠ ${line}`)
+          : line.includes(": misconfigured")
+            ? humanChalk.red(`✖ ${line}`)
+            : humanChalk.cyan(`• ${line}`)
+    );
+  }
+
+  if (line.startsWith("cw init:")) {
+    return humanChalk.bold(
+      line.includes(": applied")
+        ? humanChalk.green(`✔ ${line}`)
+        : line.includes(": preview") || line.includes(": cancelled")
+          ? humanChalk.yellow(`⚠ ${line}`)
+          : humanChalk.cyan(`• ${line}`)
+    );
+  }
+
+  if (line.startsWith("task ")) {
+    return humanChalk.bold(
+      line.includes(": completed")
+        ? humanChalk.green(`✔ ${line}`)
+        : line.includes(": needs-review") || line.includes(": needs-input")
+          ? humanChalk.yellow(`⚠ ${line}`)
+          : line.includes(": blocked") || line.includes(": failed")
+            ? humanChalk.red(`✖ ${line}`)
+            : humanChalk.cyan(`• ${line}`)
+    );
+  }
+
+  if (line === "audit events") {
+    return humanChalk.bold.cyan(line);
+  }
+
+  if (line === "none") {
+    return humanChalk.dim(line);
+  }
+
+  return line;
+};
+
+const styleHumanLines = (
+  lines: Array<string | null | undefined> | string
+): Array<string | null | undefined> | string => {
+  if (!Array.isArray(lines)) {
+    return styleHumanLine(lines);
+  }
+
+  return lines.map((line) =>
+    typeof line === "string" && line.length > 0 ? styleHumanLine(line) : line
+  );
+};
 
 export const writeText = (
   io: CliIo,
@@ -49,13 +134,20 @@ export const writeText = (
   io.write(text);
 };
 
+export const writeHumanText = (
+  io: CliIo,
+  lines: Array<string | null | undefined> | string
+): void => {
+  writeText(io, styleHumanLines(lines));
+};
+
 export const writeOutput = (
   io: CliIo,
   value: unknown,
   human: Array<string | null | undefined> | string
 ): void => {
   if (isHumanOutput(io)) {
-    writeText(io, human);
+    writeHumanText(io, human);
     return;
   }
 

@@ -1,6 +1,6 @@
 # Provider Configuration
 
-`mcp-code-worker` keeps provider configuration explicit and environment-driven. This document explains how to configure worker models safely and how to validate the result.
+`mcp-code-worker` keeps provider configuration explicit across persisted config and environment overrides. This document explains how to configure worker models safely and how to validate the result.
 
 ## Configuration Surfaces
 
@@ -76,14 +76,20 @@ If the worker should target a non-default endpoint, `WORKER_MODEL_BASE_URL` can 
 Use a local client provider when a compatible local CLI bridges the model calls.
 
 - `opencode` is the default compatible command.
-- Set `CW_WORKER_CLIENT_COMMAND` only when the executable name or path differs.
+- Persist `workerClientCommand` in `config.json` when the executable name or path differs.
+- Use `CW_WORKER_CLIENT_COMMAND` only as a temporary runtime override.
 
 Example:
 
-```bash
-WORKER_MODEL_PROVIDER=client
-WORKER_MODEL_NAME=<model-name>
-CW_WORKER_CLIENT_COMMAND=/path/to/compatible-client
+```json
+{
+  "version": 1,
+  "workerModel": {
+    "provider": "client",
+    "model": "<model-name>"
+  },
+  "workerClientCommand": "/path/to/compatible-client"
+}
 ```
 
 ## Minimal Validation Flow
@@ -144,6 +150,6 @@ Use these signals to narrow provider issues quickly:
 - `cw doctor` reports missing or inconsistent worker model settings.
 - `cw worker interview --save` returns provider invocation failures.
 - `cw mcp serve` works but worker-routed tasks fail because the MCP server environment does not contain the same provider variables as your shell.
-- A local client provider fails because `CW_WORKER_CLIENT_COMMAND` points to the wrong executable or is unnecessary.
+- A local client provider fails because `workerClientCommand` or `CW_WORKER_CLIENT_COMMAND` points to the wrong executable, or an override is unnecessary.
 
 If provider invocation fails during interview, do not treat the resulting blocked output as a completed onboarding result. Fix connectivity or auth first, then rerun the interview.

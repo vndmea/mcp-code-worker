@@ -35,7 +35,7 @@ If you are using a repository checkout, run the commands as `pnpm exec cw ...` f
 
 ### Checks
 
-- Use `cw mcp serve --root <workspace-path>`
+- Start `cw mcp serve` from the intended workspace root
 - Or set `CW_ROOT_DIR`
 - Re-run `cw mcp config` after changing root assumptions
 
@@ -80,7 +80,8 @@ Do not treat a provider-failure-style blocked interview as a completed onboardin
 ### Checks
 
 - If you use the local client provider, remember that `opencode` is the default compatible command
-- Set `CW_WORKER_CLIENT_COMMAND` only when you need a different executable name or path
+- Prefer persisting `workerClientCommand` in `config.json` or via `cw setup --worker-client-command <command> --allow-write`
+- Use `CW_WORKER_CLIENT_COMMAND` only as a temporary runtime override
 - Re-run `cw doctor` after changing the command path
 
 ## MCP Server Starts But Client Cannot Use It
@@ -92,7 +93,7 @@ Do not treat a provider-failure-style blocked interview as a completed onboardin
 ### Checks
 
 - Run `cw mcp list-tools` locally first
-- Use an explicit `--root <workspace-path>` in the client config
+- Start the client against the correct workspace root, or set `CW_ROOT_DIR`
 - Compare the client snippet with the output of `cw mcp config`
 - Confirm the client process sees the same environment variables as your shell
 

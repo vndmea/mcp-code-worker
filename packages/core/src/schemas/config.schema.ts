@@ -49,6 +49,8 @@ export const CwValidationConfigSchema = z.object({
 
 export const CwConfigSchema = z.object({
   version: z.literal(1),
+  defaultWorkerId: z.string().min(1).optional(),
+  workerClientCommand: z.string().min(1).optional(),
   workerModel: CwModelConfigSchema.optional(),
   safety: CwSafetyConfigSchema.default({
     dryRun: true,

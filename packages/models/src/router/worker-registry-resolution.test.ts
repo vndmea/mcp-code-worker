@@ -97,6 +97,40 @@ describe("resolveWorkerModel", () => {
     delete process.env.WORKER_MODEL_API_KEY;
   });
 
+  it("prefers the configured default worker id before the env fallback", async () => {
+    const rootDir = await createRootDir();
+    process.env.WORKER_MODEL_API_KEY = "secret-value";
+    await writeRegistry(rootDir, [createRegistration()]);
+    const context = createExecutionContextFromEnv(undefined, {
+      defaultWorkerId: "mock:registered-worker",
+      rootDir,
+      workerModel: {
+        provider: "openai-compatible",
+        model: "env-worker"
+      }
+    });
+
+    const result = await resolveWorkerModel({ context });
+
+    expect(result.source).toBe("registry");
+    expect(result.workerId).toBe("mock:registered-worker");
+    expect(result.modelConfig.model).toBe("registered-worker");
+
+    delete process.env.WORKER_MODEL_API_KEY;
+  });
+
+  it("fails when the configured default worker id is missing from the registry", async () => {
+    const rootDir = await createRootDir();
+    const context = createExecutionContextFromEnv(undefined, {
+      defaultWorkerId: "mock:missing-worker",
+      rootDir
+    });
+
+    await expect(resolveWorkerModel({ context })).rejects.toThrow(
+      "mock:missing-worker"
+    );
+  });
+
   it("fails early with a unified worker api key error", async () => {
     const rootDir = await createRootDir();
     delete process.env.WORKER_MODEL_API_KEY;

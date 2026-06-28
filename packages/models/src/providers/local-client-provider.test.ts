@@ -210,4 +210,35 @@ describe("LocalClientProvider", () => {
 
     await pending;
   });
+
+  it("uses the model config client command when env override is absent", async () => {
+    const child = createMockChildProcess();
+    spawnMock.mockReturnValue(child);
+
+    const provider = new LocalClientProvider();
+    const pending = provider.invoke(
+      {
+        ...config,
+        clientCommand: "config-client"
+      },
+      {
+        prompt: "Reply with exactly hello"
+      }
+    );
+
+    expect(spawnMock.mock.calls[0]?.[0]).toBe("config-client");
+
+    child.stdout.end(
+      JSON.stringify({
+        type: "result",
+        subtype: "success",
+        is_error: false,
+        result: "hello"
+      })
+    );
+    child.stderr.end();
+    child.emit("close", 0);
+
+    await pending;
+  });
 });

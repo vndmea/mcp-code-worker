@@ -23,7 +23,8 @@ cw mcp serve
 Notes:
 
 - The published npm package installs the `cw` command.
-- When launching outside a repository checkout, prefer `cw mcp config --root <workspaceFolder>` or `cw mcp serve --root <workspace-path>`.
+- `cw mcp serve` resolves the workspace from the current directory by default.
+- When launching outside the target repository checkout, set `CW_ROOT_DIR` for the MCP client process.
 - Repository-local legacy `.cw/` directories are unsupported and ignored by current builds.
 
 ## Development checkout flow
@@ -76,7 +77,7 @@ pnpm exec cw mcp serve
 
 - MCP clients should launch the server from the repository root.
 - Use `pnpm exec cw mcp config` to print a stdio config snippet.
-- For workspace-scoped IDE use, prefer `pnpm exec cw mcp config --root ${workspaceFolder}` or set `CW_ROOT_DIR` in the MCP server environment.
-- For local client providers, `opencode` is the default command. Use `--worker-client-command <command>` or set `CW_WORKER_CLIENT_COMMAND=<command>` only when your compatible local wrapper uses a different executable name.
+- For workspace-scoped IDE use, start `pnpm exec cw mcp serve` from the target repository root, or set `CW_ROOT_DIR` in the MCP server environment when the client launches from elsewhere.
+- For local client providers, `opencode` is the default command. Persist a different compatible local wrapper with `cw setup --worker-client-command <command> --allow-write`.
 - For cross-checkout or shared-tool setups, also decide whether `CW_HOME_DIR` should be fixed so CW-managed artifacts land in a predictable user-scoped location.
 - See `docs/distribution.md` for the current publish and development distribution shapes.

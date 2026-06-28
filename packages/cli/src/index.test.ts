@@ -36,6 +36,51 @@ const createIo = (outputMode?: "human" | "json") => {
   };
 };
 
+const createInitPrompter = (answers: Array<boolean | string>) => {
+  let index = 0;
+
+  const nextAnswer = (): boolean | string => {
+    const answer = answers[index];
+
+    if (answer === undefined) {
+      throw new Error("Ran out of scripted init answers.");
+    }
+
+    index += 1;
+    return answer;
+  };
+
+  return {
+    confirm: async () => {
+      const answer = nextAnswer();
+
+      if (typeof answer !== "boolean") {
+        throw new Error(`Expected boolean init answer but received ${typeof answer}.`);
+      }
+
+      return answer;
+    },
+    select: async () => {
+      const answer = nextAnswer();
+
+      if (typeof answer !== "string") {
+        throw new Error(`Expected string init answer but received ${typeof answer}.`);
+      }
+
+      return answer;
+    },
+    text: async () => {
+      const answer = nextAnswer();
+
+      if (typeof answer !== "string") {
+        throw new Error(`Expected string init answer but received ${typeof answer}.`);
+      }
+
+      return answer;
+    }
+  };
+};
+
 const withTempCwd = async (
   callback: (rootDir: string) => Promise<void>
 ): Promise<void> => {
@@ -305,7 +350,7 @@ describe("cli parsing", () => {
     expect(output.join("\n")).toContain("\"serve\"");
   });
 
-  it("prints an mcp config snippet with an explicit root override", async () => {
+  it("prints an mcp config snippet with custom env overrides", async () => {
     const { io, output } = createIo();
     const cli = buildCli(io);
 
@@ -314,35 +359,11 @@ describe("cli parsing", () => {
       "cw",
       "mcp",
       "config",
-      "--root",
-      "${workspaceFolder}"
-    ]);
-
-    expect(output.join("\n")).toContain("\"--root\"");
-    expect(output.join("\n")).toContain("${workspaceFolder}");
-  });
-
-  it("prints an mcp config snippet with local client env overrides", async () => {
-    const { io, output } = createIo();
-    const cli = buildCli(io);
-
-    await cli.parseAsync([
-      "node",
-      "cw",
-      "mcp",
-      "config",
-      "--root",
-      "${workspaceFolder}",
-      "--worker-client-command",
-      "custom-client",
       "--env",
       "CW_HOME_DIR=C:\\Users\\me\\.cw"
     ]);
 
     expect(output.join("\n")).toContain("\"env\"");
-    expect(output.join("\n")).toContain(
-      "\"CW_WORKER_CLIENT_COMMAND\": \"custom-client\""
-    );
     expect(output.join("\n")).toContain("\"CW_HOME_DIR\": \"C:\\\\Users\\\\me\\\\.cw\"");
   });
 
@@ -377,7 +398,21 @@ describe("cli parsing", () => {
       await cli.parseAsync(["node", "cw", "doctor"]);
 
       expect(output.at(-1)).toContain("cw doctor:");
+      expect(output.at(-1)).toContain("\u001b[");
       expect(output.at(-1)).not.toContain("\"checks\"");
+    });
+  });
+
+  it("keeps doctor json output unstyled", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeProfiles(rootDir, [createProfile()]);
+      const { io, output } = createIo();
+      const cli = buildCli(io);
+
+      await cli.parseAsync(["node", "cw", "doctor"]);
+
+      expect(output.at(-1)).toContain("\"checks\"");
+      expect(output.at(-1)).not.toContain("\u001b[");
     });
   });
 
@@ -414,6 +449,8 @@ describe("cli parsing", () => {
         "mock",
         "--worker-model",
         "setup-worker",
+        "--worker-client-command",
+        "custom-client",
         "--register-worker",
         "--interview-worker",
         "--typecheck-script",
@@ -443,6 +480,8 @@ describe("cli parsing", () => {
       const savedConfig = JSON.parse(
         await readFile(getCwConfigPath(rootDir), "utf8")
       ) as {
+        defaultWorkerId?: string;
+        workerClientCommand?: string;
         workerModel?: { model?: string };
         validation?: {
           scripts?: {
@@ -461,6 +500,8 @@ describe("cli parsing", () => {
       ) as Array<{ workerId: string }>;
 
       expect(savedConfig.workerModel?.model).toBe("setup-worker");
+      expect(savedConfig.defaultWorkerId).toBe("mock:setup-worker");
+      expect(savedConfig.workerClientCommand).toBe("custom-client");
       expect(savedConfig.validation?.scripts?.typecheck).toContain("check-types");
       expect(savedConfig.validation?.scripts?.lint).toContain("lint:ci");
       expect(savedRegistry.workers.some((worker) => worker.workerId === "mock:setup-worker")).toBe(
@@ -468,6 +509,147 @@ describe("cli parsing", () => {
       );
       expect(savedProfiles.some((profile) => profile.workerId === "mock:setup-worker")).toBe(
         true
+      );
+    });
+  });
+
+  it("runs init and persists a dry-run-first onboarding config", async () => {
+    await withTempCwd(async (rootDir) => {
+      const { io, output } = createIo();
+      const cli = buildCli(io, {
+        initPrompter: createInitPrompter([
+          rootDir,
+          true,
+          true,
+          false,
+          true
+        ])
+      });
+
+      await cli.parseAsync(["node", "cw", "init"]);
+
+      const result = parseLastJson<{
+        applied: boolean;
+        mcpConfig?: { mcpServers?: Record<string, unknown> };
+        repositoryWriteMode: string;
+        setup: { mode: string };
+      }>(output);
+      const savedConfig = JSON.parse(
+        await readFile(getCwConfigPath(rootDir), "utf8")
+      ) as {
+        defaultWorkerId?: string;
+        safety?: {
+          allowWrite?: boolean;
+          dryRun?: boolean;
+        };
+      };
+
+      expect(result.applied).toBe(true);
+      expect(result.repositoryWriteMode).toBe("dry-run");
+      expect(result.setup.mode).toBe("execute");
+      expect(result.mcpConfig?.mcpServers?.["mcp-code-worker"]).toBeTruthy();
+      expect(savedConfig.defaultWorkerId).toBeUndefined();
+      expect(savedConfig.safety?.dryRun).toBe(true);
+      expect(savedConfig.safety?.allowWrite).toBe(false);
+    });
+  });
+
+  it("can preview init worker choices without writing files", async () => {
+    await withTempCwd(async (rootDir) => {
+      const { io, output } = createIo();
+      const cli = buildCli(io, {
+        initPrompter: createInitPrompter([
+          rootDir,
+          false,
+          false,
+          true,
+          "api",
+          "guided-worker",
+          "mock",
+          false,
+          false,
+          false
+        ])
+      });
+
+      await cli.parseAsync(["node", "cw", "init"]);
+
+      const result = parseLastJson<{
+        applied: boolean;
+        enableMcp: boolean;
+        setup: { mode: string };
+        worker: {
+          registerWorker: boolean;
+          workerModel?: string;
+          workerProvider?: string;
+        };
+      }>(output);
+
+      expect(result.applied).toBe(false);
+      expect(result.enableMcp).toBe(false);
+      expect(result.setup.mode).toBe("dry-run");
+      expect(result.worker.registerWorker).toBe(true);
+      expect(result.worker.workerProvider).toBe("mock");
+      expect(result.worker.workerModel).toBe("guided-worker");
+      await expect(readFile(getCwConfigPath(rootDir), "utf8")).rejects.toThrow();
+    });
+  });
+
+  it("can apply init and register additional workers", async () => {
+    await withTempCwd(async (rootDir) => {
+      const { io, output } = createIo();
+      const cli = buildCli(io, {
+        initPrompter: createInitPrompter([
+          rootDir,
+          true,
+          false,
+          true,
+          "api",
+          "default-worker",
+          "mock",
+          false,
+          true,
+          "api",
+          "extra-worker",
+          "mock",
+          false,
+          false,
+          true
+        ])
+      });
+
+      await cli.parseAsync(["node", "cw", "init"]);
+
+      const result = parseLastJson<{
+        applied: boolean;
+        worker: {
+          additionalWorkers: Array<{ workerId?: string }>;
+          workerId?: string;
+        };
+      }>(output);
+      const savedConfig = JSON.parse(
+        await readFile(getCwConfigPath(rootDir), "utf8")
+      ) as {
+        defaultWorkerId?: string;
+        workerModel?: {
+          model?: string;
+          provider?: string;
+        };
+      };
+      const savedRegistry = JSON.parse(
+        await readFile(getCwWorkspaceFilePath(rootDir, "workers.json"), "utf8")
+      ) as {
+        workers: Array<{ workerId: string }>;
+      };
+
+      expect(result.applied).toBe(true);
+      expect(result.worker.workerId).toBe("mock:default-worker");
+      expect(result.worker.additionalWorkers[0]?.workerId).toBe("mock:extra-worker");
+      expect(savedConfig.defaultWorkerId).toBe("mock:default-worker");
+      expect(savedConfig.workerModel?.provider).toBe("mock");
+      expect(savedConfig.workerModel?.model).toBe("default-worker");
+      expect(savedRegistry.workers.map((worker) => worker.workerId)).toEqual(
+        expect.arrayContaining(["mock:default-worker", "mock:extra-worker"])
       );
     });
   });
@@ -910,7 +1092,22 @@ describe("cli parsing", () => {
 
       expect(output.at(-1)).toContain("task ");
       expect(output.at(-1)).toContain("next:");
+      expect(output.at(-1)).toContain("\u001b[");
       expect(output.at(-1)).not.toContain("\"taskId\"");
+    });
+  });
+
+  it("renders audit list in styled human mode", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeProfiles(rootDir, [createProfile()]);
+      const { io, output } = createIo("human");
+      const cli = buildCli(io);
+
+      await cli.parseAsync(["node", "cw", "doctor"]);
+      await cli.parseAsync(["node", "cw", "audit", "list", "--limit", "5"]);
+
+      expect(output.at(-1)).toContain("audit events");
+      expect(output.at(-1)).toContain("\u001b[");
     });
   });
 

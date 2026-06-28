@@ -51,6 +51,7 @@ See [docs/examples/cw-config.example.json](https://github.com/vndmea/mcp-code-wo
 The persisted config is intended for non-secret defaults such as:
 
 - worker model provider, model, and base URL
+- local client bridge command via `workerClientCommand`
 - validation script preferences
 - default ignored paths
 - session retention settings

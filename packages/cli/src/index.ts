@@ -4,6 +4,10 @@ import { registerAuditCommand } from "./commands/audit.js";
 import { registerCleanupCommand } from "./commands/cleanup.js";
 import { registerDoctorCommand } from "./commands/doctor.js";
 import { registerFixCommand } from "./commands/fix.js";
+import {
+  registerInitCommand,
+  type InitPrompter
+} from "./commands/init.js";
 import { registerMcpCommand } from "./commands/mcp.js";
 import { registerModelsCommand } from "./commands/models.js";
 import { registerPatchCommand } from "./commands/patch.js";
@@ -19,6 +23,10 @@ export interface CliIo {
   write: (message: string) => void;
 }
 
+export interface CliDependencies {
+  initPrompter?: InitPrompter;
+}
+
 const defaultIo: CliIo = {
   outputMode: process.stdout.isTTY ? "human" : "json",
   write: (message) => {
@@ -29,7 +37,10 @@ const defaultIo: CliIo = {
   }
 };
 
-export const buildCli = (io: CliIo = defaultIo): Command => {
+export const buildCli = (
+  io: CliIo = defaultIo,
+  dependencies: CliDependencies = {}
+): Command => {
   const program = new Command();
 
   program
@@ -42,6 +53,7 @@ export const buildCli = (io: CliIo = defaultIo): Command => {
     });
 
   registerSetupCommand(program, io);
+  registerInitCommand(program, io, dependencies.initPrompter);
   registerPatchCommand(program, io);
   registerReviewCommand(program, io);
   registerFixCommand(program, io);

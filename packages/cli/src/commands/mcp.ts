@@ -42,24 +42,35 @@ const parseEnvAssignments = (
   return env;
 };
 
+export const buildMcpConfigSnippet = (options: {
+  args?: string[];
+  command?: string;
+  env?: Record<string, string>;
+} = {}) => {
+  const args = [...(options.args ?? ["mcp", "serve"])];
+  const env = {
+    ...(options.env ?? {})
+  };
+
+  return {
+    mcpServers: {
+      "mcp-code-worker": {
+        command: options.command ?? "cw",
+        args,
+        ...(Object.keys(env).length > 0 ? { env } : {})
+      }
+    }
+  };
+};
+
 export const registerMcpCommand = (program: Command, io: CliIo): void => {
   const mcp = program.command("mcp").description("Manage the MCP server.");
 
   mcp
     .command("serve")
     .description("Start the stdio MCP server.")
-    .option(
-      "--root <path>",
-      "Resolve MCP workspace state from this root directory instead of the launch cwd."
-    )
-    .action(async (options: { root?: string }) => {
-      if (options.root) {
-        process.env.CW_ROOT_DIR = options.root;
-      }
-
-      await serveCwMcpServer({
-        rootDir: options.root
-      });
+    .action(async () => {
+      await serveCwMcpServer();
     });
 
   mcp
@@ -83,7 +94,7 @@ export const registerMcpCommand = (program: Command, io: CliIo): void => {
 
   mcp
     .command("config")
-    .description("Print a generic local MCP stdio server config snippet.")
+    .description("Print a minimal local MCP stdio server config snippet. Worker selection stays in cw config and registry state.")
     .option("--command <command>", "Command to launch the server", "cw")
     .option("--args <args...>", "Arguments passed to the command")
     .option(
@@ -92,43 +103,18 @@ export const registerMcpCommand = (program: Command, io: CliIo): void => {
       collect,
       []
     )
-    .option(
-      "--root <path>",
-      "Embed an explicit root directory, for example ${workspaceFolder}."
-    )
-    .option(
-      "--worker-client-command <command>",
-      "Set CW_WORKER_CLIENT_COMMAND in the generated snippet when you need a non-default compatible CLI."
-    )
     .action((options: {
       args?: string[];
       command: string;
       env: string[];
-      root?: string;
-      workerClientCommand?: string;
     }) => {
-      const args = options.args ?? ["mcp", "serve"];
-      const env = parseEnvAssignments(options.env);
-
-      if (options.root) {
-        args.push("--root", options.root);
-      }
-
-      if (options.workerClientCommand) {
-        env.CW_WORKER_CLIENT_COMMAND = options.workerClientCommand;
-      }
-
       io.write(
         JSON.stringify(
-          {
-            mcpServers: {
-              "mcp-code-worker": {
-                command: options.command,
-                args,
-                ...(Object.keys(env).length > 0 ? { env } : {})
-              }
-            }
-          },
+          buildMcpConfigSnippet({
+            args: options.args,
+            command: options.command,
+            env: parseEnvAssignments(options.env)
+          }),
           null,
           2
         )

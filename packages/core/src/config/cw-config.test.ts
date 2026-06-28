@@ -33,6 +33,7 @@ describe("cw config", () => {
     const rootDir = await createWorkspace();
     await writeConfig(rootDir, {
       version: 1,
+      workerClientCommand: "custom-client",
       workerModel: {
         provider: "litellm",
         model: "qwen3-coder-mini"
@@ -56,6 +57,7 @@ describe("cw config", () => {
     expect(result.error).toBeUndefined();
     expect(context.workerModel.provider).toBe("litellm");
     expect(context.workerModel.apiKey).toBe("worker-secret");
+    expect(context.workerModel.clientCommand).toBe("custom-client");
     expect(context.allowWrite).toBe(true);
     expect(context.dryRun).toBe(false);
     expect(context.contextBudget.strictFiles).toBe(false);

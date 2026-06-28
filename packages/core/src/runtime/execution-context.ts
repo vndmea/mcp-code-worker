@@ -7,6 +7,7 @@ import { WritePolicy } from "../policies/write-policy.js";
 
 export interface ExecutionContext {
   cwStorageDir: string;
+  defaultWorkerId?: string;
   rootDir: string;
   dryRun: boolean;
   allowWrite: boolean;
@@ -27,6 +28,7 @@ export interface ExecutionContextOverrides {
   allowWrite?: boolean;
   allowedCommands?: string[];
   contextBudget?: Partial<ExecutionContext["contextBudget"]>;
+  defaultWorkerId?: string;
   dryRun?: boolean;
   logLevel?: string;
   rootDir?: string;
@@ -106,6 +108,7 @@ export const createExecutionContextFromEnv = (
       model: env.WORKER_MODEL_NAME ?? "gpt-5.4-mini",
       baseURL: env.WORKER_MODEL_BASE_URL || undefined,
       apiKey: env.WORKER_MODEL_API_KEY || undefined,
+      clientCommand: env.CW_WORKER_CLIENT_COMMAND?.trim() || undefined,
       temperature: 0.1
     },
     overrides.workerModel
@@ -124,6 +127,7 @@ export const createExecutionContextFromEnv = (
 
   return {
     cwStorageDir,
+    defaultWorkerId: overrides.defaultWorkerId,
     rootDir,
     dryRun,
     allowWrite,

@@ -133,8 +133,8 @@ const canCreateDirectory = async (path: string): Promise<boolean> => {
 const LOCAL_CLIENT_PROVIDERS = new Set(["client", "local-client"]);
 
 const resolveLocalClientCommand = (
-  env: NodeJS.ProcessEnv = process.env
-): string => env.CW_WORKER_CLIENT_COMMAND?.trim() || "opencode";
+  context: ExecutionContext
+): string => context.workerModel.clientCommand?.trim() || "opencode";
 
 const hasPathSeparator = (value: string): boolean =>
   value.includes("/") || value.includes("\\");
@@ -347,7 +347,7 @@ export const runDoctor = async (
   });
 
   if (LOCAL_CLIENT_PROVIDERS.has(context.workerModel.provider)) {
-    const localClientCommand = resolveLocalClientCommand();
+    const localClientCommand = resolveLocalClientCommand(context);
     const localClientPath = await resolveCommandOnPath(localClientCommand);
 
     addCheck(checks, {
@@ -359,7 +359,8 @@ export const runDoctor = async (
       metadata: {
         command: localClientCommand,
         resolvedPath: localClientPath,
-        configuredByEnv: Boolean(process.env.CW_WORKER_CLIENT_COMMAND?.trim())
+        configuredByEnv: Boolean(process.env.CW_WORKER_CLIENT_COMMAND?.trim()),
+        configuredInConfig: Boolean(context.workerModel.clientCommand?.trim())
       }
     });
   }

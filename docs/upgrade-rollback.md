@@ -56,7 +56,7 @@ If you use MCP clients, also verify:
 
 ```bash
 cw mcp config
-cw mcp serve --root <workspace-path>
+cw mcp serve
 ```
 
 ## Rollback: Public npm Install Path
@@ -79,7 +79,7 @@ If state-dependent workflows matter for the rollback decision, also verify:
 
 - worker profiles can still be listed
 - task reports can still be read
-- MCP startup still works with the expected root path
+- MCP startup still works from the expected workspace root or with the expected `CW_ROOT_DIR`
 
 ## Upgrade: Repository Checkout Path
 
@@ -135,7 +135,7 @@ After any upgrade or rollback, run the smallest set of checks that matches your 
 - MCP usage:
   - `cw mcp list-tools`
   - `cw mcp config`
-  - `cw mcp serve --root <workspace-path>`
+  - `cw mcp serve`
 - Worker usage:
   - `cw worker list`
   - `cw worker profile <workerId>`

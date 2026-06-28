@@ -49,6 +49,7 @@ export interface ModelConfig {
   model: string;
   baseURL?: string;
   apiKey?: string;
+  clientCommand?: string;
   temperature?: number;
   maxTokens?: number;
 }

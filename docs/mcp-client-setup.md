@@ -16,13 +16,13 @@ For most clients, the recommended command shape is:
   "mcpServers": {
     "mcp-code-worker": {
       "command": "cw",
-      "args": ["mcp", "serve", "--root", "${workspaceFolder}"]
+      "args": ["mcp", "serve"]
     }
   }
 }
 ```
 
-If the client launches from a shared tools checkout instead of the active repository, prefer an explicit `--root` or set `CW_ROOT_DIR`.
+If the client launches from a shared tools checkout instead of the active repository, set `CW_ROOT_DIR` in the server environment.
 
 ## Validation Before Client Setup
 
@@ -42,23 +42,29 @@ If you are using a repository checkout instead of the public install path, read 
 - `CW_HOME_DIR` controls where user-scoped CW state is stored.
 - By default, CW-managed state is stored under `~/.cw/workspaces/<workspace-id>/`.
 
-For workspace-scoped editor use, prefer `cw mcp serve --root <workspace-path>` so repository files, git state, and task artifacts resolve against the intended checkout.
+For workspace-scoped editor use, launch `cw mcp serve` from the intended workspace root. If that is not possible, set `CW_ROOT_DIR` so repository files, git state, and task artifacts resolve against the intended checkout.
 
 ## Local Client Provider Note
 
-If the worker model uses the local client provider, `opencode` is the default compatible client bridge command. Set `CW_WORKER_CLIENT_COMMAND` only when you need a different compatible executable name or path.
+If the worker model uses the local client provider, `opencode` is the default compatible client bridge command. Persist a different command through `cw setup --worker-client-command <command> --allow-write` or by editing `config.json`.
 
 Example:
+
+```json
+{
+  "version": 1,
+  "workerClientCommand": "/path/to/compatible-client"
+}
+```
+
+The MCP client snippet stays unchanged:
 
 ```json
 {
   "mcpServers": {
     "mcp-code-worker": {
       "command": "cw",
-      "args": ["mcp", "serve", "--root", "${workspaceFolder}"],
-      "env": {
-        "CW_WORKER_CLIENT_COMMAND": "/path/to/compatible-client"
-      }
+      "args": ["mcp", "serve"]
     }
   }
 }

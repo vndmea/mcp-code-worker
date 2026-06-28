@@ -17,8 +17,8 @@ import type { CliIo } from "../index.js";
 import {
   isHumanOutput,
   resolveWorkflowOutputOptions,
-  writeJson,
-  writeText
+  writeHumanText,
+  writeJson
 } from "../output.js";
 
 const formatTaskSessionSummaryText = (summary: Record<string, unknown>): string[] => {
@@ -89,7 +89,7 @@ const writeTaskOutput = (
   value: Record<string, unknown>
 ): void => {
   if (isHumanOutput(io)) {
-    writeText(io, formatTaskSessionSummaryText(value));
+    writeHumanText(io, formatTaskSessionSummaryText(value));
     return;
   }
 
@@ -368,7 +368,7 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
         const lines = (formatted as Array<Record<string, unknown>>).flatMap((session) =>
           formatTaskSessionSummaryText(session).concat("")
         );
-        writeText(io, lines.slice(0, Math.max(0, lines.length - 1)));
+        writeHumanText(io, lines.slice(0, Math.max(0, lines.length - 1)));
         return;
       }
 

@@ -322,6 +322,7 @@ describe("core schemas", () => {
     expect(() =>
       CwConfigSchema.parse({
         version: 1,
+        defaultWorkerId: "mock:default-worker",
         safety: {},
         context: {},
         sessions: {}

@@ -25,6 +25,11 @@ interface ClientPayload {
 const resolveClientCommand = (): string =>
   process.env.CW_WORKER_CLIENT_COMMAND?.trim() || "opencode";
 
+const resolveConfiguredClientCommand = (config: ModelConfig): string =>
+  process.env.CW_WORKER_CLIENT_COMMAND?.trim() ||
+  config.clientCommand?.trim() ||
+  resolveClientCommand();
+
 const summarizePrompt = (prompt: string): string =>
   prompt.replaceAll(/\s+/gu, " ").trim().slice(0, 160);
 
@@ -130,11 +135,12 @@ const buildClientExitError = (
 };
 
 const runClient = async (
+  command: string,
   args: string[],
   prompt: string
 ): Promise<{ exitCode: number; stderr: string; stdout: string }> =>
   new Promise((resolve, reject) => {
-    const child = spawn(resolveClientCommand(), args, {
+    const child = spawn(command, args, {
       stdio: ["pipe", "pipe", "pipe"]
     });
 
@@ -173,7 +179,9 @@ export class LocalClientProvider implements ModelProvider {
       return buildMockResult(config, request);
     }
 
+    const clientCommand = resolveConfiguredClientCommand(config);
     const { exitCode, stderr, stdout } = await runClient(
+      clientCommand,
       buildClientArgs(config, request),
       request.prompt
     );

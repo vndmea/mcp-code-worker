@@ -42,8 +42,10 @@ export const resolveWorkerModel = async ({
   context,
   workerId
 }: ResolveWorkerModelInput): Promise<ResolveWorkerModelResult> => {
-  const defaultWorkerId = deriveWorkerRegistrationId(context.workerModel);
-  const resolvedWorkerId = workerId ?? defaultWorkerId;
+  const fallbackWorkerId = deriveWorkerRegistrationId(context.workerModel);
+  const configuredDefaultWorkerId = context.defaultWorkerId;
+  const resolvedWorkerId =
+    workerId ?? configuredDefaultWorkerId ?? fallbackWorkerId;
   const registration = await getWorkerRegistration(
     context.rootDir,
     resolvedWorkerId,
@@ -79,26 +81,26 @@ export const resolveWorkerModel = async ({
     };
   }
 
-  if (workerId) {
+  if (workerId || configuredDefaultWorkerId) {
     throw new AgentError(
       "WORKER_NOT_REGISTERED",
-      `Worker ${workerId} is not registered.`,
-      { workerId }
+      `Worker ${resolvedWorkerId} is not registered.`,
+      { workerId: resolvedWorkerId }
     );
   }
 
   if (requiresApiKey(context.workerModel) && !context.workerModel.apiKey) {
     throw new AgentError(
       "WORKER_MODEL_API_KEY_MISSING",
-      `Worker ${defaultWorkerId} requires WORKER_MODEL_API_KEY to be set before it can run.`,
+      `Worker ${fallbackWorkerId} requires WORKER_MODEL_API_KEY to be set before it can run.`,
       {
-        workerId: defaultWorkerId
+        workerId: fallbackWorkerId
       }
     );
   }
 
   return {
-    workerId: defaultWorkerId,
+    workerId: fallbackWorkerId,
     registration: null,
     modelConfig: context.workerModel,
     source: "env-default",

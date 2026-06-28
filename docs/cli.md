@@ -30,10 +30,7 @@ cw cleanup runs
 cw cleanup audit
 cw doctor
 cw mcp config
-cw mcp config --root ${workspaceFolder}
-cw mcp config --root ${workspaceFolder} --worker-client-command /path/to/compatible-client
 cw mcp serve
-cw mcp serve --root ${workspaceFolder}
 cw mcp list-tools
 ```
 
@@ -43,9 +40,9 @@ Writes remain in dry-run mode unless a command explicitly enables repository wri
 
 `--allow-write-session` is narrower than `--allow-write`: it only permits local task artifacts under `cwStorageDir/runs`, not project file writes.
 
-For MCP clients that launch `cw` outside the active repository, use `cw mcp serve --root <workspace-path>` or set `CW_ROOT_DIR` so tools resolve CW storage, git state, and repository files against the intended workspace.
+For MCP clients, `cw mcp serve` does not take `--root`. Launch it from the intended repository root by default, or set `CW_ROOT_DIR` when the client starts `cw` from some other directory.
 
-For local client providers, `opencode` is the default command. Set `CW_WORKER_CLIENT_COMMAND` only when you need a different compatible CLI name or path.
+For local client providers, `opencode` is the default command. Persist a different compatible CLI name or path with `cw setup --worker-client-command <command> --allow-write` when needed.
 
 ## Review Commands
 

@@ -16,36 +16,32 @@ When you need a narrower host-managed worker check, use `cw_run_host_worker` or 
 
 ## Root Directory Resolution
 
-By default, the MCP server resolves `rootDir` from the server process cwd. When an MCP client launches `cw` from a shared tools checkout instead of the active workspace, pass an explicit root:
+By default, the MCP server resolves `rootDir` from the server process cwd. When an MCP client launches `cw` from a shared tools checkout instead of the active workspace, set `CW_ROOT_DIR` in the server environment:
 
 ```json
 {
   "mcpServers": {
     "mcp-code-worker": {
       "command": "cw",
-      "args": ["mcp", "serve", "--root", "${workspaceFolder}"]
+      "args": ["mcp", "serve"],
+      "env": {
+        "CW_ROOT_DIR": "${workspaceFolder}"
+      }
     }
   }
 }
 ```
 
-You can also set `CW_ROOT_DIR` in the server environment. Explicit CLI `--root` still wins over `CW_ROOT_DIR`.
+Regular CLI commands can still take their own `--root` flags where supported, but the MCP entrypoint itself does not expose `--root`.
 
-If the resolved worker model uses the local client provider, `opencode` is the default command. Set `CW_WORKER_CLIENT_COMMAND` only when your compatible local CLI uses a different executable name or path.
+If the resolved worker model uses the local client provider, `opencode` is the default command. Persist a different compatible local CLI with `workerClientCommand` in `config.json` or `cw setup --worker-client-command <command> --allow-write`.
 
 Example:
 
 ```json
 {
-  "mcpServers": {
-    "mcp-code-worker": {
-      "command": "cw",
-      "args": ["mcp", "serve", "--root", "${workspaceFolder}"],
-      "env": {
-        "CW_WORKER_CLIENT_COMMAND": "/path/to/compatible-client"
-      }
-    }
-  }
+  "version": 1,
+  "workerClientCommand": "/path/to/compatible-client"
 }
 ```
 
