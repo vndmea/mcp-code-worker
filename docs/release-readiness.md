@@ -19,6 +19,7 @@ Use this checklist to confirm that:
 All categories below must be complete before tagging and publishing:
 
 - Version and release evidence
+- Platform support promotion evidence
 - Local quality gate
 - Packaging checks
 - Documentation checks
@@ -37,6 +38,29 @@ All categories below must be complete before tagging and publishing:
 | pnpm version        | Validation was performed with `pnpm >=10`                        | `pnpm --version` -> `11.9.0` |
 | Public install path | `npm i -g mcp-code-worker` works from a clean environment        | Verified by `pnpm smoke:pack` on 2026-06-28 |
 | Distribution path   | The published package was prepared from `packages/cli/.publish/` | Verified by `pnpm --dir packages/cli run pack:publish` on 2026-06-28 |
+
+### Windows / macOS Promotion Evidence
+
+Windows and macOS cannot be promoted from `documented best-effort` to `supported` just because the CI matrix exists. Promotion requires release-commit evidence recorded here for all three release-grade jobs:
+
+- `quality`
+- `runtime-smoke`
+- `package-smoke`
+
+Record the exact release commit, the workflow run or job reference, the outcome, and any exception or waiver. If either platform is missing a green record for any required job, keep that platform at `documented best-effort` in `docs/supported-matrix.md`.
+
+| Platform | Release commit | quality | runtime-smoke | package-smoke | Evidence reference | Support decision | Notes |
+| -------- | -------------- | ------- | ------------- | ------------- | ------------------ | ---------------- | ----- |
+| Windows 11 x64 with PowerShell | `c734da37a1cd47132cdf9d9ac9eaa7110187c64f` | not yet recorded | not yet recorded | not yet recorded | Add the GitHub Actions run URL or job IDs for the release commit. | Keep `documented best-effort` until all three jobs are green. | Check path normalization, PowerShell env injection, and local client executable resolution. |
+| macOS 14+ | `c734da37a1cd47132cdf9d9ac9eaa7110187c64f` | not yet recorded | not yet recorded | not yet recorded | Add the GitHub Actions run URL or job IDs for the release commit. | Keep `documented best-effort` until all three jobs are green. | Check home-path handling and launch-environment differences. |
+
+### Support Matrix Sync Rule
+
+Before changing the support level for Windows or macOS in `docs/supported-matrix.md`:
+
+1. Record green release-commit evidence for `quality`, `runtime-smoke`, and `package-smoke` in the table above.
+2. Record any failed or waived job explicitly with the reason.
+3. Update `docs/supported-matrix.md` in the same change that records the promotion evidence.
 
 ### Validation Commands
 
@@ -184,6 +208,7 @@ Release must be blocked when any of the following is true:
 - any required validation command fails
 - the packaged `cw` command cannot start cleanly
 - MCP startup or tool listing fails
+- Windows or macOS is marketed as `supported` without a fully recorded green row in the promotion-evidence table above
 - required documentation files are missing or materially inaccurate
 - dry-run is not the default
 - patch apply can proceed without the documented gates

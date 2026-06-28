@@ -22,8 +22,8 @@ If a platform, runtime, or MCP host is not listed here as supported, do not impl
 | OS | Level | Validation basis | Notes |
 | --- | ----- | ---------------- | ----- |
 | Ubuntu Linux x64 | supported | CI validates quality gates, runtime smoke, and pack smoke | Automated on `ubuntu-latest` |
-| Windows 11 x64 with PowerShell | documented best-effort | Full matrix automation is configured for quality, runtime smoke, and pack smoke | Promote to supported only after green release evidence is recorded |
-| macOS 14+ | documented best-effort | Full matrix automation is configured for quality, runtime smoke, and pack smoke | Promote to supported only after green release evidence is recorded |
+| Windows 11 x64 with PowerShell | documented best-effort | Full matrix automation is configured for quality, runtime smoke, and pack smoke | Promote to supported only after a green Windows row is recorded in `docs/release-readiness.md` for the release commit |
+| macOS 14+ | documented best-effort | Full matrix automation is configured for quality, runtime smoke, and pack smoke | Promote to supported only after a green macOS row is recorded in `docs/release-readiness.md` for the release commit |
 
 ## Node.js
 
@@ -72,3 +72,5 @@ A release is not ready to claim support beyond this matrix unless:
 1. the new target is validated on the release commit
 2. the corresponding docs are updated
 3. the release evidence explicitly records that validation
+
+For Windows and macOS specifically, the release evidence must include green `quality`, `runtime-smoke`, and `package-smoke` results in `docs/release-readiness.md` before their support level can change from `documented best-effort` to `supported`.
