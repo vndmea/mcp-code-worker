@@ -2,10 +2,8 @@ import type { Command } from "commander";
 
 import { resolveExecutionContext } from "@mcp-code-worker/core";
 import {
-  applyBenchmarkCapabilityUpdate,
   runWorkerBenchmarkWorkflow,
-  runWorkerInterviewWorkflow,
-  saveWorkerBenchmarkArtifact
+  runWorkerInterviewWorkflow
 } from "@mcp-code-worker/graph";
 import {
   getWorkerRegistration,
@@ -15,8 +13,7 @@ import {
   removeWorkerRegistration,
   requireConfiguredWorkerId,
   resolveWorkerTarget,
-  saveWorkerRegistration,
-  saveWorkerProfile
+  saveWorkerRegistration
 } from "@mcp-code-worker/models";
 
 import type { CliIo } from "../index.js";
@@ -25,6 +22,10 @@ import {
   buildWorkerReadinessReport,
   formatWorkerReadinessResult
 } from "./worker-readiness.js";
+import {
+  runBenchmarkCapabilityUpdate,
+  saveInterviewProfile
+} from "./worker-onboarding.js";
 
 const formatWorkerList = (
   title: string,
@@ -338,15 +339,12 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
           modelConfig: resolvedTarget.modelConfig
         });
 
-        const saveResult = options.save
-          ? result.persistenceAdvice.canPersist
-            ? await saveWorkerProfile(context, result.profile, true)
-            : {
-                mode: "skipped" as const,
-                reason: result.persistenceAdvice.reason,
-                recommendedActions: result.persistenceAdvice.recommendedActions
-              }
-          : null;
+        const saveResult = await saveInterviewProfile({
+          context,
+          profile: result.profile,
+          save: options.save,
+          persistenceAdvice: result.persistenceAdvice
+        });
 
         writeOutput(
           io,
@@ -409,50 +407,33 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
           workerId: resolvedTarget.workerId,
           modelConfig: resolvedTarget.modelConfig
         });
-        const persistence = options.save
-          ? await saveWorkerBenchmarkArtifact(context, result, true)
-          : null;
-        const existingProfile = await getWorkerProfile(
-          context.rootDir,
-          result.workerId,
-          context.cwStorageDir
-        );
-        if (options.updateProfileCapabilities && !existingProfile) {
-          throw new Error(
-            `No persisted worker profile was found for '${result.workerId}'. Run 'cw worker interview --worker ${result.workerId} --save' first.`
-          );
-        }
-        const profileUpdate = existingProfile
-          ? applyBenchmarkCapabilityUpdate(existingProfile, result, {
-              updateProfileCapabilities: options.updateProfileCapabilities
-            })
-          : null;
-        const profilePersistence =
-          options.save && profileUpdate
-            ? await saveWorkerProfile(
-                context,
-                profileUpdate.profile,
-                true
-              )
-            : null;
+        const benchmarkUpdate = await runBenchmarkCapabilityUpdate({
+          context,
+          modelConfig: resolvedTarget.modelConfig,
+          save: options.save,
+          updateProfileCapabilities: options.updateProfileCapabilities,
+          workerId: result.workerId
+        });
 
         writeOutput(
           io,
           {
             ...result,
-            capabilityUpdateApplied: profileUpdate?.capabilityUpdateApplied ?? false,
+            capabilityUpdateApplied:
+              benchmarkUpdate.profileUpdate?.capabilityUpdateApplied ?? false,
             patchGenerationQualified:
-              profileUpdate?.patchGenerationQualified ?? false,
-            persistence,
-            profilePersistence
+              benchmarkUpdate.profileUpdate?.patchGenerationQualified ?? false,
+            persistence: benchmarkUpdate.persistence,
+            profilePersistence: benchmarkUpdate.profilePersistence
           },
           formatWorkerBenchmarkResult({
             ...result,
-            capabilityUpdateApplied: profileUpdate?.capabilityUpdateApplied ?? false,
+            capabilityUpdateApplied:
+              benchmarkUpdate.profileUpdate?.capabilityUpdateApplied ?? false,
             patchGenerationQualified:
-              profileUpdate?.patchGenerationQualified ?? false,
-            persistence,
-            profilePersistence
+              benchmarkUpdate.profileUpdate?.patchGenerationQualified ?? false,
+            persistence: benchmarkUpdate.persistence,
+            profilePersistence: benchmarkUpdate.profilePersistence
           })
         );
       }

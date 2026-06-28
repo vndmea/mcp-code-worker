@@ -18,10 +18,7 @@ import {
   type ModelConfig
 } from "@mcp-code-worker/core";
 import {
-  applyBenchmarkCapabilityUpdate,
-  runWorkerBenchmarkWorkflow,
   runWorkerInterviewWorkflow,
-  saveWorkerBenchmarkArtifact
 } from "@mcp-code-worker/graph";
 import {
   createWorkerDoctorChecks,
@@ -31,11 +28,14 @@ import {
   inspectLocalClientCommand,
   readPersistedWorkerProfiles,
   readWorkerRegistry,
-  saveWorkerProfile,
   saveWorkerRegistration
 } from "@mcp-code-worker/models";
 
 import { formatDisplayPath } from "../output.js";
+import {
+  runBenchmarkCapabilityUpdate,
+  saveInterviewProfile
+} from "./worker-onboarding.js";
 
 type SetupStepStatus =
   | "unavailable"
@@ -698,19 +698,27 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
         modelConfig: workerModel
       });
 
-      if (!interviewResult.persistenceAdvice.canPersist) {
+      const interviewSave = await saveInterviewProfile({
+        context,
+        profile: interviewResult.profile,
+        save: normalizedOptions.allowWrite,
+        persistenceAdvice: interviewResult.persistenceAdvice
+      });
+
+      if (interviewSave?.mode === "skipped") {
         steps.push({
           id: "interview-worker",
           status: "unavailable",
-          summary: interviewResult.persistenceAdvice.reason,
+          summary: interviewSave.reason ?? interviewResult.persistenceAdvice.reason,
           command: "cw worker interview --save",
           details: {
             recommendedActions:
+              interviewSave.recommendedActions ??
               interviewResult.persistenceAdvice.recommendedActions,
             warnings: interviewResult.warnings
           }
         });
-      } else if (!normalizedOptions.allowWrite) {
+      } else if (interviewSave.mode === "dry-run") {
         steps.push({
           id: "interview-worker",
           status: "dry-run",
@@ -725,18 +733,13 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
           }
         });
         interviewedProfile = interviewResult.profile;
-      } else if (normalizedOptions.allowWrite) {
-        const profileSave = await saveWorkerProfile(
-          context,
-          interviewResult.profile,
-          true
-        );
+      } else {
         interviewedProfile = interviewResult.profile;
         interviewPersisted = true;
         steps.push({
           id: "interview-worker",
           status: "completed",
-          path: relativePath(context.rootDir, profileSave.path),
+          path: relativePath(context.rootDir, interviewSave.path ?? profilesPath),
           summary: `Interviewed and persisted worker profile ${workerId}.`,
           command: "cw worker profile",
           details: {
@@ -784,43 +787,36 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
         command: "cw worker benchmark --suite coding-v1 --save --update-profile-capabilities"
       });
     } else {
-      const benchmarkResult = await runWorkerBenchmarkWorkflow({
+      const benchmarkUpdate = await runBenchmarkCapabilityUpdate({
         context,
-        suite: "coding-v1",
-        workerId,
-        modelConfig: workerModel
+        modelConfig: workerModel,
+        save: true,
+        updateProfileCapabilities: true,
+        workerId
       });
-      const benchmarkPersistence = await saveWorkerBenchmarkArtifact(
-        context,
-        benchmarkResult,
-        true
-      );
-      const profileUpdate = applyBenchmarkCapabilityUpdate(
-        interviewedProfile,
-        benchmarkResult,
-        {
-          updateProfileCapabilities: true
-        }
-      );
-      const profilePersistence = await saveWorkerProfile(
-        context,
-        profileUpdate.profile,
-        true
-      );
 
       steps.push({
         id: "benchmark-worker",
         status: "completed",
-        path: relativePath(context.rootDir, benchmarkPersistence.path),
+        path: relativePath(
+          context.rootDir,
+          benchmarkUpdate.persistence?.path ?? ""
+        ),
         summary: `Benchmarked worker ${workerId} and refreshed persisted capability routing.`,
         command: "cw worker benchmark --suite coding-v1 --save --update-profile-capabilities",
         details: {
-          artifactPath: relativePath(context.rootDir, benchmarkPersistence.path),
-          capabilityStatus: profileUpdate.patchGenerationQualified
+          artifactPath: relativePath(
+            context.rootDir,
+            benchmarkUpdate.persistence?.path ?? ""
+          ),
+          capabilityStatus: benchmarkUpdate.profileUpdate?.patchGenerationQualified
             ? "qualified"
             : "not-qualified",
-          profilePath: relativePath(context.rootDir, profilePersistence.path),
-          suiteName: benchmarkResult.suiteName,
+          profilePath: relativePath(
+            context.rootDir,
+            benchmarkUpdate.profilePersistence?.path ?? ""
+          ),
+          suiteName: benchmarkUpdate.benchmarkResult.suiteName,
           workerId
         }
       });

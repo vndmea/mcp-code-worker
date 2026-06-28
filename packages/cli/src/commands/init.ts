@@ -16,18 +16,16 @@ import {
   type ExecutionContext,
   type ModelConfig
 } from "@mcp-code-worker/core";
-import {
-  applyBenchmarkCapabilityUpdate,
-  runWorkerBenchmarkWorkflow,
-  runWorkerInterviewWorkflow,
-  saveWorkerBenchmarkArtifact
-} from "@mcp-code-worker/graph";
+import { runWorkerInterviewWorkflow } from "@mcp-code-worker/graph";
 import {
   createWorkerDoctorChecks,
   getWorkerRegistration,
-  saveWorkerProfile,
   saveWorkerRegistration
 } from "@mcp-code-worker/models";
+import {
+  runBenchmarkCapabilityUpdate,
+  saveInterviewProfile
+} from "./worker-onboarding.js";
 
 import type { CliIo } from "../index.js";
 import { formatDisplayPath, writeOutput } from "../output.js";
@@ -906,36 +904,34 @@ const registerAdditionalWorkers = async (
         modelConfig
       });
 
-      if (!interviewResult.persistenceAdvice.canPersist) {
+      const interviewSave = await saveInterviewProfile({
+        context,
+        profile: interviewResult.profile,
+        save: true,
+        persistenceAdvice: interviewResult.persistenceAdvice
+      });
+
+      if (interviewSave?.mode === "skipped") {
         interviewStatus = "unavailable";
         benchmarkStatus = worker.benchmarkWorker ? "unavailable" : "skipped";
         readinessStatus = "unavailable";
         readinessUnavailableReasonType = "profile-provider-error";
       } else {
-        await saveWorkerProfile(context, interviewResult.profile, true);
         interviewStatus = "completed";
 
         if (worker.benchmarkWorker) {
-          const benchmarkResult = await runWorkerBenchmarkWorkflow({
+          const benchmarkUpdate = await runBenchmarkCapabilityUpdate({
             context,
-            suite: "coding-v1",
-            workerId: worker.workerId,
-            modelConfig
+            modelConfig,
+            save: true,
+            updateProfileCapabilities: true,
+            workerId: worker.workerId
           });
-          await saveWorkerBenchmarkArtifact(context, benchmarkResult, true);
-          const profileUpdate = applyBenchmarkCapabilityUpdate(
-            interviewResult.profile,
-            benchmarkResult,
-            {
-              updateProfileCapabilities: true
-            }
-          );
-          await saveWorkerProfile(context, profileUpdate.profile, true);
           benchmarkStatus = "completed";
-          readinessStatus = profileUpdate.patchGenerationQualified
+          readinessStatus = benchmarkUpdate.profileUpdate?.patchGenerationQualified
             ? "ready"
             : "unavailable";
-          readinessUnavailableReasonType = profileUpdate.patchGenerationQualified
+          readinessUnavailableReasonType = benchmarkUpdate.profileUpdate?.patchGenerationQualified
             ? "not-applicable"
             : "worker-not-qualified";
         }

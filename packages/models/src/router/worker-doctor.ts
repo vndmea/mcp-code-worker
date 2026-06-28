@@ -1,7 +1,9 @@
 import type { DoctorCheck, ExecutionContext } from "@mcp-code-worker/core";
 
-import { createLocalClientDoctorChecks } from "./worker-connectivity-doctor.js";
-import { createWorkerConnectivityDoctorChecks } from "./worker-connectivity-doctor.js";
+import {
+  createLocalClientDoctorChecks,
+  createWorkerConnectivityDoctorChecks
+} from "./worker-connectivity-doctor.js";
 import { createWorkerProfileDoctorChecks } from "./worker-profile-doctor.js";
 
 export interface WorkerDoctorCheckOptions {
