@@ -14,10 +14,17 @@ import {
   writeAuditEvent,
   type CwConfig,
   type ExecutionContext,
+  type DoctorCheck,
   type ModelConfig
 } from "@mcp-code-worker/core";
-import { runWorkerInterviewWorkflow } from "@mcp-code-worker/graph";
 import {
+  applyBenchmarkCapabilityUpdate,
+  runWorkerBenchmarkWorkflow,
+  runWorkerInterviewWorkflow,
+  saveWorkerBenchmarkArtifact
+} from "@mcp-code-worker/graph";
+import {
+  createWorkerConnectivityDoctorChecks,
   createWorkerProfileDoctorChecks,
   deriveWorkerRegistrationId,
   getWorkerProfileStorePath,
@@ -65,9 +72,11 @@ export interface SetupResult {
 
 export interface SetupOptions {
   allowWrite: boolean;
+  benchmarkWorker: boolean;
   disableValidationAutoDiscover: boolean;
   interviewWorker: boolean;
   lintScript: string[];
+  probeWorker: boolean;
   repositoryWriteMode?: "allow-write" | "dry-run";
   root?: string;
   registerWorker: boolean;
@@ -310,6 +319,17 @@ const buildValidationSummary = (options: SetupOptions): string => {
 
   return `Validation mappings prepared: ${mappings.join("; ")}.`;
 };
+
+const buildProbeChecks = async (
+  context: ExecutionContext,
+  workerId: string,
+  workerModel: ModelConfig
+): Promise<DoctorCheck[]> =>
+  createWorkerConnectivityDoctorChecks({
+    ...context,
+    defaultWorkerId: workerId,
+    workerModel
+  });
 
 export const formatSetupResult = (result: SetupResult): string[] => {
   const blockedSteps = result.steps.filter((step) => step.status === "blocked");
@@ -559,6 +579,11 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
 
   const workerModel = resolveSetupWorkerModel(context, configToWrite);
   const workerId = resolveSetupWorkerId(normalizedOptions, workerModel);
+  let probeChecks: DoctorCheck[] = [];
+  let interviewedProfile:
+    | Awaited<ReturnType<typeof runWorkerInterviewWorkflow>>["profile"]
+    | null = null;
+  let interviewPersisted = false;
 
   if (normalizedOptions.registerWorker) {
     if (registryState.error) {
@@ -611,6 +636,39 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     });
   }
 
+  if (normalizedOptions.probeWorker) {
+    if (!normalizedOptions.registerWorker) {
+      steps.push({
+        id: "probe-worker",
+        status: "blocked",
+        summary:
+          "Worker probe was requested, but worker registration is disabled for this setup run.",
+        command: "cw init"
+      });
+    } else {
+      probeChecks = await buildProbeChecks(context, workerId, workerModel);
+      const probeCheck = probeChecks[0];
+
+      steps.push({
+        id: "probe-worker",
+        status: probeCheck?.status === "pass" ? "completed" : "blocked",
+        summary:
+          probeCheck?.message ??
+          `Worker ${workerId} probe did not produce a connectivity result.`,
+        command: "cw doctor --probe",
+        details: probeCheck?.metadata
+      });
+    }
+  } else {
+    steps.push({
+      id: "probe-worker",
+      status: "skipped",
+      summary:
+        "Worker probe was skipped. Run `cw doctor --probe` later if you want a live connectivity check.",
+      command: "cw doctor --probe"
+    });
+  }
+
   if (normalizedOptions.interviewWorker) {
     if (profileState.error) {
       steps.push({
@@ -639,25 +697,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
             warnings: interviewResult.warnings
           }
         });
-      } else if (normalizedOptions.allowWrite) {
-        const profileSave = await saveWorkerProfile(
-          context,
-          interviewResult.profile,
-          true
-        );
-        steps.push({
-          id: "interview-worker",
-          status: "completed",
-          path: relativePath(context.rootDir, profileSave.path),
-          summary: `Interviewed and persisted worker profile ${workerId}.`,
-          command: "cw worker profile",
-          details: {
-            workerId,
-            profileStatus: interviewResult.profile.status,
-            supportedTaskTypes: interviewResult.profile.supportedTaskTypes
-          }
-        });
-      } else {
+      } else if (!normalizedOptions.allowWrite) {
         steps.push({
           id: "interview-worker",
           status: "dry-run",
@@ -665,6 +705,27 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
           summary:
             `Would persist interviewed worker profile ${workerId} after rerunning with --allow-write.`,
           command: "cw worker interview --save",
+          details: {
+            workerId,
+            profileStatus: interviewResult.profile.status,
+            supportedTaskTypes: interviewResult.profile.supportedTaskTypes
+          }
+        });
+        interviewedProfile = interviewResult.profile;
+      } else if (normalizedOptions.allowWrite) {
+        const profileSave = await saveWorkerProfile(
+          context,
+          interviewResult.profile,
+          true
+        );
+        interviewedProfile = interviewResult.profile;
+        interviewPersisted = true;
+        steps.push({
+          id: "interview-worker",
+          status: "completed",
+          path: relativePath(context.rootDir, profileSave.path),
+          summary: `Interviewed and persisted worker profile ${workerId}.`,
+          command: "cw worker profile",
           details: {
             workerId,
             profileStatus: interviewResult.profile.status,
@@ -683,11 +744,92 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     });
   }
 
+  if (normalizedOptions.benchmarkWorker) {
+    if (!normalizedOptions.interviewWorker) {
+      steps.push({
+        id: "benchmark-worker",
+        status: "blocked",
+        summary:
+          "Worker benchmark requires an interviewed worker profile. Enable interview before benchmarking.",
+        command: "cw worker interview --save"
+      });
+    } else if (!interviewedProfile) {
+      steps.push({
+        id: "benchmark-worker",
+        status: "blocked",
+        summary:
+          "Worker benchmark could not run because the interview did not produce a usable profile.",
+        command: "cw worker interview --save"
+      });
+    } else if (!interviewPersisted) {
+      steps.push({
+        id: "benchmark-worker",
+        status: normalizedOptions.allowWrite ? "blocked" : "dry-run",
+        summary: normalizedOptions.allowWrite
+          ? "Worker benchmark was skipped because the interviewed profile was not persisted."
+          : "Would benchmark the worker after rerunning with --allow-write so the interviewed profile can be persisted first.",
+        command: "cw worker benchmark --suite coding-v1 --save --update-profile-capabilities"
+      });
+    } else {
+      const benchmarkResult = await runWorkerBenchmarkWorkflow({
+        context,
+        suite: "coding-v1",
+        workerId,
+        modelConfig: workerModel
+      });
+      const benchmarkPersistence = await saveWorkerBenchmarkArtifact(
+        context,
+        benchmarkResult,
+        true
+      );
+      const profileUpdate = applyBenchmarkCapabilityUpdate(
+        interviewedProfile,
+        benchmarkResult,
+        {
+          updateProfileCapabilities: true
+        }
+      );
+      const profilePersistence = await saveWorkerProfile(
+        context,
+        profileUpdate.profile,
+        true
+      );
+
+      steps.push({
+        id: "benchmark-worker",
+        status: "completed",
+        path: relativePath(context.rootDir, benchmarkPersistence.path),
+        summary: `Benchmarked worker ${workerId} and refreshed persisted capability routing.`,
+        command: "cw worker benchmark --suite coding-v1 --save --update-profile-capabilities",
+        details: {
+          artifactPath: relativePath(context.rootDir, benchmarkPersistence.path),
+          capabilityStatus: profileUpdate.patchGenerationQualified
+            ? "qualified"
+            : "not-qualified",
+          profilePath: relativePath(context.rootDir, profilePersistence.path),
+          suiteName: benchmarkResult.suiteName,
+          workerId
+        }
+      });
+    }
+  } else {
+    steps.push({
+      id: "benchmark-worker",
+      status: "skipped",
+      summary:
+        "Worker benchmark was skipped. Run it later after interview if you want capability qualification evidence.",
+      command: "cw worker benchmark --suite coding-v1 --save --update-profile-capabilities"
+    });
+  }
+
   const finalContext = await resolveExecutionContext({
     rootDir: context.rootDir
   });
   const finalDoctor = await runDoctor(finalContext, {
-    additionalChecks: await createWorkerProfileDoctorChecks(finalContext)
+    additionalChecks: [
+      ...(await createWorkerProfileDoctorChecks(finalContext)),
+      ...probeChecks
+    ]
   });
   const readinessSummary: string = finalDoctor.summary;
   const readinessCapabilities: SetupStepResult["details"] = {

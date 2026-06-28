@@ -522,7 +522,7 @@ describe("cli parsing", () => {
     });
   });
 
-  it("can apply scripted init, register a worker, and persist an interviewed profile", async () => {
+  it("can apply scripted init and run the full worker verification flow", async () => {
     await withTempCwd(async (rootDir) => {
       const { io, output } = createIo();
       const cli = buildCli(io);
@@ -540,7 +540,9 @@ describe("cli parsing", () => {
         "--worker-client-command",
         "node",
         "--register-worker",
+        "--probe-worker",
         "--interview-worker",
+        "--benchmark-worker",
         "--typecheck-script",
         "check-types",
         "--lint-script",
@@ -561,7 +563,17 @@ describe("cli parsing", () => {
       ).toBe(true);
       expect(
         result.steps.some(
+          (step) => step.id === "probe-worker" && step.status === "completed"
+        )
+      ).toBe(true);
+      expect(
+        result.steps.some(
           (step) => step.id === "interview-worker" && step.status === "completed"
+        )
+      ).toBe(true);
+      expect(
+        result.steps.some(
+          (step) => step.id === "benchmark-worker" && step.status === "completed"
         )
       ).toBe(true);
 
@@ -693,7 +705,7 @@ describe("cli parsing", () => {
           "api",
           "guided-worker",
           "mock",
-          false,
+          "skip",
           false,
           false
         ])
@@ -775,13 +787,13 @@ describe("cli parsing", () => {
           "api",
           "default-worker",
           "mock",
-          false,
+          "skip",
           true,
           "custom",
           "api",
           "extra-worker",
           "mock",
-          false,
+          "skip",
           false,
           true,
           false

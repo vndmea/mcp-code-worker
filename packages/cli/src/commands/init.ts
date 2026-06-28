@@ -12,10 +12,17 @@ import {
   getCwWorkspaceDir,
   normalizeFileSystemPath,
   resolveExecutionContext,
+  type ExecutionContext,
   type ModelConfig
 } from "@mcp-code-worker/core";
-import { runWorkerInterviewWorkflow } from "@mcp-code-worker/graph";
 import {
+  applyBenchmarkCapabilityUpdate,
+  runWorkerBenchmarkWorkflow,
+  runWorkerInterviewWorkflow,
+  saveWorkerBenchmarkArtifact
+} from "@mcp-code-worker/graph";
+import {
+  createWorkerConnectivityDoctorChecks,
   deriveWorkerRegistrationId,
   saveWorkerProfile,
   saveWorkerRegistration
@@ -67,8 +74,10 @@ interface InitOptions extends Omit<SetupOptions, "repositoryWriteMode"> {
 interface InitWorkerPlan {
   apiKey?: string;
   baseUrl?: string;
+  benchmarkWorker: boolean;
   interviewWorker: boolean;
   isDefault: boolean;
+  probeWorker: boolean;
   registerWorker: boolean;
   workerId: string;
   workerMode: "api" | "client";
@@ -76,10 +85,25 @@ interface InitWorkerPlan {
   workerProvider: string;
 }
 
+type InitWorkerStepStatus =
+  | "blocked"
+  | "completed"
+  | "dry-run"
+  | "not-requested"
+  | "skipped";
+
 interface InitWorkerSummary {
+  benchmarkStatus?: InitWorkerStepStatus;
+  benchmarkWorker: boolean;
+  configured: boolean;
   interviewWorker: boolean;
+  interviewStatus?: InitWorkerStepStatus;
   isDefault: boolean;
+  probeStatus?: InitWorkerStepStatus;
+  probeWorker: boolean;
+  readinessStatus?: string;
   registerWorker: boolean;
+  registerStatus?: InitWorkerStepStatus;
   workerId?: string;
   workerMode?: "api" | "client";
   workerModel?: string;
@@ -322,7 +346,7 @@ const buildInitTips = (result: Pick<InitResult, "enableMcp" | "paths">): string[
   result.enableMcp
     ? "Paste the MCP snippet into a workspace-scoped host config for this repository only, or into the host's global MCP config for every repository."
     : "You can always rerun `cw mcp config` later when you are ready to wire an MCP host.",
-  "Run `cw doctor --probe` when you want a live connectivity probe for the resolved default worker."
+  "Use `cw init` again when you want to revisit worker verification depth or onboarding defaults."
 ];
 
 const formatWorkerSummary = (result: InitResult["worker"]): string => {
@@ -343,7 +367,12 @@ const formatWorkerSummary = (result: InitResult["worker"]): string => {
       [
         worker.isDefault ? "default" : "extra",
         `${worker.workerProvider}:${worker.workerModel}`,
-        worker.interviewWorker ? "interview" : null
+        `configured=${worker.configured ? "yes" : "no"}`,
+        `registered=${worker.registerStatus ?? (worker.registerWorker ? "planned" : "skipped")}`,
+        `probed=${worker.probeStatus ?? (worker.probeWorker ? "planned" : "skipped")}`,
+        `interviewed=${worker.interviewStatus ?? (worker.interviewWorker ? "planned" : "skipped")}`,
+        `benchmarked=${worker.benchmarkStatus ?? (worker.benchmarkWorker ? "planned" : "skipped")}`,
+        worker.readinessStatus ? `readiness=${worker.readinessStatus}` : null
       ]
         .filter((value): value is string => Boolean(value))
         .join(" ")
@@ -387,10 +416,42 @@ const formatInitResult = (result: InitResult): string[] => {
   return lines;
 };
 
+const readSetupStepStatus = (
+  result: SetupResult,
+  stepId: string
+): InitWorkerStepStatus | undefined => {
+  const step = result.steps.find((entry) => entry.id === stepId);
+
+  if (!step) {
+    return undefined;
+  }
+
+  if (step.status === "needs-input") {
+    return "blocked";
+  }
+
+  return step.status;
+};
+
+const mergePrimaryWorkerSummary = (
+  worker: InitResult["worker"],
+  setup: SetupResult
+): InitResult["worker"] => ({
+  ...worker,
+  benchmarkStatus: readSetupStepStatus(setup, "benchmark-worker"),
+  configured: worker.configured || Boolean(worker.workerId),
+  interviewStatus: readSetupStepStatus(setup, "interview-worker"),
+  probeStatus: readSetupStepStatus(setup, "probe-worker"),
+  readinessStatus: setup.status,
+  registerStatus: readSetupStepStatus(setup, "register-worker")
+});
+
 const hasScriptedSetupInputs = (options: InitOptions): boolean =>
   options.allowWrite ||
+  options.benchmarkWorker ||
   options.disableValidationAutoDiscover ||
   options.interviewWorker ||
+  options.probeWorker ||
   options.registerWorker ||
   options.typecheckScript.length > 0 ||
   options.lintScript.length > 0 ||
@@ -437,9 +498,11 @@ const collectInitSetupOptions = async (
   const workerContext = await resolveExecutionContext({ rootDir });
   const setup: SetupOptions = {
     allowWrite: false,
+    benchmarkWorker: false,
     disableValidationAutoDiscover: false,
     interviewWorker: false,
     lintScript: [],
+    probeWorker: false,
     repositoryWriteMode: keepDryRun ? "dry-run" : "allow-write",
     root: rootDir,
     registerWorker: false,
@@ -577,16 +640,34 @@ const collectInitSetupOptions = async (
         promptedClientCommand.length > 0 ? promptedClientCommand : undefined;
     }
 
-    const interviewWorker = await prompter.confirm(
-      "Interview and persist this worker profile now?",
-      false
+    const verificationDepth = await prompter.select<
+      "full" | "probe-only" | "skip"
+    >(
+      "How much worker verification should init perform now?",
+      [
+        {
+          label: "Probe + interview + benchmark",
+          value: "full"
+        },
+        {
+          label: "Probe only",
+          value: "probe-only"
+        },
+        {
+          label: "Skip for now",
+          value: "skip"
+        }
+      ],
+      "probe-only"
     );
 
     return {
       apiKey,
       baseUrl,
-      interviewWorker,
+      benchmarkWorker: verificationDepth === "full",
+      interviewWorker: verificationDepth === "full",
       isDefault,
+      probeWorker: verificationDepth !== "skip",
       registerWorker: true,
       workerId: deriveWorkerRegistrationId({
         ...workerContext.workerModel,
@@ -604,14 +685,19 @@ const collectInitSetupOptions = async (
     const defaultWorker = await promptWorkerPlan(true);
     setup.workerApiKey = defaultWorker.apiKey;
     setup.workerBaseUrl = defaultWorker.baseUrl;
+    setup.benchmarkWorker = defaultWorker.benchmarkWorker;
     setup.interviewWorker = defaultWorker.interviewWorker;
+    setup.probeWorker = defaultWorker.probeWorker;
     setup.registerWorker = defaultWorker.registerWorker;
     setup.workerId = defaultWorker.workerId;
     setup.workerModel = defaultWorker.workerModel;
     setup.workerProvider = defaultWorker.workerProvider;
     workerSummaries.push({
+      benchmarkWorker: defaultWorker.benchmarkWorker,
+      configured: true,
       interviewWorker: defaultWorker.interviewWorker,
       isDefault: true,
+      probeWorker: defaultWorker.probeWorker,
       registerWorker: true,
       workerId: defaultWorker.workerId,
       workerMode: defaultWorker.workerMode,
@@ -628,8 +714,11 @@ const collectInitSetupOptions = async (
       const nextWorker = await promptWorkerPlan(false);
       additionalWorkers.push(nextWorker);
       workerSummaries.push({
+        benchmarkWorker: nextWorker.benchmarkWorker,
+        configured: true,
         interviewWorker: nextWorker.interviewWorker,
         isDefault: false,
+        probeWorker: nextWorker.probeWorker,
         registerWorker: true,
         workerId: nextWorker.workerId,
         workerMode: nextWorker.workerMode,
@@ -678,8 +767,11 @@ const collectInitSetupOptions = async (
     setup,
     worker: {
       ...(workerSummaries[0] ?? {
+        benchmarkWorker: false,
+        configured: false,
         interviewWorker: false,
         isDefault: false,
+        probeWorker: false,
         registerWorker: false
       }),
       additionalWorkers: workerSummaries.slice(1)
@@ -691,9 +783,9 @@ const collectInitSetupOptions = async (
 const registerAdditionalWorkers = async (
   rootDir: string,
   workers: InitWorkerPlan[]
-): Promise<void> => {
+): Promise<InitWorkerSummary[]> => {
   if (workers.length === 0) {
-    return;
+    return [];
   }
 
   const context = await resolveExecutionContext({
@@ -703,6 +795,28 @@ const registerAdditionalWorkers = async (
       dryRun: false
     }
   });
+
+  const runProbe = async (
+    resolvedContext: ExecutionContext,
+    worker: InitWorkerPlan
+  ): Promise<InitWorkerStepStatus> => {
+    if (!worker.probeWorker) {
+      return "skipped";
+    }
+
+    const checks = await createWorkerConnectivityDoctorChecks({
+      ...resolvedContext,
+      defaultWorkerId: worker.workerId,
+      workerModel: {
+        ...resolvedContext.workerModel,
+        provider: worker.workerProvider,
+        model: worker.workerModel,
+        baseURL: worker.baseUrl
+      }
+    });
+
+    return checks[0]?.status === "pass" ? "completed" : "blocked";
+  };
 
   for (const worker of workers) {
     const modelConfig: ModelConfig = {
@@ -726,23 +840,86 @@ const registerAdditionalWorkers = async (
       },
       true
     );
-
-    if (!worker.interviewWorker) {
-      continue;
-    }
-
-    const interviewResult = await runWorkerInterviewWorkflow({
-      context,
-      workerId: worker.workerId,
-      modelConfig
-    });
-
-    if (!interviewResult.persistenceAdvice.canPersist) {
-      continue;
-    }
-
-    await saveWorkerProfile(context, interviewResult.profile, true);
   }
+
+  const summaries: InitWorkerSummary[] = [];
+
+  for (const worker of workers) {
+    const modelConfig: ModelConfig = {
+      ...context.workerModel,
+      provider: worker.workerProvider,
+      model: worker.workerModel,
+      baseURL: worker.baseUrl,
+      apiKey: context.workerModel.apiKey
+    };
+    const probeStatus = await runProbe(context, worker);
+    let interviewStatus: InitWorkerStepStatus = worker.interviewWorker
+      ? "blocked"
+      : "skipped";
+    let benchmarkStatus: InitWorkerStepStatus = worker.benchmarkWorker
+      ? "blocked"
+      : "skipped";
+    let readinessStatus = probeStatus === "blocked" ? "blocked" : "ready";
+
+    if (worker.interviewWorker) {
+      const interviewResult = await runWorkerInterviewWorkflow({
+        context,
+        workerId: worker.workerId,
+        modelConfig
+      });
+
+      if (!interviewResult.persistenceAdvice.canPersist) {
+        interviewStatus = "blocked";
+        benchmarkStatus = worker.benchmarkWorker ? "blocked" : "skipped";
+        readinessStatus = "blocked";
+      } else {
+        await saveWorkerProfile(context, interviewResult.profile, true);
+        interviewStatus = "completed";
+
+        if (worker.benchmarkWorker) {
+          const benchmarkResult = await runWorkerBenchmarkWorkflow({
+            context,
+            suite: "coding-v1",
+            workerId: worker.workerId,
+            modelConfig
+          });
+          await saveWorkerBenchmarkArtifact(context, benchmarkResult, true);
+          const profileUpdate = applyBenchmarkCapabilityUpdate(
+            interviewResult.profile,
+            benchmarkResult,
+            {
+              updateProfileCapabilities: true
+            }
+          );
+          await saveWorkerProfile(context, profileUpdate.profile, true);
+          benchmarkStatus = "completed";
+          readinessStatus = profileUpdate.patchGenerationQualified
+            ? "ready"
+            : "not-qualified";
+        }
+      }
+    }
+
+    summaries.push({
+      benchmarkStatus,
+      benchmarkWorker: worker.benchmarkWorker,
+      configured: true,
+      interviewStatus,
+      interviewWorker: worker.interviewWorker,
+      isDefault: false,
+      probeStatus,
+      probeWorker: worker.probeWorker,
+      readinessStatus,
+      registerStatus: "completed",
+      registerWorker: true,
+      workerId: worker.workerId,
+      workerMode: worker.workerMode,
+      workerModel: worker.workerModel,
+      workerProvider: worker.workerProvider
+    });
+  }
+
+  return summaries;
 };
 
 export const registerInitCommand = (
@@ -770,7 +947,13 @@ export const registerInitCommand = (
     )
     .option("--worker-id <workerId>", "Explicit worker id used for register/interview")
     .option("--register-worker", "Register the configured worker in the cw workspace registry", false)
+    .option("--probe-worker", "Run a live worker connectivity probe during onboarding", false)
     .option("--interview-worker", "Run worker onboarding interview and persist the profile when allowed", false)
+    .option(
+      "--benchmark-worker",
+      "Run the coding benchmark after interview persistence and update capabilities",
+      false
+    )
     .option("--typecheck-script <name>", "Add or replace the typecheck script mapping", collect, [])
     .option("--lint-script <name>", "Add or replace the lint script mapping", collect, [])
     .option("--test-script <name>", "Add or replace the test script mapping", collect, [])
@@ -807,9 +990,11 @@ export const registerInitCommand = (
       if (shouldRunScripted) {
         const result = await runSetup({
           allowWrite: options.allowWrite,
+          benchmarkWorker: options.benchmarkWorker,
           disableValidationAutoDiscover: options.disableValidationAutoDiscover,
           interviewWorker: options.interviewWorker,
           lintScript: options.lintScript,
+          probeWorker: options.probeWorker,
           registerWorker: options.registerWorker,
           repositoryWriteMode,
           root: options.root,
@@ -839,12 +1024,28 @@ export const registerInitCommand = (
           ...collected.setup,
           allowWrite: applyNow
         });
-        if (applyNow) {
-          await registerAdditionalWorkers(
-            setup.rootDir,
-            collected.additionalWorkers
-          );
-        }
+        const additionalWorkerSummaries = applyNow
+          ? await registerAdditionalWorkers(
+              setup.rootDir,
+              collected.additionalWorkers
+            )
+          : collected.additionalWorkers.map<InitWorkerSummary>((worker) => ({
+              benchmarkStatus: worker.benchmarkWorker ? "dry-run" : "skipped",
+              benchmarkWorker: worker.benchmarkWorker,
+              configured: true,
+              interviewStatus: worker.interviewWorker ? "dry-run" : "skipped",
+              interviewWorker: worker.interviewWorker,
+              isDefault: false,
+              probeStatus: worker.probeWorker ? "dry-run" : "skipped",
+              probeWorker: worker.probeWorker,
+              readinessStatus: worker.probeWorker ? "dry-run" : "skipped",
+              registerStatus: "dry-run",
+              registerWorker: true,
+              workerId: worker.workerId,
+              workerMode: worker.workerMode,
+              workerModel: worker.workerModel,
+              workerProvider: worker.workerProvider
+            }));
         const paths = buildInitPaths(setup.rootDir);
         let openedConfigDirectory = false;
 
@@ -874,9 +1075,13 @@ export const registerInitCommand = (
             enableMcp: collected.enableMcp,
             paths
           }),
-          worker: collected.worker,
-          workers: collected.workers
+          worker: mergePrimaryWorkerSummary(collected.worker, setup),
+          workers: [
+            mergePrimaryWorkerSummary(collected.worker, setup),
+            ...additionalWorkerSummaries
+          ]
         };
+        result.worker.additionalWorkers = additionalWorkerSummaries;
 
         writeOutput(io, result, formatInitResult(result));
       } finally {
