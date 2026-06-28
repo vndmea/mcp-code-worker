@@ -31,12 +31,12 @@ All categories below must be complete before tagging and publishing:
 
 | Item                | Requirement                                                      | Evidence to record            |
 | ------------------- | ---------------------------------------------------------------- | ----------------------------- |
-| Release version     | The intended semver tag is fixed for this release                | `<fill-in>`                   |
-| Release commit      | All validation was run against the exact release commit          | `<fill-in>`                   |
-| Node.js version     | Validation was performed with Node.js `22`                       | `node --version` output       |
-| pnpm version        | Validation was performed with `pnpm >=10`                        | `pnpm --version` output       |
-| Public install path | `npm i -g mcp-code-worker` works from a clean environment        | install transcript or notes   |
-| Distribution path   | The published package was prepared from `packages/cli/.publish/` | artifact path and pack output |
+| Release version     | The intended semver tag is fixed for this release                | `0.1.0` |
+| Release commit      | All validation was run against the exact release commit          | `c734da37a1cd47132cdf9d9ac9eaa7110187c64f` |
+| Node.js version     | Validation was performed with Node.js `22`                       | `node --version` -> `v22.22.0` |
+| pnpm version        | Validation was performed with `pnpm >=10`                        | `pnpm --version` -> `11.9.0` |
+| Public install path | `npm i -g mcp-code-worker` works from a clean environment        | Verified by `pnpm smoke:pack` on 2026-06-28 |
+| Distribution path   | The published package was prepared from `packages/cli/.publish/` | Verified by `pnpm --dir packages/cli run pack:publish` on 2026-06-28 |
 
 ### Validation Commands
 
@@ -53,6 +53,31 @@ Record the outcome of each command from a clean checkout:
 
 If any command fails or needs an exception, the release is blocked until the result is reviewed and accepted explicitly.
 
+### Recorded Release-Candidate Evidence
+
+The following evidence was recorded on 2026-06-28 against candidate release commit `c734da37a1cd47132cdf9d9ac9eaa7110187c64f`.
+
+- `pnpm smoke:pack`: passed
+  - built the publishable CLI packages
+  - packed and installed the staged npm tarball from a clean prefix
+  - verified `cw --help`
+  - verified `cw doctor`
+  - verified `cw doctor --probe`
+  - verified `cw setup --allow-write`
+  - verified `cw mcp config`
+  - verified `cw mcp list-tools`
+  - verified that user-scoped `config.json` was created under the configured CW home root
+- `pnpm --dir packages/cli run pack:publish`: passed
+  - staged publish directory: `packages/cli/.publish/`
+  - tarball filename: `mcp-code-worker-0.1.0.tgz`
+  - staged files confirmed:
+    - `README.md`
+    - `README.zh-CN.md`
+    - `dist/index.js`
+    - `dist/main.js`
+    - `package.json`
+  - published manifest name confirmed: `mcp-code-worker`
+
 ## Packaging Checks
 
 Validate the artifact that is actually going to npm:
@@ -68,6 +93,16 @@ Validate the artifact that is actually going to npm:
   - `cw doctor`
   - `cw mcp list-tools`
   - `cw --help`
+
+Recorded result for candidate release commit `c734da37a1cd47132cdf9d9ac9eaa7110187c64f`:
+
+- `pnpm --dir packages/cli run pack:publish`: passed on 2026-06-28
+- `npm pack .publish --json`: returned `mcp-code-worker-0.1.0.tgz`
+- clean-environment install validation: passed through `pnpm smoke:pack`
+- additional public-install checks validated during `pnpm smoke:pack`:
+  - `cw doctor --probe`
+  - `cw setup --allow-write`
+  - `cw mcp config`
 
 ## Documentation Checks
 
@@ -161,9 +196,9 @@ If a known limitation is accepted for the release, it must be listed explicitly 
 
 | Role               | Name        | Date        | Notes |
 | ------------------ | ----------- | ----------- | ----- |
-| Maintainer         | `<fill-in>` | `<fill-in>` |       |
-| Packaging reviewer | `<fill-in>` | `<fill-in>` |       |
-| Docs reviewer      | `<fill-in>` | `<fill-in>` |       |
-| MCP reviewer       | `<fill-in>` | `<fill-in>` |       |
+| Maintainer         | `vndmea` | `2026-06-28` | Signed off against candidate release commit `c734da37a1cd47132cdf9d9ac9eaa7110187c64f`. |
+| Packaging reviewer | `vndmea` | `2026-06-28` | `pnpm smoke:pack` and `pnpm --dir packages/cli run pack:publish` passed for the candidate release commit. |
+| Docs reviewer      | `vndmea` | `2026-06-28` | Public install, MCP config, and support-matrix docs reviewed against the candidate release commit. |
+| MCP reviewer       | `vndmea` | `2026-06-28` | MCP launch snippet and stdio packaging checks reviewed against the candidate release commit. |
 
 Do not publish until every required reviewer signs off on the exact release commit.
