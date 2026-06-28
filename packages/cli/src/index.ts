@@ -25,6 +25,7 @@ export interface CliIo {
 
 export interface CliDependencies {
   initPrompter?: InitPrompter;
+  pathOpener?: (targetPath: string) => Promise<boolean>;
 }
 
 const defaultIo: CliIo = {
@@ -53,7 +54,12 @@ export const buildCli = (
     });
 
   registerSetupCommand(program, io);
-  registerInitCommand(program, io, dependencies.initPrompter);
+  registerInitCommand(
+    program,
+    io,
+    dependencies.initPrompter,
+    dependencies.pathOpener
+  );
   registerPatchCommand(program, io);
   registerReviewCommand(program, io);
   registerFixCommand(program, io);

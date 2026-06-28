@@ -416,6 +416,35 @@ describe("cli parsing", () => {
     });
   });
 
+  it("reports local client compatibility warnings when the resolved command is not opencode-compatible", async () => {
+    await withTempCwd(async (rootDir) => {
+      const originalCommand = process.env.CW_WORKER_CLIENT_COMMAND;
+      process.env.CW_WORKER_CLIENT_COMMAND = "node";
+
+      try {
+        await writeCwConfig(rootDir, {
+          workerModel: {
+            provider: "client",
+            model: "qwen3-coder"
+          }
+        });
+        const { io, output } = createIo();
+        const cli = buildCli(io);
+
+        await cli.parseAsync(["node", "cw", "doctor"]);
+
+        expect(output.at(-1)).toContain("\"local-client-compatibility\"");
+        expect(output.at(-1)).toContain("missing expected flags");
+      } finally {
+        if (originalCommand === undefined) {
+          delete process.env.CW_WORKER_CLIENT_COMMAND;
+        } else {
+          process.env.CW_WORKER_CLIENT_COMMAND = originalCommand;
+        }
+      }
+    });
+  });
+
   it("runs setup and returns the minimal success path", async () => {
     await withTempCwd(async (rootDir) => {
       await writeProfiles(rootDir, [createProfile()]);
@@ -450,7 +479,7 @@ describe("cli parsing", () => {
         "--worker-model",
         "setup-worker",
         "--worker-client-command",
-        "custom-client",
+        "node",
         "--register-worker",
         "--interview-worker",
         "--typecheck-script",
@@ -501,7 +530,7 @@ describe("cli parsing", () => {
 
       expect(savedConfig.workerModel?.model).toBe("setup-worker");
       expect(savedConfig.defaultWorkerId).toBe("mock:setup-worker");
-      expect(savedConfig.workerClientCommand).toBe("custom-client");
+      expect(savedConfig.workerClientCommand).toBe("node");
       expect(savedConfig.validation?.scripts?.typecheck).toContain("check-types");
       expect(savedConfig.validation?.scripts?.lint).toContain("lint:ci");
       expect(savedRegistry.workers.some((worker) => worker.workerId === "mock:setup-worker")).toBe(
@@ -513,17 +542,40 @@ describe("cli parsing", () => {
     });
   });
 
+  it("rejects setup when an explicit local client path does not exist", async () => {
+    await withTempCwd(async () => {
+      const { io } = createIo();
+      const cli = buildCli(io);
+
+      await expect(
+        cli.parseAsync([
+          "node",
+          "cw",
+          "setup",
+          "--worker-client-command",
+          "./missing/opencode.exe"
+        ])
+      ).rejects.toThrow("was not found");
+    });
+  });
+
   it("runs init and persists a dry-run-first onboarding config", async () => {
     await withTempCwd(async (rootDir) => {
       const { io, output } = createIo();
+      let openedPath: string | null = null;
       const cli = buildCli(io, {
         initPrompter: createInitPrompter([
           rootDir,
           true,
           true,
           false,
+          true,
           true
-        ])
+        ]),
+        pathOpener: async (targetPath: string) => {
+          openedPath = targetPath;
+          return true;
+        }
       });
 
       await cli.parseAsync(["node", "cw", "init"]);
@@ -531,8 +583,16 @@ describe("cli parsing", () => {
       const result = parseLastJson<{
         applied: boolean;
         mcpConfig?: { mcpServers?: Record<string, unknown> };
+        openedConfigDirectory: boolean;
+        paths: {
+          cwConfigDir: string;
+          cwConfigPath: string;
+          globalAgentsPath: string;
+          projectAgentsPath: string;
+        };
         repositoryWriteMode: string;
         setup: { mode: string };
+        tips: string[];
       }>(output);
       const savedConfig = JSON.parse(
         await readFile(getCwConfigPath(rootDir), "utf8")
@@ -548,6 +608,12 @@ describe("cli parsing", () => {
       expect(result.repositoryWriteMode).toBe("dry-run");
       expect(result.setup.mode).toBe("execute");
       expect(result.mcpConfig?.mcpServers?.["mcp-code-worker"]).toBeTruthy();
+      expect(result.openedConfigDirectory).toBe(true);
+      expect(result.paths.cwConfigPath).toContain("config.json");
+      expect(result.paths.projectAgentsPath).toContain("AGENTS.md");
+      expect(result.paths.globalAgentsPath).toContain(".codex");
+      expect(result.tips[0]).toContain("config.json");
+      expect(openedPath).toBe(result.paths.cwConfigDir);
       expect(savedConfig.defaultWorkerId).toBeUndefined();
       expect(savedConfig.safety?.dryRun).toBe(true);
       expect(savedConfig.safety?.allowWrite).toBe(false);
@@ -614,7 +680,8 @@ describe("cli parsing", () => {
           "mock",
           false,
           false,
-          true
+          true,
+          false
         ])
       });
 
@@ -651,6 +718,24 @@ describe("cli parsing", () => {
       expect(savedRegistry.workers.map((worker) => worker.workerId)).toEqual(
         expect.arrayContaining(["mock:default-worker", "mock:extra-worker"])
       );
+    });
+  });
+
+  it("runs doctor with a live mock worker connectivity probe", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeCwConfig(rootDir, {
+        workerModel: {
+          provider: "mock",
+          model: "gpt-5.4-mini"
+        }
+      });
+      const { io, output } = createIo();
+      const cli = buildCli(io);
+
+      await cli.parseAsync(["node", "cw", "doctor", "--check-worker"]);
+
+      expect(output.at(-1)).toContain("\"worker-connectivity\"");
+      expect(output.at(-1)).toContain("\"status\": \"pass\"");
     });
   });
 

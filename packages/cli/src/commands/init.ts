@@ -1,11 +1,16 @@
 import { emitKeypressEvents } from "node:readline";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { homedir } from "node:os";
 
 import type { Command } from "commander";
 
 import {
+  getCwConfigPath,
+  getCwHomeDir,
+  getCwWorkspaceDir,
+  normalizeFileSystemPath,
   resolveExecutionContext,
   type ModelConfig
 } from "@mcp-code-worker/core";
@@ -17,7 +22,8 @@ import {
 } from "@mcp-code-worker/models";
 
 import type { CliIo } from "../index.js";
-import { writeOutput } from "../output.js";
+import { formatDisplayPath, writeOutput } from "../output.js";
+import { openPathInSystemApp, type PathOpener } from "../system/open-path.js";
 import { buildMcpConfigSnippet } from "./mcp.js";
 import { runSetup, type SetupOptions, type SetupResult } from "./setup.js";
 
@@ -72,9 +78,19 @@ interface InitResult {
   applied: boolean;
   enableMcp: boolean;
   mcpConfig?: ReturnType<typeof buildMcpConfigSnippet>;
+  openedConfigDirectory: boolean;
+  paths: {
+    cwConfigDir: string;
+    cwConfigPath: string;
+    cwHomeDir: string;
+    cwStorageDir: string;
+    globalAgentsPath: string;
+    projectAgentsPath: string;
+  };
   repositoryWriteMode: NonNullable<SetupOptions["repositoryWriteMode"]>;
   rootDir: string;
   setup: SetupResult;
+  tips: string[];
   worker: InitWorkerSummary & {
     additionalWorkers: InitWorkerSummary[];
   };
@@ -266,6 +282,30 @@ const describeRepositoryWriteMode = (
     ? "enabled by default"
     : "dry-run only by default";
 
+const buildInitPaths = (rootDir: string): InitResult["paths"] => {
+  const cwHomeDir = getCwHomeDir();
+  const cwStorageDir = getCwWorkspaceDir(rootDir);
+  const cwConfigPath = getCwConfigPath(rootDir);
+
+  return {
+    cwConfigDir: dirname(cwConfigPath),
+    cwConfigPath,
+    cwHomeDir,
+    cwStorageDir,
+    globalAgentsPath: resolve(homedir(), ".codex", "AGENTS.md"),
+    projectAgentsPath: resolve(rootDir, "AGENTS.md")
+  };
+};
+
+const buildInitTips = (result: Pick<InitResult, "enableMcp" | "paths">): string[] => [
+  `Edit ${result.paths.cwConfigPath} manually if you need to tweak worker defaults or MCP-related runtime state.`,
+  `Put project-only instructions in ${result.paths.projectAgentsPath}; put global Codex defaults in ${result.paths.globalAgentsPath}.`,
+  result.enableMcp
+    ? "Paste the MCP snippet into a workspace-scoped host config for this repository only, or into the host's global MCP config for every repository."
+    : "You can always rerun `cw mcp config` later when you are ready to wire an MCP host.",
+  "Run `cw doctor --check-worker` when you want a live connectivity probe for the resolved default worker."
+];
+
 const formatWorkerSummary = (result: InitResult["worker"]): string => {
   const workers = [
     result,
@@ -299,12 +339,26 @@ const formatInitResult = (result: InitResult): string[] => {
       ? "Onboarding choices were processed and the workspace readiness summary is below."
       : "Onboarding choices were previewed only. No local cw files were written.",
     `workspace: ${result.rootDir}`,
+    `cw home: ${formatDisplayPath(result.rootDir, result.paths.cwHomeDir)}`,
+    `cw storage: ${formatDisplayPath(result.rootDir, result.paths.cwStorageDir)}`,
+    `cw config: ${formatDisplayPath(result.rootDir, result.paths.cwConfigPath)}`,
     `repository writes: ${describeRepositoryWriteMode(result.repositoryWriteMode)}`,
     `mcp: ${result.enableMcp ? "snippet prepared" : "skipped"}`,
     `workers: ${formatWorkerSummary(result.worker)}`,
     `setup: ${result.setup.status}`,
-    `next: ${result.setup.recommendedActions.slice(0, 3).join(" | ") || "Run cw doctor"}`
+    `agents: project -> ${formatDisplayPath(result.rootDir, result.paths.projectAgentsPath)} | global -> ${formatDisplayPath(result.rootDir, result.paths.globalAgentsPath)}`,
+    `next: ${result.setup.recommendedActions.slice(0, 2).join(" | ") || "Run cw doctor"} | cw doctor --check-worker`
   ];
+
+  lines.push(
+    `tips: ${result.tips.slice(0, 3).join(" | ")}`
+  );
+
+  if (result.openedConfigDirectory) {
+    lines.push(
+      `config dir opened: ${formatDisplayPath(result.rootDir, result.paths.cwConfigDir)}`
+    );
+  }
 
   if (result.mcpConfig) {
     lines.push("mcp config snippet:");
@@ -326,8 +380,8 @@ const collectInitSetupOptions = async (
   };
   workers: InitWorkerSummary[];
 }> => {
-  const initialRoot = resolve(options.root ?? process.cwd());
-  const rootDir = resolve(
+  const initialRoot = normalizeFileSystemPath(options.root ?? process.cwd());
+  const rootDir = normalizeFileSystemPath(
     await prompter.text("Workspace root?", {
       defaultValue: initialRoot
     })
@@ -602,7 +656,8 @@ const registerAdditionalWorkers = async (
 export const registerInitCommand = (
   program: Command,
   io: CliIo,
-  injectedPrompter?: InitPrompter
+  injectedPrompter?: InitPrompter,
+  pathOpener: PathOpener = openPathInSystemApp
 ): void => {
   program
     .command("init")
@@ -634,6 +689,18 @@ export const registerInitCommand = (
             collected.additionalWorkers
           );
         }
+        const paths = buildInitPaths(setup.rootDir);
+        let openedConfigDirectory = false;
+
+        if (
+          applyNow &&
+          await prompter.confirm(
+            `Open the cw config directory now? (${formatDisplayPath(setup.rootDir, paths.cwConfigDir)})`,
+            false
+          )
+        ) {
+          openedConfigDirectory = await pathOpener(paths.cwConfigDir);
+        }
         const result: InitResult = {
           advanced: options.advanced,
           applied: applyNow,
@@ -641,10 +708,16 @@ export const registerInitCommand = (
           mcpConfig: collected.enableMcp
             ? buildMcpConfigSnippet()
             : undefined,
+          openedConfigDirectory,
+          paths,
           repositoryWriteMode:
             collected.setup.repositoryWriteMode ?? "dry-run",
           rootDir: setup.rootDir,
           setup,
+          tips: buildInitTips({
+            enableMcp: collected.enableMcp,
+            paths
+          }),
           worker: collected.worker,
           workers: collected.workers
         };

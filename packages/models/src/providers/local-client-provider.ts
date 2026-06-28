@@ -8,6 +8,7 @@ import type {
   ModelInvocationResult,
   ModelProvider
 } from "../types/model-provider.js";
+import { resolveLocalClientCommand } from "./local-client-command.js";
 
 interface ClientUsagePayload {
   input_tokens?: number;
@@ -21,14 +22,6 @@ interface ClientPayload {
   subtype?: string;
   usage?: ClientUsagePayload;
 }
-
-const resolveClientCommand = (): string =>
-  process.env.CW_WORKER_CLIENT_COMMAND?.trim() || "opencode";
-
-const resolveConfiguredClientCommand = (config: ModelConfig): string =>
-  process.env.CW_WORKER_CLIENT_COMMAND?.trim() ||
-  config.clientCommand?.trim() ||
-  resolveClientCommand();
 
 const summarizePrompt = (prompt: string): string =>
   prompt.replaceAll(/\s+/gu, " ").trim().slice(0, 160);
@@ -179,7 +172,7 @@ export class LocalClientProvider implements ModelProvider {
       return buildMockResult(config, request);
     }
 
-    const clientCommand = resolveConfiguredClientCommand(config);
+    const clientCommand = resolveLocalClientCommand(config);
     const { exitCode, stderr, stdout } = await runClient(
       clientCommand,
       buildClientArgs(config, request),

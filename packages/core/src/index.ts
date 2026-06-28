@@ -7,6 +7,7 @@ export * from "./policies/path-safety.js";
 export * from "./policies/safety-policy.js";
 export * from "./policies/write-policy.js";
 export * from "./runtime/execution-context.js";
+export * from "./runtime/path-input.js";
 export * from "./runtime/workspace-binding.js";
 export * from "./runtime/workflow-runtime.js";
 export * from "./storage/cw-paths.js";

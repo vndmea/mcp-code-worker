@@ -6,7 +6,11 @@ import {
   type DoctorReport,
   writeAuditEvent
 } from "@mcp-code-worker/core";
-import { createWorkerProfileDoctorChecks } from "@mcp-code-worker/models";
+import {
+  createLocalClientDoctorChecks,
+  createWorkerConnectivityDoctorChecks,
+  createWorkerProfileDoctorChecks
+} from "@mcp-code-worker/models";
 
 import type { CliIo } from "../index.js";
 import { writeOutput } from "../output.js";
@@ -60,16 +64,28 @@ export const registerDoctorCommand = (program: Command, io: CliIo): void => {
   program
     .command("doctor")
     .description("Inspect resolved configuration and local workflow prerequisites.")
-    .action(async () => {
+    .option(
+      "--check-worker",
+      "Run a real worker connectivity probe after the static prerequisite checks.",
+      false
+    )
+    .action(async (options: { checkWorker?: boolean }) => {
       const context = await resolveExecutionContext();
+      const additionalChecks = [
+        ...(await createWorkerProfileDoctorChecks(context)),
+        ...(await createLocalClientDoctorChecks(context)),
+        ...(options.checkWorker
+          ? await createWorkerConnectivityDoctorChecks(context)
+          : [])
+      ];
       const report = await runDoctor(context, {
-        additionalChecks: await createWorkerProfileDoctorChecks(context)
+        additionalChecks
       });
       await writeAuditEvent(context, {
         actor: "cli",
         action: "doctor",
         mode: context.dryRun ? "dry-run" : "execute",
-        inputSummary: "cw doctor",
+        inputSummary: options.checkWorker ? "cw doctor --check-worker" : "cw doctor",
         outputSummary: `Doctor completed with ok=${String(report.ok)}.`,
         warnings: report.checks
           .filter((check) => check.status === "warning")

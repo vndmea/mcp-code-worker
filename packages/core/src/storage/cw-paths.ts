@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 
+import { normalizeFileSystemPath } from "../runtime/path-input.js";
+
 const slugify = (value: string): string =>
   value
     .toLowerCase()
@@ -17,7 +19,9 @@ const getWorkspaceSlug = (rootDir: string): string => {
 export const getCwHomeDir = (
   env: NodeJS.ProcessEnv = process.env
 ): string =>
-  resolve(env.CW_HOME_DIR ?? process.env.CW_HOME_DIR ?? join(homedir(), ".cw"));
+  normalizeFileSystemPath(
+    env.CW_HOME_DIR ?? process.env.CW_HOME_DIR ?? join(homedir(), ".cw")
+  );
 
 export const getCwWorkspaceId = (rootDir: string): string => {
   const normalizedRootDir = resolve(rootDir);

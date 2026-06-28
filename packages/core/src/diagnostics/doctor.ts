@@ -65,6 +65,8 @@ const WHY_THIS_MATTERS: Record<string, string> = {
     "The worker model handles scoped execution steps such as review, validation guidance, and patch generation.",
   "local-client-command":
     "When cw uses a local client provider, this command is the bridge to the real model backend.",
+  "local-client-compatibility":
+    "A discovered executable still needs to look like the compatible local client bridge that cw expects.",
   "cw-dir":
     "The user-scoped cw workspace directory stores local runs, audit logs, configuration, and task artifacts outside the repository.",
   "execution-mode":
@@ -100,7 +102,9 @@ const WHY_THIS_MATTERS: Record<string, string> = {
   "registered-worker-profile":
     "Registered worker profiles determine whether cw can route specialized tasks confidently.",
   "default-worker-profile":
-    "The default worker profile determines whether cw can route without interviewing or guessing at runtime."
+    "The default worker profile determines whether cw can route without interviewing or guessing at runtime.",
+  "worker-connectivity":
+    "A real connectivity probe confirms the resolved worker can answer with the current runtime wiring."
 };
 
 const checkExists = async (path: string): Promise<boolean> => {
@@ -620,8 +624,10 @@ export const runDoctor = async (
         "root-dir",
         "worker-model",
         "local-client-command",
+        "local-client-compatibility",
         "cw-config",
-        "worker-api-key"
+        "worker-api-key",
+        "worker-connectivity"
       ],
       readySummary: "You can start model-backed cw tasks from this workspace.",
       degradedSummary:
@@ -693,9 +699,10 @@ export const runDoctor = async (
     minimalSuccessPath: [
       `1. Confirm the active root directory is ${context.rootDir}.`,
       "2. Verify the worker model credential or local client.",
-      "3. Start a dry-run task with `cw task start --goal \"Review this repository\"`.",
-      "4. Read the returned report summary or `cw task report <task-id>` if the session is persisted.",
-      "5. Decide whether to continue into patch proposal and patch inspection."
+      "3. Use `cw doctor --check-worker` when you want a live connectivity probe.",
+      "4. Start a dry-run task with `cw task start --goal \"Review this repository\"`.",
+      "5. Read the returned report summary or `cw task report <task-id>` if the session is persisted.",
+      "6. Decide whether to continue into patch proposal and patch inspection."
     ],
     recommendedActions,
     recommendedEntrypoints: [

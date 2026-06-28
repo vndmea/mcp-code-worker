@@ -10,6 +10,7 @@ import {
   getCwWorkspaceAuditDirFromStorageDir,
   getCwWorkspaceRunsDirFromStorageDir,
   loadCwConfig,
+  normalizeCommandInput,
   resolveExecutionContext,
   runDoctor,
   writeAuditEvent,
@@ -23,6 +24,7 @@ import {
   deriveWorkerRegistrationId,
   getWorkerProfileStorePath,
   getWorkerRegistryPath,
+  inspectLocalClientCommand,
   readPersistedWorkerProfiles,
   readWorkerRegistry,
   saveWorkerProfile,
@@ -355,20 +357,43 @@ const formatSetupResult = (result: SetupResult): string[] => {
   return lines;
 };
 
+const normalizeSetupOptions = async (
+  options: SetupOptions
+): Promise<SetupOptions> => {
+  if (!options.workerClientCommand) {
+    return options;
+  }
+
+  const normalizedCommand = normalizeCommandInput(options.workerClientCommand);
+  const inspection = await inspectLocalClientCommand(normalizedCommand, {
+    checkCompatibility: false
+  });
+
+  if (inspection.isPathLike && inspection.status !== "pass") {
+    throw new Error(inspection.compatibility.message);
+  }
+
+  return {
+    ...options,
+    workerClientCommand: normalizedCommand
+  };
+};
+
 export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
+  const normalizedOptions = await normalizeSetupOptions(options);
   const context = await resolveExecutionContext({
-    rootDir: options.root,
+    rootDir: normalizedOptions.root,
     cliOverrides: {
-      allowWrite: options.allowWrite,
-      dryRun: !options.allowWrite
+      allowWrite: normalizedOptions.allowWrite,
+      dryRun: !normalizedOptions.allowWrite
     }
   });
   const steps: SetupStepResult[] = [];
   const configResult = await loadCwConfig(context.rootDir);
-  const desiredConfig = buildDesiredConfig(configResult.config, options);
+  const desiredConfig = buildDesiredConfig(configResult.config, normalizedOptions);
   const setupWorkerModel = resolveSetupWorkerModel(context, desiredConfig);
-  const setupWorkerId = resolveSetupWorkerId(options, setupWorkerModel);
-  const configToWrite = options.registerWorker
+  const setupWorkerId = resolveSetupWorkerId(normalizedOptions, setupWorkerModel);
+  const configToWrite = normalizedOptions.registerWorker
     ? CwConfigSchema.parse({
         ...desiredConfig,
         defaultWorkerId: setupWorkerId
@@ -395,14 +420,14 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     context.cwStorageDir
   );
 
-  const cwDirResult = await ensureDirectory(context, cwDir, options.allowWrite);
-  const auditDirResult = await ensureDirectory(context, auditDir, options.allowWrite);
-  const runsDirResult = await ensureDirectory(context, runsDir, options.allowWrite);
+  const cwDirResult = await ensureDirectory(context, cwDir, normalizedOptions.allowWrite);
+  const auditDirResult = await ensureDirectory(context, auditDir, normalizedOptions.allowWrite);
+  const runsDirResult = await ensureDirectory(context, runsDir, normalizedOptions.allowWrite);
 
   steps.push({
     id: "workspace-scaffold",
-    status: options.allowWrite ? "completed" : "dry-run",
-    summary: options.allowWrite
+    status: normalizedOptions.allowWrite ? "completed" : "dry-run",
+    summary: normalizedOptions.allowWrite
       ? "Ensured user-scoped cw workspace directories exist for audit logs and task runs."
       : "Would ensure user-scoped cw workspace directories exist for audit logs and task runs.",
     details: {
@@ -416,7 +441,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     context,
     configPath,
     configToWrite,
-    options.allowWrite,
+    normalizedOptions.allowWrite,
     "setup-write-config"
   );
   steps.push({
@@ -433,6 +458,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
       replacedInvalidConfig: Boolean(configResult.error),
       defaultWorkerId: configToWrite.defaultWorkerId,
       safety: configToWrite.safety,
+      workerClientCommand: configToWrite.workerClientCommand,
       workerModel: configToWrite.workerModel
     }
   });
@@ -457,7 +483,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
         version: 1,
         workers: registryState.workers
       },
-      options.allowWrite,
+      normalizedOptions.allowWrite,
       "setup-write-worker-registry"
     );
     steps.push({
@@ -493,7 +519,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
       context,
       profilesPath,
       profileState.profiles,
-      options.allowWrite,
+      normalizedOptions.allowWrite,
       "setup-write-worker-profiles"
     );
     steps.push({
@@ -515,29 +541,29 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
   steps.push({
     id: "map-validation",
     status:
-      options.allowWrite &&
-      (options.typecheckScript.length > 0 ||
-        options.lintScript.length > 0 ||
-        options.testScript.length > 0 ||
-        options.disableValidationAutoDiscover)
+      normalizedOptions.allowWrite &&
+      (normalizedOptions.typecheckScript.length > 0 ||
+        normalizedOptions.lintScript.length > 0 ||
+        normalizedOptions.testScript.length > 0 ||
+        normalizedOptions.disableValidationAutoDiscover)
         ? "completed"
-        : options.typecheckScript.length > 0 ||
-            options.lintScript.length > 0 ||
-            options.testScript.length > 0 ||
-            options.disableValidationAutoDiscover
+        : normalizedOptions.typecheckScript.length > 0 ||
+            normalizedOptions.lintScript.length > 0 ||
+            normalizedOptions.testScript.length > 0 ||
+            normalizedOptions.disableValidationAutoDiscover
           ? "dry-run"
           : "skipped",
     command: "cw doctor",
-    summary: buildValidationSummary(options),
+    summary: buildValidationSummary(normalizedOptions),
     details: {
       validation: configToWrite.validation
     }
   });
 
   const workerModel = resolveSetupWorkerModel(context, configToWrite);
-  const workerId = resolveSetupWorkerId(options, workerModel);
+  const workerId = resolveSetupWorkerId(normalizedOptions, workerModel);
 
-  if (options.registerWorker) {
+  if (normalizedOptions.registerWorker) {
     if (registryState.error) {
       steps.push({
         id: "register-worker",
@@ -559,7 +585,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         },
-        options.allowWrite
+        normalizedOptions.allowWrite
       );
       steps.push({
         id: "register-worker",
@@ -588,7 +614,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     });
   }
 
-  if (options.interviewWorker) {
+  if (normalizedOptions.interviewWorker) {
     if (profileState.error) {
       steps.push({
         id: "interview-worker",
@@ -616,7 +642,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
             warnings: interviewResult.warnings
           }
         });
-      } else if (options.allowWrite) {
+      } else if (normalizedOptions.allowWrite) {
         const profileSave = await saveWorkerProfile(
           context,
           interviewResult.profile,
@@ -692,7 +718,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
   });
 
   return {
-    mode: options.allowWrite ? "execute" : "dry-run",
+    mode: normalizedOptions.allowWrite ? "execute" : "dry-run",
     rootDir: context.rootDir,
     status: resultStatus,
     summary: readinessSummary,

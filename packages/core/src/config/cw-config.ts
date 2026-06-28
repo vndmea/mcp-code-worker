@@ -1,11 +1,14 @@
 import { readFile } from "node:fs/promises";
-import { isAbsolute, resolve } from "node:path";
 
 import type {
   ExecutionContext,
   ExecutionContextOverrides
 } from "../runtime/execution-context.js";
 import { createExecutionContextFromEnv } from "../runtime/execution-context.js";
+import {
+  normalizeCommandInput,
+  normalizeFileSystemPath
+} from "../runtime/path-input.js";
 import { getCwWorkspaceFilePath } from "../storage/cw-paths.js";
 import { CwConfigSchema, type CwConfig, type CwModelConfig } from "../schemas/config.schema.js";
 
@@ -35,9 +38,6 @@ const buildDefaultConfig = (): CwConfig =>
 const hasEnvValue = (env: NodeJS.ProcessEnv, key: string): boolean =>
   typeof env[key] === "string" && env[key].length > 0;
 
-const normalizeRootDir = (rootDir: string): string =>
-  isAbsolute(rootDir) ? rootDir : resolve(rootDir);
-
 const resolveRootDir = (
   env: NodeJS.ProcessEnv,
   options: ResolveExecutionContextOptions
@@ -46,7 +46,7 @@ const resolveRootDir = (
   const configuredRootDir =
     options.rootDir ?? cliOverrides.rootDir ?? env.CW_ROOT_DIR ?? process.cwd();
 
-  return normalizeRootDir(configuredRootDir);
+  return normalizeFileSystemPath(configuredRootDir);
 };
 
 const mergeModelConfig = (
@@ -70,7 +70,9 @@ const mergeModelConfig = (
     cliOverride?.clientCommand ??
     (hasEnvValue(env, "CW_WORKER_CLIENT_COMMAND")
       ? base.clientCommand
-      : configWorkerClientCommand ?? base.clientCommand);
+      : configWorkerClientCommand
+        ? normalizeCommandInput(configWorkerClientCommand)
+        : base.clientCommand);
   const apiKey = cliOverride?.apiKey ?? base.apiKey;
   const temperature = cliOverride?.temperature ?? configModel?.temperature ?? base.temperature;
   const maxTokens = cliOverride?.maxTokens ?? configModel?.maxTokens ?? base.maxTokens;

@@ -1,9 +1,11 @@
-import { isAbsolute, resolve } from "node:path";
-
 import { getCwWorkspaceDir } from "../storage/cw-paths.js";
 import type { ModelConfig } from "../types/workflow.js";
 import { SafetyPolicy } from "../policies/safety-policy.js";
 import { WritePolicy } from "../policies/write-policy.js";
+import {
+  normalizeCommandInput,
+  normalizeFileSystemPath
+} from "./path-input.js";
 
 export interface ExecutionContext {
   cwStorageDir: string;
@@ -56,9 +58,6 @@ const parseList = (value: string | undefined, fallback: string[]) => {
     .filter(Boolean);
 };
 
-const normalizeRootDir = (rootDir: string): string =>
-  isAbsolute(rootDir) ? rootDir : resolve(rootDir);
-
 const mergeModelConfig = (
   base: ModelConfig,
   override?: Partial<ModelConfig>
@@ -84,7 +83,7 @@ export const createExecutionContextFromEnv = (
   env: NodeJS.ProcessEnv = process.env,
   overrides: ExecutionContextOverrides = {}
 ): ExecutionContext => {
-  const rootDir = normalizeRootDir(
+  const rootDir = normalizeFileSystemPath(
     overrides.rootDir ?? env.CW_ROOT_DIR ?? process.cwd()
   );
   const cwStorageDir = getCwWorkspaceDir(rootDir, env);
@@ -108,7 +107,9 @@ export const createExecutionContextFromEnv = (
       model: env.WORKER_MODEL_NAME ?? "gpt-5.4-mini",
       baseURL: env.WORKER_MODEL_BASE_URL || undefined,
       apiKey: env.WORKER_MODEL_API_KEY || undefined,
-      clientCommand: env.CW_WORKER_CLIENT_COMMAND?.trim() || undefined,
+      clientCommand: env.CW_WORKER_CLIENT_COMMAND
+        ? normalizeCommandInput(env.CW_WORKER_CLIENT_COMMAND)
+        : undefined,
       temperature: 0.1
     },
     overrides.workerModel
