@@ -43,6 +43,23 @@ describe("cleanup path safety", () => {
     expect(result.warning).toBeUndefined();
   });
 
+  it("accepts targets when the allowed directory resolves to the same real path", async () => {
+    const { rootDir, runsDir } = await createWorkspace();
+    const aliasedRunsDir = join(rootDir, "runs-alias");
+    const targetPath = join(aliasedRunsDir, "task-1");
+    await mkdir(join(runsDir, "task-1"), { recursive: true });
+    await symlink(
+      runsDir,
+      aliasedRunsDir,
+      process.platform === "win32" ? "junction" : "dir"
+    );
+
+    const result = await resolveCleanupTargetPath(aliasedRunsDir, targetPath);
+
+    expect(result.deletePath).toBeTruthy();
+    expect(result.warning).toBeUndefined();
+  });
+
   it("rejects protected .cw files", async () => {
     const { rootDir } = await createWorkspace();
     const protectedDir = join(rootDir, "cw-home", "protected");

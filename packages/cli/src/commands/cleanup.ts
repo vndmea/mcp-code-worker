@@ -69,7 +69,10 @@ export const resolveCleanupTargetPath = async (
   targetDirectory: string,
   candidatePath: string
 ): Promise<CleanupTargetValidation> => {
-  const allowedDirectory = resolve(targetDirectory);
+  const normalizedAllowedDirectory = resolve(targetDirectory);
+  const resolvedAllowedDirectory = await realpath(targetDirectory).catch(
+    () => normalizedAllowedDirectory
+  );
   const normalizedCandidatePath = resolve(candidatePath);
   const resolvedCandidatePath = await realpath(candidatePath).catch(
     () => normalizedCandidatePath
@@ -83,8 +86,8 @@ export const resolveCleanupTargetPath = async (
   }
 
   if (
-    !isPathInsideDirectory(allowedDirectory, normalizedCandidatePath) ||
-    !isPathInsideDirectory(allowedDirectory, resolvedCandidatePath)
+    !isPathInsideDirectory(normalizedAllowedDirectory, normalizedCandidatePath) ||
+    !isPathInsideDirectory(resolvedAllowedDirectory, resolvedCandidatePath)
   ) {
     return {
       warning: `Skipped unsafe cleanup target ${normalizedCandidatePath}.`

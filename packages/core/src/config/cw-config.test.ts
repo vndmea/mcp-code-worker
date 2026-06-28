@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -57,6 +57,34 @@ describe("cw config", () => {
     expect(context.allowWrite).toBe(true);
     expect(context.dryRun).toBe(false);
     expect(context.contextBudget.strictFiles).toBe(false);
+  });
+
+  it("loads persisted config through canonical workspace path aliases", async () => {
+    const rootDir = await createWorkspace();
+    const linkRootDir = await mkdtemp(join(tmpdir(), "cw-config-link-"));
+    const aliasRootDir = join(linkRootDir, "workspace");
+    await writeConfig(rootDir, {
+      version: 1,
+      safety: {
+        dryRun: false,
+        allowWrite: true,
+        allowedCommands: ["git"]
+      }
+    });
+    await symlink(
+      rootDir,
+      aliasRootDir,
+      process.platform === "win32" ? "junction" : "dir"
+    );
+
+    const result = await loadCwConfig(aliasRootDir);
+    const context = await resolveExecutionContext({ rootDir: aliasRootDir });
+
+    expect(result.exists).toBe(true);
+    expect(result.error).toBeUndefined();
+    expect(result.config.safety.allowWrite).toBe(true);
+    expect(context.allowWrite).toBe(true);
+    expect(context.dryRun).toBe(false);
   });
 
   it("returns clear errors for invalid config and falls back to defaults", async () => {

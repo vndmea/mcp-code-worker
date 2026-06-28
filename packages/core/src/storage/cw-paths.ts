@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 
@@ -16,6 +17,16 @@ const getWorkspaceSlug = (rootDir: string): string => {
   return candidate.length > 0 ? candidate : "workspace";
 };
 
+const canonicalizeWorkspaceRootDir = (rootDir: string): string => {
+  const normalizedRootDir = resolve(rootDir);
+
+  try {
+    return realpathSync.native(normalizedRootDir);
+  } catch {
+    return normalizedRootDir;
+  }
+};
+
 export const getCwHomeDir = (
   env: NodeJS.ProcessEnv = process.env
 ): string =>
@@ -24,10 +35,10 @@ export const getCwHomeDir = (
   );
 
 export const getCwWorkspaceId = (rootDir: string): string => {
-  const normalizedRootDir = resolve(rootDir);
-  const slug = getWorkspaceSlug(normalizedRootDir);
+  const canonicalRootDir = canonicalizeWorkspaceRootDir(rootDir);
+  const slug = getWorkspaceSlug(canonicalRootDir);
   const digest = createHash("sha256")
-    .update(normalizedRootDir)
+    .update(canonicalRootDir)
     .digest("hex")
     .slice(0, 10);
 
