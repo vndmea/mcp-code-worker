@@ -7,6 +7,7 @@ import {
 } from "@mcp-code-worker/core";
 
 import { AiSdkProvider } from "../providers/ai-sdk-provider.js";
+import { AnthropicProvider } from "../providers/anthropic-provider.js";
 import { LiteLlmProvider } from "../providers/litellm-provider.js";
 import { LocalClientProvider } from "../providers/local-client-provider.js";
 import { MockModelProvider } from "../providers/mock-provider.js";
@@ -24,10 +25,14 @@ export class ModelRouter {
   private readonly providers: Map<string, ModelProvider>;
 
   public constructor(private readonly workerModel: ModelConfig) {
+    const anthropicProvider = new AnthropicProvider();
+
     this.providers = new Map<string, ModelProvider>([
       ["mock", new MockModelProvider()],
       ["openai", new AiSdkProvider()],
       ["openai-compatible", new AiSdkProvider()],
+      ["anthropic", anthropicProvider],
+      ["claude-compatible", anthropicProvider],
       ["client", new LocalClientProvider()],
       ["litellm", new LiteLlmProvider()],
       ["local-client", new LocalClientProvider()]

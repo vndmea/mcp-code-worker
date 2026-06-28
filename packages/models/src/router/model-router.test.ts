@@ -18,4 +18,22 @@ describe("model router", () => {
       })
     ]);
   });
+
+  it("routes claude-compatible workers to the anthropic provider", () => {
+    const router = new ModelRouter({
+      provider: "claude-compatible",
+      model: "claude-3-5-sonnet-latest"
+    });
+
+    expect(router.route("worker").provider.name).toBe("anthropic");
+  });
+
+  it("routes anthropic alias workers to the anthropic provider", () => {
+    const router = new ModelRouter({
+      provider: "anthropic",
+      model: "claude-3-5-sonnet-latest"
+    });
+
+    expect(router.route("worker").provider.name).toBe("anthropic");
+  });
 });

@@ -1,4 +1,5 @@
 export * from "./providers/ai-sdk-provider.js";
+export * from "./providers/anthropic-provider.js";
 export * from "./providers/litellm-provider.js";
 export * from "./providers/local-client-command.js";
 export * from "./providers/local-client-provider.js";

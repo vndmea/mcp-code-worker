@@ -118,6 +118,54 @@ cw worker interview --save
 
 If `cw doctor --probe` fails, check the reported `root-dir`, `runtime-bootstrap`, `worker-model`, and `worker-connectivity` diagnostics before changing anything else.
 
+### Quickstart: Claude-compatible / Anthropic API
+
+Use this when you want a Claude-native hosted model.
+
+1. Install and initialize:
+
+```bash
+npm i -g mcp-code-worker
+cw init
+```
+
+2. Persist the non-secret runtime defaults in `config.json`:
+
+```json
+{
+  "version": 1,
+  "workerModel": {
+    "provider": "claude-compatible",
+    "model": "claude-3-5-sonnet-latest",
+    "baseURL": "https://api.anthropic.com"
+  }
+}
+```
+
+3. Set the secret in the same runtime that will launch `cw`:
+
+PowerShell:
+
+```powershell
+$env:WORKER_MODEL_API_KEY="sk-ant-..."
+```
+
+bash:
+
+```bash
+export WORKER_MODEL_API_KEY="sk-ant-..."
+```
+
+4. Verify the resolved runtime:
+
+```bash
+cw doctor
+cw doctor --probe
+cw worker interview --save
+```
+
+If `cw doctor --probe` fails, check the reported `root-dir`, `runtime-bootstrap`, `worker-model`, and `worker-connectivity` diagnostics before changing anything else.
+
 ### Quickstart: local client provider
 
 Use this when a compatible local CLI should proxy the model call.
@@ -181,6 +229,23 @@ Contracts:
   - [docs/provider-contracts/openai-compatible-generic.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/openai-compatible-generic.md)
 - DeepSeek-specific:
   - [docs/provider-contracts/deepseek.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/deepseek.md)
+
+### `claude-compatible` / `anthropic`
+
+Use `claude-compatible` when the upstream API is Claude / Anthropic native rather than OpenAI-compatible.
+
+Typical settings:
+
+```bash
+WORKER_MODEL_PROVIDER=claude-compatible
+WORKER_MODEL_NAME=<model>
+WORKER_MODEL_BASE_URL=https://api.anthropic.com
+WORKER_MODEL_API_KEY=<secret>
+```
+
+Contract:
+
+- [docs/provider-contracts/claude-compatible.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/claude-compatible.md)
 
 ### `litellm`
 
@@ -267,5 +332,6 @@ For provider-specific health checks and failure signatures, use the matching con
 - [Mock](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/mock.md)
 - [OpenAI-compatible generic](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/openai-compatible-generic.md)
 - [DeepSeek](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/deepseek.md)
+- [Claude-compatible](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/claude-compatible.md)
 - [LiteLLM](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/litellm.md)
 - [Local client](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/local-client.md)
