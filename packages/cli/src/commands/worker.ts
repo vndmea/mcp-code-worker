@@ -9,12 +9,12 @@ import {
 } from "@mcp-code-worker/graph";
 import {
   getWorkerRegistration,
-  ModelRouter,
   getWorkerProfile,
   listWorkerRegistrations,
   listWorkerProfiles,
   removeWorkerRegistration,
-  resolveWorkerModel,
+  requireConfiguredWorkerId,
+  resolveWorkerTarget,
   saveWorkerRegistration,
   saveWorkerProfile
 } from "@mcp-code-worker/models";
@@ -35,7 +35,7 @@ const formatWorkerList = (
   if (entries.length > 0) {
     for (const entry of entries) {
       lines.push(
-        `${entry.workerId ?? `${entry.provider}:${entry.model}`} (${entry.status ?? "configured"})`
+        `${entry.workerId ?? "unnamed-worker"} (${entry.status ?? "configured"})`
       );
     }
   } else {
@@ -324,38 +324,18 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
         worker?: string;
       }) => {
         const context = await resolveExecutionContext();
-        const hasModelOverride =
-          Boolean(options.provider) || Boolean(options.model) || Boolean(options.baseUrl);
-        const registeredWorker = options.worker
-          ? await getWorkerRegistration(
-              context.rootDir,
-              options.worker,
-              context.cwStorageDir
-            )
-          : null;
-        const resolved = registeredWorker
-          ? await resolveWorkerModel({
-              context,
-              workerId: options.worker
-            })
-          : null;
-
-        if (options.worker && !registeredWorker && !hasModelOverride) {
-          throw new Error(
-            `Worker '${options.worker}' was not found in the worker registry. Check the worker id or register it before continuing.`
-          );
-        }
-
-        const modelConfig = resolved?.modelConfig ?? {
-          ...context.workerModel,
-          ...(options.provider ? { provider: options.provider } : {}),
-          ...(options.model ? { model: options.model } : {}),
-          ...(options.baseUrl ? { baseURL: options.baseUrl } : {})
-        };
+        const resolvedTarget = await resolveWorkerTarget({
+          context,
+          workerId: options.worker,
+          provider: options.provider,
+          model: options.model,
+          baseURL: options.baseUrl,
+          requireNamedWorker: options.save
+        });
         const result = await runWorkerInterviewWorkflow({
           context,
-          workerId: resolved?.workerId ?? options.worker,
-          modelConfig
+          workerId: resolvedTarget.workerId,
+          modelConfig: resolvedTarget.modelConfig
         });
 
         const saveResult = options.save
@@ -414,39 +394,20 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
         }
 
         const context = await resolveExecutionContext();
-        const hasModelOverride =
-          Boolean(options.provider) || Boolean(options.model) || Boolean(options.baseUrl);
-        const registeredWorker = options.worker
-          ? await getWorkerRegistration(
-              context.rootDir,
-              options.worker,
-              context.cwStorageDir
-            )
-          : null;
-        const resolved = registeredWorker
-          ? await resolveWorkerModel({
-              context,
-              workerId: options.worker
-            })
-          : null;
-
-        if (options.worker && !registeredWorker && !hasModelOverride) {
-          throw new Error(
-            `Worker '${options.worker}' was not found in the worker registry. Check the worker id or register it before continuing.`
-          );
-        }
-
-        const modelConfig = resolved?.modelConfig ?? {
-          ...context.workerModel,
-          ...(options.provider ? { provider: options.provider } : {}),
-          ...(options.model ? { model: options.model } : {}),
-          ...(options.baseUrl ? { baseURL: options.baseUrl } : {})
-        };
+        const resolvedTarget = await resolveWorkerTarget({
+          context,
+          workerId: options.worker,
+          provider: options.provider,
+          model: options.model,
+          baseURL: options.baseUrl,
+          requireNamedWorker:
+            options.save || options.updateProfileCapabilities
+        });
         const result = await runWorkerBenchmarkWorkflow({
           context,
           suite: "coding-v1",
-          workerId: resolved?.workerId ?? options.worker,
-          modelConfig
+          workerId: resolvedTarget.workerId,
+          modelConfig: resolvedTarget.modelConfig
         });
         const persistence = options.save
           ? await saveWorkerBenchmarkArtifact(context, result, true)
@@ -531,8 +492,11 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
     .argument("[workerId]", "Worker profile id")
     .action(async (workerId?: string) => {
       const context = await resolveExecutionContext();
-      const resolvedWorkerId =
-        workerId ?? context.defaultWorkerId ?? ModelRouter.deriveWorkerId(context.workerModel);
+      const resolvedWorkerId = requireConfiguredWorkerId(
+        context,
+        workerId,
+        "worker profile lookup"
+      );
       const profile = await getWorkerProfile(
         context.rootDir,
         resolvedWorkerId,

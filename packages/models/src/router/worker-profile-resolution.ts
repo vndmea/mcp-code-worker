@@ -8,6 +8,7 @@ import {
 
 import { getWorkerProfile } from "./worker-profile-store.js";
 import { deriveWorkerProfileId } from "./worker-profile-store.js";
+import { requireConfiguredWorkerId } from "./worker-target-resolution.js";
 
 export interface ResolveWorkerProfileInput {
   context: ExecutionContext;
@@ -85,9 +86,16 @@ export const resolveWorkerProfile = async ({
   requireProfile
 }: ResolveWorkerProfileInput): Promise<ResolveWorkerProfileResult> => {
   const effectiveModelConfig = modelConfig ?? context.workerModel;
+  const configuredWorkerId =
+    requireProfile
+      ? requireConfiguredWorkerId(
+          context,
+          workerId,
+          "worker profile resolution"
+        )
+      : workerId ?? context.defaultWorkerId;
   const resolvedWorkerId =
-    workerId ??
-    context.defaultWorkerId ??
+    configuredWorkerId ??
     deriveWorkerProfileId(effectiveModelConfig);
   const profile = await getWorkerProfile(
     context.rootDir,

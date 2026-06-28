@@ -276,7 +276,7 @@ describe("worker interview workflow", () => {
       })
     });
 
-    expect(result.profile.workerId).toContain("mock");
+    expect(result.profile.workerId).toBe("default-worker");
     expect(result.taskResults.length).toBeGreaterThan(0);
   });
 });

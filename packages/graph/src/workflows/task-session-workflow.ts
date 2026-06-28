@@ -24,8 +24,7 @@ import {
   writeTaskArtifact
 } from "@mcp-code-worker/core";
 import {
-  ModelRouter,
-  resolveWorkerModel,
+  resolveWorkerTarget,
   resolveWorkerProfile
 } from "@mcp-code-worker/models";
 import { applyPatchProposal } from "@mcp-code-worker/tools";
@@ -265,18 +264,16 @@ const resolveTaskContext = async (
   workerId: string | undefined,
   requireProfile: boolean | undefined
 ): Promise<ResolvedTaskContext> => {
-  if (!workerId && !requireProfile) {
-    return {
-      context,
-      requestedWorkerId: workerId,
-      workerId: ModelRouter.deriveWorkerId(context.workerModel)
-    };
-  }
-
-  const workerModelResolution = await resolveWorkerModel({
+  const workerModelResolution = await resolveWorkerTarget({
     context,
-    workerId
+    workerId,
+    requireNamedWorker: requireProfile
   });
+  const resolvedWorkerId =
+    workerModelResolution.workerId ??
+    workerId ??
+    context.defaultWorkerId ??
+    "default-worker";
   const workerContext = createExecutionContextWithWorkerModel(
     context,
     workerModelResolution.modelConfig
@@ -284,7 +281,7 @@ const resolveTaskContext = async (
 
   await resolveWorkerProfile({
     context: workerContext,
-    workerId: workerModelResolution.workerId,
+    workerId: resolvedWorkerId,
     modelConfig: workerContext.workerModel,
     requireProfile
   });
@@ -292,7 +289,7 @@ const resolveTaskContext = async (
   return {
     context: workerContext,
     requestedWorkerId: workerId,
-    workerId: workerModelResolution.workerId
+    workerId: resolvedWorkerId
   };
 };
 

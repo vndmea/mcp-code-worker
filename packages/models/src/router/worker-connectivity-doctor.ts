@@ -5,7 +5,7 @@ import {
   resolveLocalClientCommand
 } from "../providers/local-client-command.js";
 import { ModelRouter } from "./model-router.js";
-import { resolveWorkerModel } from "./worker-registry-resolution.js";
+import { resolveWorkerTarget } from "./worker-target-resolution.js";
 
 const LOCAL_CLIENT_PROVIDERS = new Set(["client"]);
 
@@ -64,11 +64,11 @@ export const createWorkerConnectivityDoctorChecks = async (
   context: ExecutionContext
 ): Promise<DoctorCheck[]> => {
   let resolvedWorker:
-    | Awaited<ReturnType<typeof resolveWorkerModel>>
+    | Awaited<ReturnType<typeof resolveWorkerTarget>>
     | undefined;
 
   try {
-    resolvedWorker = await resolveWorkerModel({ context });
+    resolvedWorker = await resolveWorkerTarget({ context });
     const probeConfig = createProbeConfig(resolvedWorker.modelConfig);
     const router = new ModelRouter(probeConfig);
     const routed = router.route("worker");
@@ -91,7 +91,7 @@ export const createWorkerConnectivityDoctorChecks = async (
           provider: probeConfig.provider,
           responsePreview: summarizeWorkerResponse(result.text),
           source: resolvedWorker.source,
-          workerId: resolvedWorker.workerId
+          workerId: resolvedWorker.workerId ?? context.defaultWorkerId
         }
       }
     ];
@@ -115,7 +115,7 @@ export const createWorkerConnectivityDoctorChecks = async (
             resolvedWorker?.modelConfig.provider ?? context.workerModel.provider,
           rootDir: context.rootDir,
           source: resolvedWorker?.source,
-          workerId: resolvedWorker?.workerId
+          workerId: resolvedWorker?.workerId ?? context.defaultWorkerId
         }
       }
     ];

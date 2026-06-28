@@ -426,6 +426,13 @@ describe("mcp tool registration", () => {
 
   it("benchmarks a worker and can persist capability updates through MCP", async () => {
     await withTempCwd(async (rootDir) => {
+      await writeCwConfig(rootDir, {
+        defaultWorkerId: "default-worker",
+        workerModel: {
+          provider: "mock",
+          model: "gpt-5.4-mini"
+        }
+      });
       await writeProfiles(rootDir, [createLimitedProfile()]);
 
       const result = await cwBenchmarkWorkerTool.execute({

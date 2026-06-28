@@ -2,8 +2,8 @@ import { z } from "zod";
 
 import { resolveExecutionContext } from "@mcp-code-worker/core";
 import {
-  ModelRouter,
-  getWorkerProfile
+  getWorkerProfile,
+  requireConfiguredWorkerId
 } from "@mcp-code-worker/models";
 
 import type { CwToolDefinition } from "./tool-types.js";
@@ -21,8 +21,11 @@ export const cwGetWorkerProfileTool: CwToolDefinition<
   inputSchema,
   execute: async (args) => {
     const context = await resolveExecutionContext();
-    const workerId =
-      args.workerId ?? ModelRouter.deriveWorkerId(context.workerModel);
+    const workerId = requireConfiguredWorkerId(
+      context,
+      args.workerId,
+      "worker profile lookup"
+    );
     return getWorkerProfile(context.rootDir, workerId, context.cwStorageDir);
   }
 };

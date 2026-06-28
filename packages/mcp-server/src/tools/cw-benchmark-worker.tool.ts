@@ -8,8 +8,7 @@ import {
 } from "@mcp-code-worker/graph";
 import {
   getWorkerProfile,
-  getWorkerRegistration,
-  resolveWorkerModel,
+  resolveWorkerTarget,
   saveWorkerProfile
 } from "@mcp-code-worker/models";
 
@@ -46,39 +45,20 @@ export const cwBenchmarkWorkerTool: CwToolDefinition<
     }
 
     const context = await resolveExecutionContext();
-    const hasModelOverride =
-      Boolean(args.provider) || Boolean(args.model) || Boolean(args.baseURL);
-    const registeredWorker = args.workerId
-      ? await getWorkerRegistration(
-          context.rootDir,
-          args.workerId,
-          context.cwStorageDir
-        )
-      : null;
-    const resolved = registeredWorker
-      ? await resolveWorkerModel({
-          context,
-          workerId: args.workerId
-        })
-      : null;
-
-    if (args.workerId && !registeredWorker && !hasModelOverride) {
-      throw new Error(
-        `Worker '${args.workerId}' was not found in the worker registry. Check the worker id or register it before continuing.`
-      );
-    }
-
-    const modelConfig = resolved?.modelConfig ?? {
-      ...context.workerModel,
-      ...(args.provider ? { provider: args.provider } : {}),
-      ...(args.model ? { model: args.model } : {}),
-      ...(args.baseURL ? { baseURL: args.baseURL } : {})
-    };
+    const resolvedTarget = await resolveWorkerTarget({
+      context,
+      workerId: args.workerId,
+      provider: args.provider,
+      model: args.model,
+      baseURL: args.baseURL,
+      requireNamedWorker:
+        args.persistArtifact || args.updateProfileCapabilities
+    });
     const result = await runWorkerBenchmarkWorkflow({
       context,
       suite,
-      workerId: resolved?.workerId ?? args.workerId,
-      modelConfig
+      workerId: resolvedTarget.workerId,
+      modelConfig: resolvedTarget.modelConfig
     });
     const persistence = args.persistArtifact
       ? await saveWorkerBenchmarkArtifact(context, result, true)

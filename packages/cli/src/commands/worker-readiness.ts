@@ -14,8 +14,9 @@ import {
 import {
   createWorkerConnectivityDoctorChecks,
   getWorkerRegistration,
-  resolveWorkerModel,
-  resolveWorkerProfile
+  requireConfiguredWorkerId,
+  resolveWorkerProfile,
+  resolveWorkerTarget
 } from "@mcp-code-worker/models";
 
 export type WorkerReadinessBlockedReasonType =
@@ -59,9 +60,6 @@ const defaultCheck = (
   status,
   detail
 });
-
-const deriveFallbackWorkerId = (context: ExecutionContext): string =>
-  context.defaultWorkerId ?? "default-worker";
 
 const readBenchmarkCheck = async (
   context: ExecutionContext,
@@ -259,8 +257,12 @@ export const buildWorkerReadinessReport = async (input: {
   workerId?: string;
 }): Promise<WorkerReadinessReport> => {
   const configResult = await loadCwConfig(input.context.rootDir);
-  const requestedWorkerId = input.workerId;
-  const fallbackWorkerId = requestedWorkerId ?? deriveFallbackWorkerId(input.context);
+  const requestedWorkerId = requireConfiguredWorkerId(
+    input.context,
+    input.workerId,
+    "worker readiness checks"
+  );
+  const fallbackWorkerId = requestedWorkerId;
   const registration = await getWorkerRegistration(
     input.context.rootDir,
     fallbackWorkerId,
@@ -280,15 +282,10 @@ export const buildWorkerReadinessReport = async (input: {
           "registered",
           `Worker ${fallbackWorkerId} is registered in the local registry.`
         )
-      : requestedWorkerId
-        ? defaultCheck(
-            "missing",
-            `Worker ${fallbackWorkerId} is not registered in the local registry.`
-          )
-        : defaultCheck(
-            "env-default",
-            `Worker ${fallbackWorkerId} is currently using the resolved runtime default instead of a registry entry.`
-          ),
+      : defaultCheck(
+          "missing",
+          `Worker ${fallbackWorkerId} is not registered in the local registry.`
+        ),
     profile: defaultCheck("not-produced", "Worker profile was not checked yet."),
     probe: defaultCheck("not-run", "No live probe was requested."),
     benchmark: defaultCheck(
@@ -306,27 +303,27 @@ export const buildWorkerReadinessReport = async (input: {
   let resolvedWorkerModelError: string | null = null;
 
   try {
-    const resolvedWorker = await resolveWorkerModel({
+    const resolvedWorker = await resolveWorkerTarget({
       context: input.context,
-      ...(requestedWorkerId ? { workerId: requestedWorkerId } : {})
+      workerId: requestedWorkerId
     });
 
-    resolvedWorkerId = resolvedWorker.workerId;
+    resolvedWorkerId = resolvedWorker.workerId ?? requestedWorkerId;
     resolvedContext = {
       ...createExecutionContextWithWorkerModel(
         input.context,
         resolvedWorker.modelConfig
       ),
-      defaultWorkerId: resolvedWorker.workerId
+      defaultWorkerId: resolvedWorker.workerId ?? requestedWorkerId
     };
     checks.registry = resolvedWorker.source === "registry"
       ? defaultCheck(
           "registered",
-          `Worker ${resolvedWorker.workerId} resolves through the local registry.`
+          `Worker ${resolvedWorkerId} resolves through the local registry.`
         )
       : defaultCheck(
-          "env-default",
-          `Worker ${resolvedWorker.workerId} resolves from the current runtime defaults.`
+          "missing",
+          `Worker ${resolvedWorkerId} resolves from config.json/runtime settings, but it is not registered in the local registry.`
         );
   } catch (error) {
     resolvedWorkerModelError = error instanceof Error ? error.message : String(error);

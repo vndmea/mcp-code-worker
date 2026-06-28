@@ -11,8 +11,7 @@ import {
 } from "@mcp-code-worker/core";
 import {
   assessWorkerTaskEligibility,
-  ModelRouter,
-  resolveWorkerModel,
+  resolveWorkerTarget,
   resolveWorkerProfile
 } from "@mcp-code-worker/models";
 import {
@@ -57,12 +56,14 @@ export const runPatchProposalWorkflow = async (
     });
   const effectiveScope = repositoryContext.scope ?? input.scope;
   const warnings: string[] = [];
-  const workerModelResolution = input.workerId
-    ? await resolveWorkerModel({
-        context,
-        workerId: input.workerId
-      })
-    : undefined;
+  const workerModelResolution =
+    input.workerId || input.requireProfile || context.defaultWorkerId
+      ? await resolveWorkerTarget({
+          context,
+          workerId: input.workerId,
+          requireNamedWorker: input.requireProfile
+        })
+      : undefined;
   const workerContext = workerModelResolution
     ? createExecutionContextWithWorkerModel(
         context,
@@ -81,7 +82,8 @@ export const runPatchProposalWorkflow = async (
   const workerId =
     workerProfileResolution?.workerId ??
     workerModelResolution?.workerId ??
-    ModelRouter.deriveWorkerId(workerContext.workerModel);
+    context.defaultWorkerId ??
+    "default-worker";
   const fallbackProposal = buildFallbackPatchProposal(
     {
       goal: input.goal,

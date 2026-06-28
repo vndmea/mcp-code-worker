@@ -38,7 +38,8 @@ const safeParseProfiles = (value: string): WorkerCapabilityProfile[] => {
   }
 };
 
-export const deriveWorkerProfileId = (): string => DEFAULT_WORKER_ID;
+export const deriveWorkerProfileId = (_config?: unknown): string =>
+  DEFAULT_WORKER_ID;
 
 export const listPersistedWorkerProfiles = async (
   rootDir: string,

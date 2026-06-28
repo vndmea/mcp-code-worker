@@ -16,7 +16,7 @@ import {
 } from "@mcp-code-worker/core";
 import {
   assessWorkerTaskEligibility,
-  resolveWorkerModel,
+  resolveWorkerTarget,
   resolveWorkerProfile
 } from "@mcp-code-worker/models";
 import { buildRepositoryContextPack } from "@mcp-code-worker/tools";
@@ -501,10 +501,15 @@ export const runHostWorkerWorkflow = async (
   input: HostWorkerWorkflowInput
 ): Promise<HostWorkerWorkflowOutput> => {
   const context = input.context ?? await resolveExecutionContext();
-  const workerModelResolution = await resolveWorkerModel({
+  const workerModelResolution = await resolveWorkerTarget({
     context,
     workerId: input.workerId
   });
+  const resolvedWorkerId =
+    workerModelResolution.workerId ??
+    input.workerId ??
+    context.defaultWorkerId ??
+    "default-worker";
   const workerContext = createExecutionContextWithWorkerModel(
     context,
     workerModelResolution.modelConfig
@@ -533,14 +538,14 @@ export const runHostWorkerWorkflow = async (
       files: input.files ?? [],
       scope: repositoryContext.scope,
       taskType: input.taskType,
-      workerId: workerModelResolution.workerId
+      workerId: resolvedWorkerId
     }
   });
 
   const { profile, warnings: profileWarnings } = await resolveProfile(
     input,
     workerContext,
-    workerModelResolution.workerId
+    resolvedWorkerId
   );
   const eligibility = assessWorkerTaskEligibility(profile, input.taskType);
   const plannedTask = createPlannedTask(input, repositoryContext);
