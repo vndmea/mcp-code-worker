@@ -8,7 +8,6 @@ import {
 } from "@mcp-code-worker/core";
 import type {
   ExecutionContext,
-  ModelConfig,
   WorkerCapabilityProfile
 } from "@mcp-code-worker/core";
 import { DEFAULT_WORKER_ID } from "./worker-registry-store.js";
@@ -39,8 +38,7 @@ const safeParseProfiles = (value: string): WorkerCapabilityProfile[] => {
   }
 };
 
-export const deriveWorkerProfileId = (config: ModelConfig): string =>
-  DEFAULT_WORKER_ID;
+export const deriveWorkerProfileId = (): string => DEFAULT_WORKER_ID;
 
 export const listPersistedWorkerProfiles = async (
   rootDir: string,

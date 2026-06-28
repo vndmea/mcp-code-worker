@@ -1281,7 +1281,7 @@ describe("cli parsing", () => {
 
       await cli.parseAsync(["node", "cw", "worker", "readiness"]);
 
-      let readiness = parseLastJson<{
+      const readiness = parseLastJson<{
         blockedReasonType: string;
         canRunFormalTasks: boolean;
         canRunPatchGeneration: boolean;

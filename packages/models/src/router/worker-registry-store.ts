@@ -9,7 +9,6 @@ import {
   WorkerRegistrySchema,
   writeAuditEvent,
   type ExecutionContext,
-  type ModelConfig,
   type WorkerRegistration
 } from "@mcp-code-worker/core";
 
@@ -30,8 +29,7 @@ export const getWorkerRegistryPath = (
 
 export const DEFAULT_WORKER_ID = "default-worker";
 
-export const deriveWorkerRegistrationId = (_config: ModelConfig): string =>
-  DEFAULT_WORKER_ID;
+export const deriveWorkerRegistrationId = (): string => DEFAULT_WORKER_ID;
 
 export const readWorkerRegistry = async (
   rootDir: string,

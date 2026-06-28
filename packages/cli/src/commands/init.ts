@@ -865,13 +865,6 @@ const registerAdditionalWorkers = async (
   };
 
   for (const worker of workers) {
-    const modelConfig: ModelConfig = {
-      ...context.workerModel,
-      provider: worker.workerProvider,
-      model: worker.workerModel,
-      baseURL: worker.baseUrl,
-      apiKey: context.workerModel.apiKey
-    };
     await saveWorkerRegistration(
       context,
       {
