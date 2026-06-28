@@ -28,8 +28,10 @@ export const getWorkerRegistryPath = (
     ? getCwWorkspaceFilePathFromStorageDir(cwStorageDir, "workers.json")
     : getCwWorkspaceFilePath(rootDir, "workers.json");
 
-export const deriveWorkerRegistrationId = (config: ModelConfig): string =>
-  `${config.provider}:${config.model}`;
+export const DEFAULT_WORKER_ID = "default-worker";
+
+export const deriveWorkerRegistrationId = (_config: ModelConfig): string =>
+  DEFAULT_WORKER_ID;
 
 export const readWorkerRegistry = async (
   rootDir: string,
@@ -100,6 +102,35 @@ const assertReadableRegistry = (result: WorkerRegistryReadResult): void => {
   }
 };
 
+const registrationTargetMatches = (
+  left: WorkerRegistration,
+  right: WorkerRegistration
+): boolean =>
+  left.provider === right.provider &&
+  left.model === right.model &&
+  (left.baseURL ?? null) === (right.baseURL ?? null);
+
+const assertWorkerIdAvailable = (
+  existing: WorkerRegistryReadResult,
+  parsed: WorkerRegistration
+): void => {
+  const current = existing.workers.find((worker) => worker.workerId === parsed.workerId);
+
+  if (!current || registrationTargetMatches(current, parsed)) {
+    return;
+  }
+
+  throw new AgentError(
+    "WORKER_ID_CONFLICT",
+    `Worker id '${parsed.workerId}' is already bound to ${current.provider}/${current.model}. Choose a different worker id instead of reusing it for ${parsed.provider}/${parsed.model}.`,
+    {
+      current,
+      requested: parsed,
+      workerId: parsed.workerId
+    }
+  );
+};
+
 export const saveWorkerRegistration = async (
   context: ExecutionContext,
   registration: WorkerRegistration,
@@ -128,6 +159,13 @@ export const saveWorkerRegistration = async (
     });
   }
 
+  const existing = await readWorkerRegistry(
+    context.rootDir,
+    context.cwStorageDir
+  );
+  assertReadableRegistry(existing);
+  assertWorkerIdAvailable(existing, parsed);
+
   if (evaluation.mode === "dry-run") {
     await writeAuditEvent(context, {
       actor: "tool",
@@ -148,12 +186,6 @@ export const saveWorkerRegistration = async (
       path: evaluation.normalizedPath
     };
   }
-
-  const existing = await readWorkerRegistry(
-    context.rootDir,
-    context.cwStorageDir
-  );
-  assertReadableRegistry(existing);
 
   const merged = new Map(existing.workers.map((worker) => [worker.workerId, worker]));
   merged.set(parsed.workerId, parsed);

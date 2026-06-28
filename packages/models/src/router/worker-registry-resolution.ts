@@ -84,8 +84,13 @@ export const resolveWorkerModel = async ({
   if (workerId || configuredDefaultWorkerId) {
     throw new AgentError(
       "WORKER_NOT_REGISTERED",
-      `Worker ${resolvedWorkerId} is not registered.`,
-      { workerId: resolvedWorkerId }
+      configuredDefaultWorkerId && !workerId
+        ? `Configured default worker '${resolvedWorkerId}' was not found in the worker registry. Fix config.json or register that worker id before continuing.`
+        : `Worker '${resolvedWorkerId}' was not found in the worker registry. Check the worker id or register it before continuing.`,
+      {
+        configuredDefaultWorkerId,
+        workerId: resolvedWorkerId
+      }
     );
   }
 

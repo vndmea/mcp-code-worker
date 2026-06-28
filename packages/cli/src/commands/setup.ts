@@ -294,7 +294,21 @@ const resolveSetupWorkerModel = (
 const resolveSetupWorkerId = (
   options: SetupOptions,
   modelConfig: ModelConfig
-): string => options.workerId ?? deriveWorkerRegistrationId(modelConfig);
+): string => {
+  const requiresNamedWorker =
+    options.registerWorker ||
+    options.probeWorker ||
+    options.interviewWorker ||
+    options.benchmarkWorker;
+
+  if (requiresNamedWorker && !options.workerId) {
+    throw new Error(
+      "A user-defined worker id is required before cw can register, probe, interview, or benchmark a worker."
+    );
+  }
+
+  return options.workerId ?? deriveWorkerRegistrationId(modelConfig);
+};
 
 const buildValidationSummary = (options: SetupOptions): string => {
   const mappings = [

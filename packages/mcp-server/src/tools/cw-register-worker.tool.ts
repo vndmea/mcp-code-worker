@@ -2,7 +2,6 @@ import { z } from "zod";
 
 import { resolveExecutionContext } from "@mcp-code-worker/core";
 import {
-  deriveWorkerRegistrationId,
   getWorkerRegistration,
   saveWorkerRegistration
 } from "@mcp-code-worker/models";
@@ -10,7 +9,7 @@ import {
 import type { CwToolDefinition } from "./tool-types.js";
 
 const inputSchema = z.object({
-  workerId: z.string().optional(),
+  workerId: z.string().min(1),
   provider: z.string().min(1),
   model: z.string().min(1),
   baseURL: z.string().url().optional(),
@@ -33,12 +32,7 @@ export const cwRegisterWorkerTool: CwToolDefinition<
         dryRun: !(args.allowWrite ?? false)
       }
     });
-    const workerId =
-      args.workerId ??
-      deriveWorkerRegistrationId({
-        provider: args.provider,
-        model: args.model
-      });
+    const workerId = args.workerId;
     const existing = await getWorkerRegistration(
       context.rootDir,
       workerId,

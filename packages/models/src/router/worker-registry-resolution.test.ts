@@ -75,7 +75,7 @@ describe("resolveWorkerModel", () => {
     ).rejects.toBeInstanceOf(AgentError);
     await expect(
       resolveWorkerModel({ context, workerId: "mock:unknown" })
-    ).rejects.toThrow("not registered");
+    ).rejects.toThrow("was not found in the worker registry");
   });
 
   it("falls back to the environment default without an explicit worker", async () => {
@@ -92,7 +92,7 @@ describe("resolveWorkerModel", () => {
     const result = await resolveWorkerModel({ context });
 
     expect(result.source).toBe("env-default");
-    expect(result.workerId).toBe("openai-compatible:env-worker");
+    expect(result.workerId).toBe("default-worker");
 
     delete process.env.WORKER_MODEL_API_KEY;
   });
@@ -127,7 +127,7 @@ describe("resolveWorkerModel", () => {
     });
 
     await expect(resolveWorkerModel({ context })).rejects.toThrow(
-      "mock:missing-worker"
+      "Configured default worker"
     );
   });
 

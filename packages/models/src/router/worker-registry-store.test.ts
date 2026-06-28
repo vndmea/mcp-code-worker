@@ -105,6 +105,34 @@ describe("worker registry store", () => {
     ).toBe(true);
   });
 
+  it("blocks reusing one worker id for a different provider/model target", async () => {
+    const rootDir = await createRootDir();
+    const context = createExecutionContextFromEnv(undefined, {
+      allowWrite: true,
+      dryRun: false,
+      rootDir
+    });
+    await saveWorkerRegistration(
+      context,
+      createRegistration({
+        workerId: "primary-worker"
+      }),
+      true
+    );
+
+    await expect(
+      saveWorkerRegistration(
+        context,
+        createRegistration({
+          workerId: "primary-worker",
+          provider: "openai-compatible",
+          model: "deepseek-v4-flash"
+        }),
+        true
+      )
+    ).rejects.toThrow("already bound");
+  });
+
   it("removes registrations only when writes are allowed", async () => {
     const rootDir = await createRootDir();
     const executeContext = createExecutionContextFromEnv(undefined, {

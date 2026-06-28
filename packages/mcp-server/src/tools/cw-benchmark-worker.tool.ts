@@ -63,7 +63,9 @@ export const cwBenchmarkWorkerTool: CwToolDefinition<
       : null;
 
     if (args.workerId && !registeredWorker && !hasModelOverride) {
-      throw new Error(`Worker ${args.workerId} is not registered.`);
+      throw new Error(
+        `Worker '${args.workerId}' was not found in the worker registry. Check the worker id or register it before continuing.`
+      );
     }
 
     const modelConfig = resolved?.modelConfig ?? {
@@ -89,7 +91,7 @@ export const cwBenchmarkWorkerTool: CwToolDefinition<
 
     if (args.updateProfileCapabilities && !existingProfile) {
       throw new Error(
-        `No persisted worker profile found for ${result.workerId}; run cw_run_worker_interview with persistProfile first.`
+        `No persisted worker profile was found for '${result.workerId}'. Run cw_run_worker_interview with workerId='${result.workerId}' and persistProfile=true first.`
       );
     }
 

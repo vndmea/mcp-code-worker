@@ -535,6 +535,8 @@ describe("cli parsing", () => {
         "mock",
         "--worker-model",
         "setup-worker",
+        "--worker-id",
+        "primary-worker",
         "--worker-api-key",
         "setup-secret",
         "--worker-client-command",
@@ -601,14 +603,14 @@ describe("cli parsing", () => {
 
       expect(savedConfig.workerModel?.model).toBe("setup-worker");
       expect(savedConfig.workerModel?.apiKey).toBe("setup-secret");
-      expect(savedConfig.defaultWorkerId).toBe("mock:setup-worker");
+      expect(savedConfig.defaultWorkerId).toBe("primary-worker");
       expect(savedConfig.workerClientCommand).toBe("node");
       expect(savedConfig.validation?.scripts?.typecheck).toContain("check-types");
       expect(savedConfig.validation?.scripts?.lint).toContain("lint:ci");
-      expect(savedRegistry.workers.some((worker) => worker.workerId === "mock:setup-worker")).toBe(
+      expect(savedRegistry.workers.some((worker) => worker.workerId === "primary-worker")).toBe(
         true
       );
-      expect(savedProfiles.some((profile) => profile.workerId === "mock:setup-worker")).toBe(
+      expect(savedProfiles.some((profile) => profile.workerId === "primary-worker")).toBe(
         true
       );
     });
@@ -705,6 +707,7 @@ describe("cli parsing", () => {
           "api",
           "guided-worker",
           "mock",
+          "default-worker",
           "skip",
           false,
           false
@@ -787,12 +790,14 @@ describe("cli parsing", () => {
           "api",
           "default-worker",
           "mock",
+          "default-worker",
           "skip",
           true,
           "custom",
           "api",
           "extra-worker",
           "mock",
+          "extra-worker",
           "skip",
           false,
           true,
@@ -825,13 +830,13 @@ describe("cli parsing", () => {
       };
 
       expect(result.applied).toBe(true);
-      expect(result.worker.workerId).toBe("mock:default-worker");
-      expect(result.worker.additionalWorkers[0]?.workerId).toBe("mock:extra-worker");
-      expect(savedConfig.defaultWorkerId).toBe("mock:default-worker");
+      expect(result.worker.workerId).toBe("default-worker");
+      expect(result.worker.additionalWorkers[0]?.workerId).toBe("extra-worker");
+      expect(savedConfig.defaultWorkerId).toBe("default-worker");
       expect(savedConfig.workerModel?.provider).toBe("mock");
       expect(savedConfig.workerModel?.model).toBe("default-worker");
       expect(savedRegistry.workers.map((worker) => worker.workerId)).toEqual(
-        expect.arrayContaining(["mock:default-worker", "mock:extra-worker"])
+        expect.arrayContaining(["default-worker", "extra-worker"])
       );
     });
   });

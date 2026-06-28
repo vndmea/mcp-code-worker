@@ -392,6 +392,7 @@ describe("mcp tool registration", () => {
   it("manages worker registry through MCP tools", async () => {
     await withTempCwd(async () => {
       const dryRun = await cwRegisterWorkerTool.execute({
+        workerId: "primary-worker",
         provider: "mock",
         model: "registered-worker"
       });
@@ -399,6 +400,7 @@ describe("mcp tool registration", () => {
       expect(dryRun.mode).toBe("dry-run");
 
       const registered = await cwRegisterWorkerTool.execute({
+        workerId: "primary-worker",
         provider: "mock",
         model: "registered-worker",
         tags: ["coding"],
@@ -406,7 +408,7 @@ describe("mcp tool registration", () => {
       });
       const registrations = await cwListWorkerRegistryTool.execute({});
       const registration = await cwGetWorkerRegistrationTool.execute({
-        workerId: "mock:registered-worker"
+        workerId: "primary-worker"
       });
 
       expect(registered.mode).toBe("execute");
@@ -414,7 +416,7 @@ describe("mcp tool registration", () => {
       expect(JSON.stringify(registration)).not.toContain("secret");
 
       const removed = await cwUnregisterWorkerTool.execute({
-        workerId: "mock:registered-worker",
+        workerId: "primary-worker",
         allowWrite: true
       });
 

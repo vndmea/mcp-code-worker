@@ -51,7 +51,9 @@ const executeWorkerInterview = async (
     : null;
 
   if (args.workerId && !registeredWorker && !hasModelOverride) {
-    throw new Error(`Worker ${args.workerId} is not registered.`);
+    throw new Error(
+      `Worker '${args.workerId}' was not found in the worker registry. Check the worker id or register it before continuing.`
+    );
   }
 
   const modelConfig = resolved?.modelConfig ?? {

@@ -8,7 +8,6 @@ import {
   saveWorkerBenchmarkArtifact
 } from "@mcp-code-worker/graph";
 import {
-  deriveWorkerRegistrationId,
   getWorkerRegistration,
   ModelRouter,
   getWorkerProfile,
@@ -179,7 +178,7 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
   worker
     .command("register")
     .description("Register a worker model in the local worker registry.")
-    .option("--worker <workerId>", "Worker registry id")
+    .requiredOption("--worker <workerId>", "User-defined worker id")
     .requiredOption("--provider <provider>", "Worker provider")
     .requiredOption("--model <model>", "Worker model")
     .option("--base-url <url>", "Worker base URL")
@@ -197,7 +196,7 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
         notes?: string;
         provider: string;
         tag: string[];
-        worker?: string;
+        worker: string;
       }) => {
         const context = await resolveExecutionContext({
           cliOverrides: {
@@ -205,12 +204,7 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
             dryRun: !options.allowWrite
           }
         });
-        const workerId =
-          options.worker ??
-          deriveWorkerRegistrationId({
-            provider: options.provider,
-            model: options.model
-          });
+        const workerId = options.worker;
         const existing = await getWorkerRegistration(
           context.rootDir,
           workerId,
@@ -337,7 +331,9 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
           : null;
 
         if (options.worker && !registeredWorker && !hasModelOverride) {
-          throw new Error(`Worker ${options.worker} is not registered.`);
+          throw new Error(
+            `Worker '${options.worker}' was not found in the worker registry. Check the worker id or register it before continuing.`
+          );
         }
 
         const modelConfig = resolved?.modelConfig ?? {
@@ -425,7 +421,9 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
           : null;
 
         if (options.worker && !registeredWorker && !hasModelOverride) {
-          throw new Error(`Worker ${options.worker} is not registered.`);
+          throw new Error(
+            `Worker '${options.worker}' was not found in the worker registry. Check the worker id or register it before continuing.`
+          );
         }
 
         const modelConfig = resolved?.modelConfig ?? {
@@ -450,7 +448,7 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
         );
         if (options.updateProfileCapabilities && !existingProfile) {
           throw new Error(
-            `No persisted worker profile found for ${result.workerId}; run 'cw worker interview --save' first.`
+            `No persisted worker profile was found for '${result.workerId}'. Run 'cw worker interview --worker ${result.workerId} --save' first.`
           );
         }
         const profileUpdate = existingProfile
@@ -508,7 +506,7 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
     .action(async (workerId?: string) => {
       const context = await resolveExecutionContext();
       const resolvedWorkerId =
-        workerId ?? ModelRouter.deriveWorkerId(context.workerModel);
+        workerId ?? context.defaultWorkerId ?? ModelRouter.deriveWorkerId(context.workerModel);
       const profile = await getWorkerProfile(
         context.rootDir,
         resolvedWorkerId,

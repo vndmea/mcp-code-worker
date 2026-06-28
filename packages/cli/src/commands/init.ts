@@ -23,7 +23,7 @@ import {
 } from "@mcp-code-worker/graph";
 import {
   createWorkerConnectivityDoctorChecks,
-  deriveWorkerRegistrationId,
+  getWorkerRegistration,
   saveWorkerProfile,
   saveWorkerRegistration
 } from "@mcp-code-worker/models";
@@ -354,8 +354,11 @@ const formatWorkerSummary = (result: InitResult["worker"]): string => {
     result,
     ...result.additionalWorkers
   ].filter(
-    (worker): worker is InitWorkerSummary & { workerModel: string; workerProvider: string } =>
-      Boolean(worker.workerProvider) && Boolean(worker.workerModel)
+    (worker): worker is InitWorkerSummary & {
+      workerId: string;
+      workerModel: string;
+      workerProvider: string;
+    } => Boolean(worker.workerId) && Boolean(worker.workerProvider) && Boolean(worker.workerModel)
   );
 
   if (workers.length === 0) {
@@ -366,7 +369,7 @@ const formatWorkerSummary = (result: InitResult["worker"]): string => {
     .map((worker) =>
       [
         worker.isDefault ? "default" : "extra",
-        `${worker.workerProvider}:${worker.workerModel}`,
+        `${worker.workerId} (${worker.workerProvider}/${worker.workerModel})`,
         `configured=${worker.configured ? "yes" : "no"}`,
         `registered=${worker.registerStatus ?? (worker.registerWorker ? "planned" : "skipped")}`,
         `probed=${worker.probeStatus ?? (worker.probeWorker ? "planned" : "skipped")}`,
@@ -517,6 +520,7 @@ const collectInitSetupOptions = async (
   };
   const additionalWorkers: InitWorkerPlan[] = [];
   const workerSummaries: InitWorkerSummary[] = [];
+  const reservedWorkerIds = new Set<string>();
 
   const promptWorkerPlan = async (
     isDefault: boolean
@@ -640,6 +644,38 @@ const collectInitSetupOptions = async (
         promptedClientCommand.length > 0 ? promptedClientCommand : undefined;
     }
 
+    let workerIdPrompt = isDefault
+      ? "Default worker name?"
+      : "Additional worker name?";
+    const defaultWorkerId = isDefault
+      ? "default-worker"
+      : `worker-${workerSummaries.length + 1}`;
+    let workerId = "";
+
+    while (workerId.length === 0) {
+      const candidate = await prompter.text(workerIdPrompt, {
+        defaultValue: defaultWorkerId
+      });
+
+      if (reservedWorkerIds.has(candidate)) {
+        workerIdPrompt = `Worker name '${candidate}' is already queued in this init run. Choose another worker name.`;
+        continue;
+      }
+
+      const existingRegistration = await getWorkerRegistration(
+        workerContext.rootDir,
+        candidate,
+        workerContext.cwStorageDir
+      );
+
+      if (existingRegistration) {
+        workerIdPrompt = `Worker name '${candidate}' already exists in the registry. Choose another worker name.`;
+        continue;
+      }
+
+      workerId = candidate;
+    }
+
     const verificationDepth = await prompter.select<
       "full" | "probe-only" | "skip"
     >(
@@ -669,12 +705,7 @@ const collectInitSetupOptions = async (
       isDefault,
       probeWorker: verificationDepth !== "skip",
       registerWorker: true,
-      workerId: deriveWorkerRegistrationId({
-        ...workerContext.workerModel,
-        provider: workerProvider,
-        model: workerModel,
-        ...(baseUrl ? { baseURL: baseUrl } : {})
-      }),
+      workerId,
       workerMode,
       workerModel,
       workerProvider
@@ -692,6 +723,7 @@ const collectInitSetupOptions = async (
     setup.workerId = defaultWorker.workerId;
     setup.workerModel = defaultWorker.workerModel;
     setup.workerProvider = defaultWorker.workerProvider;
+    reservedWorkerIds.add(defaultWorker.workerId);
     workerSummaries.push({
       benchmarkWorker: defaultWorker.benchmarkWorker,
       configured: true,
@@ -713,6 +745,7 @@ const collectInitSetupOptions = async (
     ) {
       const nextWorker = await promptWorkerPlan(false);
       additionalWorkers.push(nextWorker);
+      reservedWorkerIds.add(nextWorker.workerId);
       workerSummaries.push({
         benchmarkWorker: nextWorker.benchmarkWorker,
         configured: true,
@@ -945,7 +978,7 @@ export const registerInitCommand = (
       "--worker-client-command <command>",
       "Persist a non-default local client bridge command in cw config."
     )
-    .option("--worker-id <workerId>", "Explicit worker id used for register/interview")
+    .option("--worker-id <workerId>", "User-defined worker name used for register/interview")
     .option("--register-worker", "Register the configured worker in the cw workspace registry", false)
     .option("--probe-worker", "Run a live worker connectivity probe during onboarding", false)
     .option("--interview-worker", "Run worker onboarding interview and persist the profile when allowed", false)
@@ -988,6 +1021,18 @@ export const registerInitCommand = (
       }
 
       if (shouldRunScripted) {
+        if (
+          (options.registerWorker ||
+            options.probeWorker ||
+            options.interviewWorker ||
+            options.benchmarkWorker) &&
+          !options.workerId
+        ) {
+          throw new Error(
+            "--worker-id is required for scripted worker onboarding so cw can use a stable user-defined worker name."
+          );
+        }
+
         const result = await runSetup({
           allowWrite: options.allowWrite,
           benchmarkWorker: options.benchmarkWorker,
