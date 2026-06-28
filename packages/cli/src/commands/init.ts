@@ -45,7 +45,7 @@ import {
   type SetupOptions,
   type SetupResult
 } from "./setup.js";
-import type { WorkerReadinessBlockedReasonType } from "./worker-readiness.js";
+import type { WorkerReadinessUnavailableReasonType } from "./worker-readiness.js";
 
 export interface InitPrompter {
   close?: () => Promise<void> | void;
@@ -88,7 +88,7 @@ interface InitWorkerPlan {
 }
 
 type InitWorkerStepStatus =
-  | "blocked"
+  | "unavailable"
   | "completed"
   | "dry-run"
   | "not-requested"
@@ -103,7 +103,7 @@ interface InitWorkerSummary {
   isDefault: boolean;
   probeStatus?: InitWorkerStepStatus;
   probeWorker: boolean;
-  readinessBlockedReasonType?: WorkerReadinessBlockedReasonType;
+  readinessUnavailableReasonType?: WorkerReadinessUnavailableReasonType;
   readinessStatus?: DoctorStatus | "dry-run" | "skipped";
   registerWorker: boolean;
   registerStatus?: InitWorkerStepStatus;
@@ -381,9 +381,9 @@ const formatWorkerSummary = (result: InitResult["worker"]): string => {
         worker.readinessStatus
           ? [
               `readiness=${worker.readinessStatus}`,
-              worker.readinessBlockedReasonType &&
-              worker.readinessBlockedReasonType !== "not-applicable"
-                ? `(${worker.readinessBlockedReasonType})`
+              worker.readinessUnavailableReasonType &&
+              worker.readinessUnavailableReasonType !== "not-applicable"
+                ? `(${worker.readinessUnavailableReasonType})`
                 : null
             ]
               .filter((value): value is string => Boolean(value))
@@ -442,11 +442,7 @@ const readSetupStepStatus = (
     return undefined;
   }
 
-  if (step.status === "needs-input") {
-    return "blocked";
-  }
-
-  return step.status;
+  return step.status === "needs-input" ? "unavailable" : step.status;
 };
 
 const mergePrimaryWorkerSummary = (
@@ -458,7 +454,7 @@ const mergePrimaryWorkerSummary = (
   configured: worker.configured || Boolean(worker.workerId),
   interviewStatus: readSetupStepStatus(setup, "interview-worker"),
   probeStatus: readSetupStepStatus(setup, "probe-worker"),
-  readinessStatus: setup.status === "blocked" ? "blocked" : "ready",
+  readinessStatus: setup.status === "unavailable" ? "unavailable" : "ready",
   registerStatus: readSetupStepStatus(setup, "register-worker")
 });
 
@@ -861,7 +857,7 @@ const registerAdditionalWorkers = async (
       }
     });
 
-    return checks[0]?.status === "pass" ? "completed" : "blocked";
+    return checks[0]?.status === "pass" ? "completed" : "unavailable";
   };
 
   for (const worker of workers) {
@@ -893,15 +889,15 @@ const registerAdditionalWorkers = async (
     };
     const probeStatus = await runProbe(context, worker);
     let interviewStatus: InitWorkerStepStatus = worker.interviewWorker
-      ? "blocked"
+      ? "unavailable"
       : "skipped";
     let benchmarkStatus: InitWorkerStepStatus = worker.benchmarkWorker
-      ? "blocked"
+      ? "unavailable"
       : "skipped";
     let readinessStatus: DoctorStatus =
-      probeStatus === "blocked" ? "blocked" : "ready";
-    let readinessBlockedReasonType: WorkerReadinessBlockedReasonType =
-      probeStatus === "blocked" ? "probe-failed" : "not-applicable";
+      probeStatus === "unavailable" ? "unavailable" : "ready";
+    let readinessUnavailableReasonType: WorkerReadinessUnavailableReasonType =
+      probeStatus === "unavailable" ? "probe-failed" : "not-applicable";
 
     if (worker.interviewWorker) {
       const interviewResult = await runWorkerInterviewWorkflow({
@@ -911,10 +907,10 @@ const registerAdditionalWorkers = async (
       });
 
       if (!interviewResult.persistenceAdvice.canPersist) {
-        interviewStatus = "blocked";
-        benchmarkStatus = worker.benchmarkWorker ? "blocked" : "skipped";
-        readinessStatus = "blocked";
-        readinessBlockedReasonType = "profile-provider-error";
+        interviewStatus = "unavailable";
+        benchmarkStatus = worker.benchmarkWorker ? "unavailable" : "skipped";
+        readinessStatus = "unavailable";
+        readinessUnavailableReasonType = "profile-provider-error";
       } else {
         await saveWorkerProfile(context, interviewResult.profile, true);
         interviewStatus = "completed";
@@ -938,8 +934,8 @@ const registerAdditionalWorkers = async (
           benchmarkStatus = "completed";
           readinessStatus = profileUpdate.patchGenerationQualified
             ? "ready"
-            : "blocked";
-          readinessBlockedReasonType = profileUpdate.patchGenerationQualified
+            : "unavailable";
+          readinessUnavailableReasonType = profileUpdate.patchGenerationQualified
             ? "not-applicable"
             : "worker-not-qualified";
         }
@@ -955,7 +951,7 @@ const registerAdditionalWorkers = async (
       isDefault: false,
       probeStatus,
       probeWorker: worker.probeWorker,
-      readinessBlockedReasonType,
+      readinessUnavailableReasonType,
       readinessStatus,
       registerStatus: "completed",
       registerWorker: true,

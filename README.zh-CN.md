@@ -180,7 +180,6 @@ cw worker profile qwen-local
 
 - `qualified`：可以接收其通过评估的任务类型
 - `not-qualified`：评估已完成，但仍不具备进入合格任务类型的能力
-- `blocked`：评估未能完成，或因环境/配置问题被阻断
 
 示例告警输出：
 
@@ -200,7 +199,7 @@ Recommended action:
 - Require host review for every accepted output.
 ```
 
-如果因为配置或连通性问题导致评估无法完成，profile 会保持为 `blocked`，生产路由应在问题修复前将其视为不可用。
+如果因为配置或连通性问题导致评估无法完成，访谈结果不会被持久化，生产路由应在问题修复前将该 worker 视为不可用。
 
 ### 持久化 worker profile
 
@@ -438,7 +437,7 @@ cw mcp list-tools
 - `cw cleanup runs` 和 `cw cleanup audit` 只删除本地 CW 产物，不会碰项目源代码。
 - 宿主驱动场景里，worker 输出在宿主接受前都不能视为最终结果。
 - Worker 在进入生产任务前应先通过 onboarding evaluation。
-- structured output 或可靠性不达标的 worker 会进入 `not-qualified` 或 `blocked` 状态，具体取决于问题属于能力不足还是环境阻断。
+- structured output 或可靠性不达标的 worker 会进入 `not-qualified` 状态；如果是环境或配置问题，则该 worker 在修复前应视为不可用。
 - 密钥应通过环境变量提供，且绝不能写入日志。
 
 ## Dist smoke

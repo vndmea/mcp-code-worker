@@ -39,7 +39,7 @@ import {
 import { formatDisplayPath } from "../output.js";
 
 type SetupStepStatus =
-  | "blocked"
+  | "unavailable"
   | "completed"
   | "dry-run"
   | "needs-input"
@@ -346,7 +346,7 @@ const buildProbeChecks = async (
   });
 
 export const formatSetupResult = (result: SetupResult): string[] => {
-  const blockedSteps = result.steps.filter((step) => step.status === "blocked");
+  const unavailableSteps = result.steps.filter((step) => step.status === "unavailable");
   const needsInputSteps = result.steps.filter((step) => step.status === "needs-input");
 
   const lines: string[] = [
@@ -359,9 +359,9 @@ export const formatSetupResult = (result: SetupResult): string[] => {
       .join(", ")}`
   ];
 
-  if (blockedSteps.length > 0) {
+  if (unavailableSteps.length > 0) {
     lines.push(
-      `blocking: ${blockedSteps
+      `unavailable: ${unavailableSteps
         .slice(0, 3)
         .map((step) => step.summary)
         .join(" | ")}`
@@ -497,7 +497,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
   if (registryState.error) {
     steps.push({
       id: "worker-registry-store",
-      status: "blocked",
+      status: "unavailable",
       path: relativePath(context.rootDir, registryPath),
       summary:
         "Existing worker registry is invalid. Fix or replace it before setup can manage worker registrations safely.",
@@ -536,7 +536,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
   if (profileState.error) {
     steps.push({
       id: "worker-profile-store",
-      status: "blocked",
+      status: "unavailable",
       path: relativePath(context.rootDir, profilesPath),
       summary:
         "Existing worker profile store is invalid. Fix it before setup tries to persist interviewed profiles.",
@@ -603,7 +603,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     if (registryState.error) {
       steps.push({
         id: "register-worker",
-        status: "blocked",
+        status: "unavailable",
         summary:
           "Worker registration was requested, but the registry store is invalid.",
         command: "cw doctor"
@@ -654,7 +654,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     if (!normalizedOptions.registerWorker) {
       steps.push({
         id: "probe-worker",
-        status: "blocked",
+        status: "unavailable",
         summary:
           "Worker probe was requested, but worker registration is disabled for this setup run.",
         command: "cw init"
@@ -665,7 +665,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
 
       steps.push({
         id: "probe-worker",
-        status: probeCheck?.status === "pass" ? "completed" : "blocked",
+        status: probeCheck?.status === "pass" ? "completed" : "unavailable",
         summary:
           probeCheck?.message ??
           `Worker ${workerId} probe did not produce a connectivity result.`,
@@ -687,7 +687,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     if (profileState.error) {
       steps.push({
         id: "interview-worker",
-        status: "blocked",
+        status: "unavailable",
         summary:
           "Worker interview was requested, but the profile store is invalid.",
         command: "cw doctor"
@@ -702,7 +702,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
       if (!interviewResult.persistenceAdvice.canPersist) {
         steps.push({
           id: "interview-worker",
-          status: "blocked",
+          status: "unavailable",
           summary: interviewResult.persistenceAdvice.reason,
           command: "cw worker interview --save",
           details: {
@@ -762,7 +762,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     if (!normalizedOptions.interviewWorker) {
       steps.push({
         id: "benchmark-worker",
-        status: "blocked",
+        status: "unavailable",
         summary:
           "Worker benchmark requires an interviewed worker profile. Enable interview before benchmarking.",
         command: "cw worker interview --save"
@@ -770,7 +770,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     } else if (!interviewedProfile) {
       steps.push({
         id: "benchmark-worker",
-        status: "blocked",
+        status: "unavailable",
         summary:
           "Worker benchmark could not run because the interview did not produce a usable profile.",
         command: "cw worker interview --save"
@@ -778,7 +778,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     } else if (!interviewPersisted) {
       steps.push({
         id: "benchmark-worker",
-        status: normalizedOptions.allowWrite ? "blocked" : "dry-run",
+        status: normalizedOptions.allowWrite ? "unavailable" : "dry-run",
         summary: normalizedOptions.allowWrite
           ? "Worker benchmark was skipped because the interviewed profile was not persisted."
           : "Would benchmark the worker after rerunning with --allow-write so the interviewed profile can be persisted first.",
@@ -859,7 +859,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
 
   steps.push({
     id: "readiness-summary",
-    status: finalDoctor.status === "ready" ? "completed" : "blocked",
+    status: finalDoctor.status === "ready" ? "completed" : "unavailable",
     command: "cw doctor",
     summary: readinessSummary,
     details: readinessCapabilities

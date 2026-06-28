@@ -749,7 +749,7 @@ const buildHostMcpCapability = (
   const relevantChecks = checks.filter((check) => HOST_MCP_CHECK_NAME_SET.has(check.name));
   const status: DoctorStatus = relevantChecks.every((check) => check.status === "pass")
     ? "ready"
-    : "blocked";
+    : "unavailable";
 
   return {
     name: "host-mcp-integration",
@@ -769,13 +769,13 @@ const applyHostMcpCapability = (
   const capability = buildHostMcpCapability(host, report.checks);
   report.capabilities.push(capability);
 
-  if (capability.status === "blocked") {
-    report.status = "blocked";
+  if (capability.status === "unavailable") {
+    report.status = "unavailable";
     report.ok = false;
     report.summary =
-      report.summary.startsWith("blocked:")
+      report.summary.startsWith("unavailable:")
         ? `${report.summary} Host MCP integration for ${host} also needs attention.`
-        : `blocked: cw is bound to ${report.activeRootDir}, but host MCP integration for ${host} still needs attention before the workflow is reliable.`;
+        : `unavailable: cw is bound to ${report.activeRootDir}, but host MCP integration for ${host} still needs attention before the workflow is reliable.`;
   } else if (report.status === "ready") {
     report.summary = `ready: cw is bound to ${report.activeRootDir}, core task workflows are available, and host MCP integration for ${host} is ready.`;
   }

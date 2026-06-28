@@ -30,7 +30,7 @@ export interface DoctorCheck {
   whyItMatters?: string;
 }
 
-export type DoctorStatus = "blocked" | "ready";
+export type DoctorStatus = "ready" | "unavailable";
 
 export interface DoctorCapability {
   available: boolean;
@@ -237,10 +237,10 @@ const getCheck = (
 const statusToDoctorStatus = (
   value: DoctorCheck["status"] | undefined
 ): DoctorStatus =>
-  value === "pass" ? "ready" : "blocked";
+  value === "pass" ? "ready" : "unavailable";
 
 const combineDoctorStatuses = (statuses: DoctorStatus[]): DoctorStatus => {
-  return statuses.includes("blocked") ? "blocked" : "ready";
+  return statuses.includes("unavailable") ? "unavailable" : "ready";
 };
 
 const buildCapability = (input: {
@@ -670,13 +670,13 @@ export const runDoctor = async (
   const status = combineDoctorStatuses(
     capabilities.map((capability) => capability.status)
   );
-  const blockedCapabilities = capabilities.filter(
-    (capability) => capability.status === "blocked"
+  const unavailableCapabilities = capabilities.filter(
+    (capability) => capability.status === "unavailable"
   );
   const summary =
     status === "ready"
       ? `ready: cw is bound to ${context.rootDir} and core task workflows are available.`
-      : `blocked: cw is bound to ${context.rootDir}, but ${blockedCapabilities.map((capability) => capability.name).join(", ") || "core prerequisites"} still need attention before the workflow is reliable.`;
+      : `unavailable: cw is bound to ${context.rootDir}, but ${unavailableCapabilities.map((capability) => capability.name).join(", ") || "core prerequisites"} still need attention before the workflow is reliable.`;
 
   return {
     activeRootDir: context.rootDir,

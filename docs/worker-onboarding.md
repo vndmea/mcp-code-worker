@@ -16,7 +16,7 @@ Onboarding establishes:
 - whether it returns structured JSON reliably
 - whether it respects narrow repository scope
 - whether it is safe to route production tasks through it
-- whether it should remain blocked, not-qualified, or qualified
+- whether it should remain not-qualified or qualified
 
 ## When A Worker Can Actually Save Tokens
 
@@ -89,7 +89,7 @@ Interview output produces a `WorkerCapabilityProfile` that affects routing.
 - `not-qualified`: the worker completed evaluation but should stay out of qualified task types
 
 The profile status is not just descriptive. It changes how routing and policy checks behave.
-Run `cw worker readiness` for the separate runtime answer about whether the worker is currently ready or blocked for formal tasks.
+Run `cw worker readiness` for the separate runtime answer about whether the worker is currently ready or unavailable for formal tasks.
 
 ## Persisted Artifacts
 

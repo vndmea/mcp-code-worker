@@ -181,7 +181,6 @@ Interview results produce a `WorkerCapabilityProfile` that affects routing:
 
 - `qualified`: worker can receive the task types it qualified for
 - `not-qualified`: worker completed evaluation but stays restricted from qualified task types
-- `blocked`: worker could not complete evaluation or is excluded from production workflows
 
 Example warning output:
 
@@ -201,7 +200,7 @@ Recommended action:
 - Require host review for every accepted output.
 ```
 
-If the worker cannot complete evaluation because of configuration or connectivity problems, the profile remains `blocked` and production routing should treat it as unavailable until the runtime issue is fixed.
+If the worker cannot complete evaluation because of configuration or connectivity problems, the interview result is not persisted and production routing should treat the worker as unavailable until the runtime issue is fixed.
 
 ### Persisting worker profiles
 
@@ -440,7 +439,7 @@ Set `WORKER_MODEL_PROVIDER=litellm`, then provide:
 - `cw cleanup runs` and `cw cleanup audit` only delete local CW artifacts and never touch project source files.
 - In host-driven flows, worker outputs are not final until the host accepts them.
 - Workers must pass onboarding evaluation before they should receive production tasks.
-- Workers that fail structured output or reliability checks become `not-qualified` or `blocked` depending on whether the failure was capability-related or environment-related.
+- Workers that fail structured output or reliability checks become `not-qualified`. Environment or configuration failures keep the worker unavailable for formal tasks until the runtime issue is fixed.
 - Secrets may come from environment variables or the user-scoped CW `config.json` and should never be logged.
 
 See [docs/permissions.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/permissions.md) for the concrete permission layers and write-gate examples.

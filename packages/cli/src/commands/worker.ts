@@ -99,7 +99,7 @@ const formatWorkerInterviewResult = (result: {
     lines.push(
       result.profile.admission.passed
         ? "admission: passed"
-        : `admission: blocked (${result.profile.admission.blockingReasons.join("; ")})`
+        : `admission: denied (${result.profile.admission.blockingReasons.join("; ")})`
     );
   }
 

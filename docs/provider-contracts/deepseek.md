@@ -128,7 +128,7 @@ Qualification sequence:
 - auth failures
   - verify `WORKER_MODEL_API_KEY` is actually present in the same runtime that launches `cw`
 - provider invocation failures during interview
-  - do not treat the blocked result as a completed qualification
+  - do not treat the unavailable result as a completed qualification
   - fix connectivity or auth first, then rerun
 
 ## Persisted Artifacts

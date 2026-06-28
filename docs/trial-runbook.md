@@ -127,7 +127,7 @@ curl https://api.deepseek.com/chat/completions \
 
 If you get `Not Found`, test both base URLs, verify the model name, and confirm that `WORKER_MODEL_API_KEY` is populated in the current runtime.
 
-If interview output reports provider invocation failures, do not treat the resulting blocked status as a completed onboarding result. `cw worker interview --save` now skips persistence in that case and returns recovery actions instead.
+If interview output reports provider invocation failures, do not treat the resulting unavailable status as a completed onboarding result. `cw worker interview --save` now skips persistence in that case and returns recovery actions instead.
 
 ## Example: LiteLLM / Local Worker
 

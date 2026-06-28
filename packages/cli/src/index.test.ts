@@ -952,7 +952,7 @@ describe("cli parsing", () => {
           status?: string;
         }>(output);
 
-        expect(result.status).toBe("blocked");
+        expect(result.status).toBe("unavailable");
         expect(
           result.checks?.some(
             (check) => check.name === "host-config-present" && check.status === "fail"
@@ -962,7 +962,7 @@ describe("cli parsing", () => {
           result.capabilities?.some(
             (capability) =>
               capability.name === "host-mcp-integration" &&
-              capability.status === "blocked"
+              capability.status === "unavailable"
           )
         ).toBe(true);
       });
@@ -1282,7 +1282,7 @@ describe("cli parsing", () => {
       await cli.parseAsync(["node", "cw", "worker", "readiness"]);
 
       const readiness = parseLastJson<{
-        blockedReasonType: string;
+        unavailableReasonType: string;
         canRunFormalTasks: boolean;
         canRunPatchGeneration: boolean;
         checks: {
@@ -1295,7 +1295,7 @@ describe("cli parsing", () => {
         status: string;
       }>(output);
       expect(readiness.status).toBe("ready");
-      expect(readiness.blockedReasonType).toBe("not-applicable");
+      expect(readiness.unavailableReasonType).toBe("not-applicable");
       expect(readiness.canRunFormalTasks).toBe(true);
       expect(readiness.canRunPatchGeneration).toBe(true);
       expect(readiness.checks.profile.status).toBe("qualified");
@@ -1307,14 +1307,14 @@ describe("cli parsing", () => {
       await cli.parseAsync(["node", "cw", "worker", "readiness", "--probe"]);
 
       const probedReadiness = parseLastJson<{
-        blockedReasonType: string;
+        unavailableReasonType: string;
         checks: {
           probe: { status: string };
         };
         status: string;
       }>(output);
       expect(probedReadiness.status).toBe("ready");
-      expect(probedReadiness.blockedReasonType).toBe("not-applicable");
+      expect(probedReadiness.unavailableReasonType).toBe("not-applicable");
       expect(probedReadiness.checks.probe.status).toBe("passed");
     });
   });
@@ -1355,26 +1355,26 @@ describe("cli parsing", () => {
       await cli.parseAsync(["node", "cw", "worker", "readiness"]);
 
       const notQualified = parseLastJson<{
-        blockedReasonType: string;
+        unavailableReasonType: string;
         canRunFormalTasks: boolean;
         status: string;
       }>(output);
-      expect(notQualified.status).toBe("blocked");
-      expect(notQualified.blockedReasonType).toBe("worker-not-qualified");
+      expect(notQualified.status).toBe("unavailable");
+      expect(notQualified.unavailableReasonType).toBe("worker-not-qualified");
       expect(notQualified.canRunFormalTasks).toBe(false);
 
       await writeProfiles(rootDir, []);
       await cli.parseAsync(["node", "cw", "worker", "readiness"]);
 
       const blocked = parseLastJson<{
-        blockedReasonType: string;
+        unavailableReasonType: string;
         checks: {
           profile: { status: string };
         };
         status: string;
       }>(output);
-      expect(blocked.status).toBe("blocked");
-      expect(blocked.blockedReasonType).toBe("profile-missing");
+      expect(blocked.status).toBe("unavailable");
+      expect(blocked.unavailableReasonType).toBe("profile-missing");
       expect(blocked.checks.profile.status).toBe("missing");
     });
   });

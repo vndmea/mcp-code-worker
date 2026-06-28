@@ -325,7 +325,7 @@ Use these signals to narrow provider issues quickly:
 - `cw mcp serve` works but worker-routed tasks fail because the MCP server environment does not contain the same provider variables as your shell.
 - A local client provider fails because `workerClientCommand` or `CW_WORKER_CLIENT_COMMAND` points to the wrong executable, or an override is unnecessary.
 
-If provider invocation fails during interview, do not treat the resulting blocked output as a completed onboarding result. Fix connectivity or auth first, then rerun the interview.
+If provider invocation fails during interview, do not treat the resulting unavailable outcome as a completed onboarding result. Fix connectivity or auth first, then rerun the interview.
 
 For provider-specific health checks and failure signatures, use the matching contract document:
 

@@ -19,7 +19,7 @@ import {
   resolveWorkerTarget
 } from "@mcp-code-worker/models";
 
-export type WorkerReadinessBlockedReasonType =
+export type WorkerReadinessUnavailableReasonType =
   | "config-invalid"
   | "not-applicable"
   | "probe-failed"
@@ -36,7 +36,7 @@ export interface WorkerReadinessCheck {
 }
 
 export interface WorkerReadinessReport {
-  blockedReasonType: WorkerReadinessBlockedReasonType;
+  unavailableReasonType: WorkerReadinessUnavailableReasonType;
   canRunFormalTasks: boolean;
   canRunPatchGeneration: boolean;
   checks: {
@@ -125,14 +125,14 @@ const readProbeCheck = async (
     : defaultCheck("failed", probe?.message ?? "Worker connectivity probe failed.");
 };
 
-const deriveBlockedReasonType = (
+const deriveUnavailableReasonType = (
   checks: WorkerReadinessReport["checks"]
-): WorkerReadinessBlockedReasonType => {
+): WorkerReadinessUnavailableReasonType => {
   if (checks.config.status === "invalid") {
     return "config-invalid";
   }
 
-  if (checks.registry.status === "blocked") {
+  if (checks.registry.status === "unavailable") {
     return "worker-resolution-failed";
   }
 
@@ -164,7 +164,7 @@ const deriveBlockedReasonType = (
 };
 
 const buildSummary = (input: {
-  blockedReasonType: WorkerReadinessBlockedReasonType;
+  unavailableReasonType: WorkerReadinessUnavailableReasonType;
   canRunPatchGeneration: boolean;
   status: DoctorStatus;
   workerId: string;
@@ -175,30 +175,30 @@ const buildSummary = (input: {
       : `Worker ${input.workerId} is ready for formal non-patch tasks. Patch-generation is not allowed yet.`;
   }
 
-  switch (input.blockedReasonType) {
+  switch (input.unavailableReasonType) {
     case "config-invalid":
-      return `Worker ${input.workerId} is blocked for formal tasks because config.json is invalid.`;
+      return `Worker ${input.workerId} is unavailable for formal tasks because config.json is invalid.`;
     case "worker-resolution-failed":
-      return `Worker ${input.workerId} is blocked for formal tasks because worker resolution failed.`;
+      return `Worker ${input.workerId} is unavailable for formal tasks because worker resolution failed.`;
     case "profile-missing":
-      return `Worker ${input.workerId} is blocked for formal tasks until a persisted worker profile exists.`;
+      return `Worker ${input.workerId} is unavailable for formal tasks until a persisted worker profile exists.`;
     case "profile-stale":
-      return `Worker ${input.workerId} is blocked for formal tasks until the persisted worker profile is refreshed.`;
+      return `Worker ${input.workerId} is unavailable for formal tasks until the persisted worker profile is refreshed.`;
     case "profile-incompatible":
-      return `Worker ${input.workerId} is blocked for formal tasks because the persisted worker profile does not match the current worker configuration.`;
+      return `Worker ${input.workerId} is unavailable for formal tasks because the persisted worker profile does not match the current worker configuration.`;
     case "profile-provider-error":
-      return `Worker ${input.workerId} is blocked for formal tasks because the persisted worker profile reflects provider/configuration failure evidence rather than a usable onboarding result.`;
+      return `Worker ${input.workerId} is unavailable for formal tasks because the persisted worker profile reflects provider/configuration failure evidence rather than a usable onboarding result.`;
     case "probe-failed":
-      return `Worker ${input.workerId} is blocked for formal tasks because the live connectivity probe failed.`;
+      return `Worker ${input.workerId} is unavailable for formal tasks because the live connectivity probe failed.`;
     case "worker-not-qualified":
       return `Worker ${input.workerId} completed onboarding evidence, but it is not qualified for formal tasks.`;
     default:
-      return `Worker ${input.workerId} is blocked for formal tasks until registry, profile, or connectivity prerequisites are repaired.`;
+      return `Worker ${input.workerId} is unavailable for formal tasks until registry, profile, or connectivity prerequisites are repaired.`;
   }
 };
 
 const buildNextSteps = (input: {
-  blockedReasonType: WorkerReadinessBlockedReasonType;
+  unavailableReasonType: WorkerReadinessUnavailableReasonType;
   checks: WorkerReadinessReport["checks"];
   status: DoctorStatus;
   workerId: string;
@@ -227,7 +227,7 @@ const buildNextSteps = (input: {
     );
   }
 
-  if (input.blockedReasonType === "worker-not-qualified") {
+  if (input.unavailableReasonType === "worker-not-qualified") {
     actions.push(
       `Keep this worker out of formal tasks until it qualifies. Re-run onboarding after fixing the weak capability areas: cw worker interview --worker ${input.workerId} --save`
     );
@@ -327,7 +327,7 @@ export const buildWorkerReadinessReport = async (input: {
         );
   } catch (error) {
     resolvedWorkerModelError = error instanceof Error ? error.message : String(error);
-    checks.registry = defaultCheck("blocked", resolvedWorkerModelError);
+    checks.registry = defaultCheck("unavailable", resolvedWorkerModelError);
   }
 
   const profileResolution = resolvedWorkerModelError
@@ -385,9 +385,9 @@ export const buildWorkerReadinessReport = async (input: {
           );
   }
 
-  const blockedReasonType = deriveBlockedReasonType(checks);
+  const unavailableReasonType = deriveUnavailableReasonType(checks);
   const status: DoctorStatus =
-    blockedReasonType === "not-applicable" ? "ready" : "blocked";
+    unavailableReasonType === "not-applicable" ? "ready" : "unavailable";
   const canRunFormalTasks = status === "ready";
   const canRunPatchGeneration =
     canRunFormalTasks && checks.patchGeneration.status === "allowed";
@@ -395,20 +395,20 @@ export const buildWorkerReadinessReport = async (input: {
   return {
     workerId: resolvedWorkerId,
     status,
-    blockedReasonType,
+    unavailableReasonType,
     canRunFormalTasks,
     canRunPatchGeneration,
     checks,
     summary: buildSummary({
       workerId: resolvedWorkerId,
       status,
-      blockedReasonType,
+      unavailableReasonType,
       canRunPatchGeneration
     }),
     nextSteps: buildNextSteps({
       workerId: resolvedWorkerId,
       status,
-      blockedReasonType,
+      unavailableReasonType,
       checks
     })
   };
@@ -419,7 +419,7 @@ export const formatWorkerReadinessResult = (
 ): string[] => [
   `worker readiness: ${result.workerId}`,
   `status: ${result.status}`,
-  `blocked reason: ${result.blockedReasonType}`,
+  `unavailable reason: ${result.unavailableReasonType}`,
   `formal tasks: ${result.canRunFormalTasks ? "yes" : "no"}`,
   `patch generation: ${result.canRunPatchGeneration ? "yes" : "no"}`,
   `checks: config=${result.checks.config.status}, registry=${result.checks.registry.status}, profile=${result.checks.profile.status}, probe=${result.checks.probe.status}, benchmark=${result.checks.benchmark.status}, patch-generation=${result.checks.patchGeneration.status}`,
