@@ -1,3 +1,5 @@
+import type { ZodRawShape } from "zod";
+
 import { cwBenchmarkWorkerTool } from "./cw-benchmark-worker.tool.js";
 import { cwDoctorTool } from "./cw-doctor.tool.js";
 import { cwApplyPatchTool } from "./cw-apply-patch.tool.js";
@@ -37,7 +39,7 @@ export type McpToolCategory =
 interface CwToolRegistryEntry {
   category: McpToolCategory;
   recommended?: boolean;
-  tool: CwToolDefinition<any, any>;
+  tool: CwToolDefinition<ZodRawShape, unknown>;
 }
 
 export const cwToolRegistry: CwToolRegistryEntry[] = [

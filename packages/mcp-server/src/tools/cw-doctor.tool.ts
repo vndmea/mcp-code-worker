@@ -25,6 +25,16 @@ const inputSchema = z.object({
   workerId: z.string().min(1).optional()
 });
 
+const resolveRequestedHost = (requestedHost: string): McpHost => {
+  if (!isMcpHost(requestedHost)) {
+    throw new Error(
+      `Unsupported MCP host '${requestedHost}'. Expected one of: ${MCP_HOSTS.join(", ")}.`
+    );
+  }
+
+  return requestedHost;
+};
+
 export const cwDoctorTool: CwToolDefinition<
   typeof inputSchema.shape,
   Awaited<ReturnType<typeof buildDoctorReport>>
@@ -33,23 +43,20 @@ export const cwDoctorTool: CwToolDefinition<
   description: "Inspect resolved configuration and local workflow prerequisites.",
   inputSchema,
   execute: async (args) => {
-    const requestedHost = args.host ?? "codex";
+    const requestedHost: string = args.host ?? "codex";
     const runHostChecks = args.mcp === true || args.host !== undefined;
-
-    if (runHostChecks && !isMcpHost(requestedHost)) {
-      throw new Error(
-        `Unsupported MCP host '${requestedHost}'. Expected one of: ${MCP_HOSTS.join(", ")}.`
-      );
-    }
+    const hostMcpHost = runHostChecks
+      ? resolveRequestedHost(requestedHost)
+      : undefined;
 
     const context = await resolveToolContext();
-    const hostChecks = runHostChecks
-      ? await createHostMcpDoctorChecks(context, requestedHost as McpHost)
+    const hostChecks = hostMcpHost
+      ? await createHostMcpDoctorChecks(context, hostMcpHost)
       : [];
     const report = await buildDoctorReport({
       additionalChecks: hostChecks,
       context,
-      hostMcpHost: runHostChecks ? requestedHost : undefined,
+      hostMcpHost,
       probe: args.probe,
       workerId: args.workerId
     });

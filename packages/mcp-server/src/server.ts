@@ -99,7 +99,8 @@ export const createCwMcpServer = async (
       },
       async (args: unknown) => {
         try {
-          const result = await tool.execute(args as never);
+          const parsedArgs = tool.inputSchema.parse(args);
+          const result = await tool.execute(parsedArgs);
           const structuredContent = toStructuredContent(result);
 
           return {

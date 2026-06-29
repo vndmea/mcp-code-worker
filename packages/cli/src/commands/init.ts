@@ -30,6 +30,7 @@ import {
   runSetup,
   type SetupOptions,
   type SetupResult,
+  type SetupStepStatus,
   type SetupWorkerPlan,
   type SetupWorkerSummary
 } from "./setup.js";

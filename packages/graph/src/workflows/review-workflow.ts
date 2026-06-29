@@ -136,7 +136,7 @@ export const runReviewWorkflow = async (
   const runtime = await prepareRepositoryWorkflowRuntime({
     context,
     repositoryContext,
-    buildRepositoryContext: async () => repositoryContext,
+    buildRepositoryContext: () => Promise.resolve(repositoryContext),
     validate: input.validate
   });
   const workerRun = await runRepositoryScopedWorkerTask({

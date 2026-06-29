@@ -513,7 +513,6 @@ export const runHostWorkerWorkflow = async (
   let workerResult: AgentResult | null = null;
   const warnings = [
     ...repositoryContext.warnings,
-    ...workerModelResolution.warnings,
     ...profileWarnings
   ];
   const errors: string[] = [];
