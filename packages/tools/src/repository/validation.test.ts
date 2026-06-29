@@ -166,66 +166,70 @@ describe("runRepositoryValidation", () => {
     15_000
   );
 
-  it("falls back to workspace-root scripts when scoped package scripts are missing", async () => {
-    const rootDir = await createRootDir();
-    await writePackage(rootDir, "package.json", {
-      typecheck: `node -e "console.log(process.cwd())"`,
-      lint: `node -e "process.exit(0)"`,
-      test: `node -e "process.exit(0)"`
-    });
-    await writePackage(rootDir, "packages/pkg/package.json", {});
-    const context = createExecutionContextFromEnv(undefined, {
-      dryRun: false,
-      allowWrite: false,
-      rootDir
-    });
+  it(
+    "falls back to workspace-root scripts when scoped package scripts are missing",
+    async () => {
+      const rootDir = await createRootDir();
+      await writePackage(rootDir, "package.json", {
+        typecheck: `node -e "console.log(process.cwd())"`,
+        lint: `node -e "process.exit(0)"`,
+        test: `node -e "process.exit(0)"`
+      });
+      await writePackage(rootDir, "packages/pkg/package.json", {});
+      const context = createExecutionContextFromEnv(undefined, {
+        dryRun: false,
+        allowWrite: false,
+        rootDir
+      });
 
-    const result = await runRepositoryValidation(context, {
-      typecheck: true,
-      lint: true,
-      test: true,
-      scope: "packages/pkg"
-    });
-    const typecheckCheck = result.checks.find((check) => check.name === "typecheck");
+      const result = await runRepositoryValidation(context, {
+        typecheck: true,
+        lint: true,
+        test: true,
+        scope: "packages/pkg"
+      });
+      const typecheckCheck = result.checks.find((check) => check.name === "typecheck");
 
-    expect(result.ok).toBe(true);
-    expect(result.checks).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          name: "typecheck",
-          status: "success",
-          scriptName: "typecheck",
-          resolutionSource: "canonical",
-          packageJsonPath: "package.json",
-          scriptSourceScope: "workspace-root"
-        }),
-        expect.objectContaining({
-          name: "lint",
-          status: "success",
-          scriptName: "lint",
-          resolutionSource: "canonical",
-          packageJsonPath: "package.json",
-          scriptSourceScope: "workspace-root"
-        }),
-        expect.objectContaining({
-          name: "test",
-          status: "success",
-          scriptName: "test",
-          resolutionSource: "canonical",
-          packageJsonPath: "package.json",
-          scriptSourceScope: "workspace-root"
-        })
-      ])
-    );
-    expect(typecheckCheck?.stdout).toContain(rootDir);
-    expect(result.warnings).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("fell back to workspace-root script typecheck"),
-        expect.stringContaining("fell back to workspace-root script lint"),
-        expect.stringContaining("fell back to workspace-root script test")
-      ])
-    );
-  });
+      expect(result.ok).toBe(true);
+      expect(result.checks).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: "typecheck",
+            status: "success",
+            scriptName: "typecheck",
+            resolutionSource: "canonical",
+            packageJsonPath: "package.json",
+            scriptSourceScope: "workspace-root"
+          }),
+          expect.objectContaining({
+            name: "lint",
+            status: "success",
+            scriptName: "lint",
+            resolutionSource: "canonical",
+            packageJsonPath: "package.json",
+            scriptSourceScope: "workspace-root"
+          }),
+          expect.objectContaining({
+            name: "test",
+            status: "success",
+            scriptName: "test",
+            resolutionSource: "canonical",
+            packageJsonPath: "package.json",
+            scriptSourceScope: "workspace-root"
+          })
+        ])
+      );
+      expect(typecheckCheck?.stdout).toContain(rootDir);
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining("fell back to workspace-root script typecheck"),
+          expect.stringContaining("fell back to workspace-root script lint"),
+          expect.stringContaining("fell back to workspace-root script test")
+        ])
+      );
+    },
+    15_000
+  );
 
   it("can stop after the first failed check and mark the rest as not run", async () => {
     const rootDir = await createRootDir();
