@@ -2,13 +2,10 @@ import { z } from "zod";
 
 import {
   resolveExecutionContext,
-  runDoctor,
   writeAuditEvent
 } from "@mcp-code-worker/core";
 import {
-  applyWorkerAvailabilityToDoctorReport,
-  buildWorkerAvailabilitySnapshot,
-  createWorkerDoctorChecks
+  buildDoctorReport
 } from "@mcp-code-worker/models";
 
 import type { CwToolDefinition } from "./tool-types.js";
@@ -17,20 +14,16 @@ const inputSchema = z.object({});
 
 export const cwDoctorTool: CwToolDefinition<
   typeof inputSchema.shape,
-  Awaited<ReturnType<typeof runDoctor>>
+  Awaited<ReturnType<typeof buildDoctorReport>>
 > = {
   name: "cw_doctor",
   description: "Inspect resolved configuration and local workflow prerequisites.",
   inputSchema,
   execute: async () => {
     const context = await resolveExecutionContext();
-    const report = await runDoctor(context, {
-      additionalChecks: await createWorkerDoctorChecks(context)
-    });
-    const workerAvailability = await buildWorkerAvailabilitySnapshot({
+    const report = await buildDoctorReport({
       context
     });
-    applyWorkerAvailabilityToDoctorReport(report, workerAvailability);
     await writeAuditEvent(context, {
       actor: "mcp",
       action: "tool-call",

@@ -5,6 +5,7 @@ export * from "./providers/local-client-command.js";
 export * from "./providers/local-client-provider.js";
 export * from "./providers/mock-provider.js";
 export * from "./router/model-router.js";
+export * from "./router/doctor-report.js";
 export * from "./router/worker-availability.js";
 export * from "./router/worker-doctor.js";
 export * from "./router/worker-profile-doctor.js";

@@ -9,7 +9,6 @@ import type { Command } from "commander";
 
 import {
   resolveExecutionContext,
-  runDoctor,
   type DoctorCapability,
   type DoctorCheck,
   type DoctorReport,
@@ -18,11 +17,7 @@ import {
   writeAuditEvent
 } from "@mcp-code-worker/core";
 import { buildMcpToolCatalogView } from "@mcp-code-worker/mcp-server";
-import {
-  applyWorkerAvailabilityToDoctorReport,
-  buildWorkerAvailabilitySnapshot,
-  createWorkerDoctorChecks
-} from "@mcp-code-worker/models";
+import { buildDoctorReport } from "@mcp-code-worker/models";
 
 import type { CliIo } from "../index.js";
 import type { McpHost } from "./mcp.js";
@@ -931,26 +926,19 @@ export const registerDoctorCommand = (program: Command, io: CliIo): void => {
       }
 
       const context = await resolveExecutionContext();
-      const additionalChecks = [
-        ...(await createWorkerDoctorChecks(context, {
-          probe: options.probe
-        })),
-        ...(options.mcp
-          ? await createHostMcpDoctorChecks(context, requestedHost)
-          : [])
-      ];
-      const report = await runDoctor(context, {
-        additionalChecks
-      });
-      const workerAvailability = await buildWorkerAvailabilitySnapshot({
+      const hostChecks = options.mcp
+        ? await createHostMcpDoctorChecks(context, requestedHost)
+        : [];
+      const report = await buildDoctorReport({
+        additionalChecks: hostChecks,
         context,
-        probe: options.probe
+        probe: options.probe,
+        transformReport: options.mcp
+          ? (currentReport) => {
+              applyHostMcpCapability(currentReport, requestedHost);
+            }
+          : undefined
       });
-      applyWorkerAvailabilityToDoctorReport(report, workerAvailability);
-
-      if (options.mcp) {
-        applyHostMcpCapability(report, requestedHost);
-      }
 
       const commandParts = ["cw", "doctor"];
       if (options.probe) {
