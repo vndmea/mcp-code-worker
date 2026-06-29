@@ -8,7 +8,7 @@ The default base path is:
 ~/.cw/workspaces/<workspace-id>/
 ```
 
-`CW_STORAGE_DIR` overrides the `~/.cw` root. `CW_WORKSPACE_DIR` or `--root` changes which repository path maps to `<workspace-id>`.
+The default `~/.cw` root is always used for user-scoped CW state. `--root` on supported CLI commands changes which repository path maps to `<workspace-id>`.
 
 ## Common Files And Directories
 
@@ -71,7 +71,7 @@ Neither cleanup command modifies repository source files.
 When something looks “missing,” verify:
 
 - the active repository root
-- the active `CW_STORAGE_DIR`
+- the active CW storage root under `~/.cw`
 - the derived workspace id
 - whether the state was created by `cw init`, task sessions, or audit-producing actions
 

@@ -13,13 +13,9 @@ cw doctor
 
 The published package exposes the `cw` command and bundles internal workspace packages into the CLI build output.
 
-When `cw` runs outside a repository checkout, prefer setting:
+When `cw` runs outside a repository checkout, prefer changing into the target repository root before launching:
 
-```bash
-CW_WORKSPACE_DIR=/path/to/project
-```
-
-so `cw mcp serve` still resolves the intended workspace.
+This keeps `cw mcp serve` bound to the intended workspace without relying on environment-based root overrides.
 
 ## Development distribution shape
 

@@ -242,7 +242,7 @@ export const buildWorkerAvailabilitySnapshot = async (input: {
         ? defaultCheck("present", `cw config is present at ${configResult.path}.`)
         : defaultCheck(
             "missing",
-            "No cw config.json was found. Runtime defaults are coming from built-in defaults plus bootstrap env."
+            "No cw config.json was found. Runtime defaults are coming from built-in defaults."
           ),
     registry: defaultCheck(
       "missing",

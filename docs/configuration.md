@@ -8,10 +8,9 @@ Runtime configuration resolves in this order:
 
 1. CLI flags
 2. `~/.cw/workspaces/<workspace-id>/config.json`
-3. Bootstrap / safety environment variables
-4. built-in defaults
+3. built-in defaults
 
-This means a CLI override wins over persisted user-scoped CW config, and persisted CW config wins over bootstrap/safety environment defaults for runtime settings.
+This means a CLI override wins over persisted user-scoped CW config, and persisted CW config wins over built-in defaults for runtime settings.
 
 ## Supported Environment Variables
 
@@ -20,23 +19,6 @@ This means a CLI override wins over persisted user-scoped CW config, and persist
 - `MCP_SERVER_NAME`
 - `MCP_SERVER_VERSION`
 - `LOG_LEVEL`
-
-### Root and storage
-
-- `CW_WORKSPACE_DIR`
-- `CW_STORAGE_DIR`
-
-### Safety defaults
-
-- `CW_DRY_RUN`
-- `CW_ALLOW_WRITE`
-- `CW_ALLOWED_COMMANDS`
-
-### Safety defaults
-
-- `CW_DRY_RUN`
-- `CW_ALLOW_WRITE`
-- `CW_ALLOWED_COMMANDS`
 
 ## Persisted User-scoped Config
 
@@ -59,9 +41,9 @@ The persisted config is intended for workspace-local runtime defaults such as:
 
 Persisted config no longer chooses an implicit execution worker for task, patch, or host-worker flows. Those commands now require an explicit named `workerId` at runtime.
 
-If you choose to persist an API key in the user-scoped config, keep it local to the machine, never commit it into repository files, and avoid pasting it into logs or shared transcripts. Launch-location bootstrap values such as `CW_WORKSPACE_DIR` and `CW_STORAGE_DIR` remain environment-driven.
+If you choose to persist an API key in the user-scoped config, keep it local to the machine, never commit it into repository files, and avoid pasting it into logs or shared transcripts.
 
-Path-like inputs such as `CW_WORKSPACE_DIR`, `CW_STORAGE_DIR`, and `workerClientCommand` are normalized before use so mixed slash styles like `C:/Users/me//tool.exe` and `.\bin\client` do not crash the runtime on the current platform.
+Path-like inputs such as `workerClientCommand` are normalized before use so mixed slash styles like `C:/Users/me//tool.exe` and `.\bin\client` do not crash the runtime on the current platform.
 
 ## Repository Context Defaults
 

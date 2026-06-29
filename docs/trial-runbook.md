@@ -41,7 +41,7 @@ pnpm exec cw doctor
 
 Recommended next checks:
 
-- Confirm `~/.cw/workspaces/<workspace-id>/config.json` exists, or the equivalent path under `CW_STORAGE_DIR`.
+- Confirm `~/.cw/workspaces/<workspace-id>/config.json` exists.
 - Confirm `worker-profiles.json` and `workers.json` were created in user-scoped CW storage, not in the repository checkout.
 - If an API key was written into the user-scoped `config.json`, confirm it remains local-only and is not copied into commits, logs, or shared notes.
 - Confirm no workflow depends on a repository-local legacy `.cw/` directory. Current builds do not read it.

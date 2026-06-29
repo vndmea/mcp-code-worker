@@ -15,10 +15,7 @@ cw mcp config --host cursor
   "mcpServers": {
     "mcp-code-worker": {
       "command": "cw",
-      "args": ["mcp", "serve"],
-      "env": {
-        "CW_WORKSPACE_DIR": "${workspaceFolder}"
-      }
+      "args": ["mcp", "serve"]
     }
   }
 }
@@ -28,4 +25,4 @@ cw mcp config --host cursor
 
 - `cw mcp config` is the quickest way to compare the expected stdio snippet with what you pasted into the client.
 - Keep worker/provider/local-client defaults in `config.json`.
-- If the client starts from a shared tools checkout, `CW_WORKSPACE_DIR` is what keeps file access and CW state aligned to the active workspace.
+- If the client starts from a shared tools checkout, switch it to launch `cw mcp serve` from the active workspace instead of relying on environment overrides.

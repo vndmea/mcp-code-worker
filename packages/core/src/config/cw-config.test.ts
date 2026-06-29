@@ -124,9 +124,6 @@ describe("cw config", () => {
 
     const context = await resolveExecutionContext({
       rootDir,
-      env: {
-        CW_DRY_RUN: "true"
-      },
       cliOverrides: {
         allowWrite: true,
         workerModel: {
@@ -150,45 +147,43 @@ describe("cw config", () => {
     const rootDir = await createWorkspace();
 
     const context = await resolveExecutionContext({
-      rootDir,
-      env: {
-        CW_DRY_RUN: "false",
-        CW_ALLOW_WRITE: "true",
-        CW_ALLOWED_COMMANDS: "git,node"
-      }
+      rootDir
     });
 
     expect(context.workerModel.provider).toBe("mock");
     expect(context.workerModel.model).toBe("gpt-5.4-mini");
-    expect(context.dryRun).toBe(false);
-    expect(context.allowWrite).toBe(true);
-    expect(context.allowedCommands).toEqual(["git", "node"]);
+    expect(context.dryRun).toBe(true);
+    expect(context.allowWrite).toBe(false);
+    expect(context.allowedCommands).toEqual(["git", "node", "pnpm"]);
   });
 
-  it("uses CW_WORKSPACE_DIR when rootDir is not passed explicitly", async () => {
+  it("uses the current working directory when rootDir is not passed explicitly", async () => {
     const rootDir = await createWorkspace();
+    const originalCwd = process.cwd();
 
-    const context = await resolveExecutionContext({
-      env: {
-        CW_WORKSPACE_DIR: rootDir
-      }
-    });
-
-    expect(context.rootDir).toBe(rootDir);
+    try {
+      process.chdir(rootDir);
+      const context = await resolveExecutionContext();
+      expect(context.rootDir).toBe(rootDir);
+    } finally {
+      process.chdir(originalCwd);
+    }
   });
 
-  it("prefers explicit rootDir over CW_WORKSPACE_DIR", async () => {
+  it("prefers explicit rootDir over the current working directory", async () => {
     const rootDir = await createWorkspace();
-    const envRootDir = await createWorkspace();
+    const cwdRootDir = await createWorkspace();
+    const originalCwd = process.cwd();
 
-    const context = await resolveExecutionContext({
-      rootDir,
-      env: {
-        CW_WORKSPACE_DIR: envRootDir
-      }
-    });
-
-    expect(context.rootDir).toBe(rootDir);
+    try {
+      process.chdir(cwdRootDir);
+      const context = await resolveExecutionContext({
+        rootDir
+      });
+      expect(context.rootDir).toBe(rootDir);
+    } finally {
+      process.chdir(originalCwd);
+    }
   });
 
   it("resolves context selection settings from config", async () => {

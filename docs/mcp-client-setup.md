@@ -40,14 +40,14 @@ Current built-in host presets:
 
 | Host | Built-in behavior |
 | ---- | ----------------- |
-| `generic` | Minimal stdio snippet with no host-specific env defaults |
-| `codex` | Adds `CW_WORKSPACE_DIR=${workspaceFolder}` by default |
-| `cursor` | Adds `CW_WORKSPACE_DIR=${workspaceFolder}` by default |
-| `vscode` | Adds `CW_WORKSPACE_DIR=${workspaceFolder}` by default |
-| `claude-desktop` | Minimal stdio snippet; add `CW_WORKSPACE_DIR` only when Claude Desktop launches outside the target repo |
-| `opencode` | Minimal stdio snippet; add `CW_WORKSPACE_DIR` only when OpenCode launches outside the target repo |
+| `generic` | Minimal stdio snippet |
+| `codex` | Minimal stdio snippet |
+| `cursor` | Minimal stdio snippet |
+| `vscode` | Minimal stdio snippet |
+| `claude-desktop` | Minimal stdio snippet |
+| `opencode` | Minimal stdio snippet |
 
-If the client launches from a shared tools checkout instead of the active repository, set `CW_WORKSPACE_DIR` in the server environment.
+If the client launches from a shared tools checkout instead of the active repository, switch it to launch `cw mcp serve` from the intended repository root.
 
 ## Validation Before Client Setup
 
@@ -67,11 +67,9 @@ If you are using a repository checkout instead of the public install path, read 
 
 ## Root And Storage Notes
 
-- `CW_WORKSPACE_DIR` controls which repository the server operates on.
-- `CW_STORAGE_DIR` controls where user-scoped CW state is stored.
 - By default, CW-managed state is stored under `~/.cw/workspaces/<workspace-id>/`.
 
-For workspace-scoped editor use, launch `cw mcp serve` from the intended workspace root. If that is not possible, set `CW_WORKSPACE_DIR` so repository files, git state, and task artifacts resolve against the intended checkout.
+For workspace-scoped editor use, launch `cw mcp serve` from the intended workspace root. If that is not possible, rewire the client launch path instead of injecting workspace overrides through environment variables.
 
 ## Local Client Provider Note
 

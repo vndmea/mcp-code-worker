@@ -34,9 +34,7 @@ Supported shape:
   - `deepseek-v4-flash`
   - `deepseek-v4-pro`
 
-## Required Environment Variables
-
-Set the secret in the same runtime that launches `cw`:
+## Required Secret Configuration
 
 Persist the provider key in `config.json`:
 
@@ -87,7 +85,7 @@ Expected static checks:
 
 - `worker-model`: `provider=openai-compatible`, `model=deepseek-v4-flash`, `baseURL=https://api.deepseek.com`
 - `worker-api-key`: `pass`
-- `runtime-bootstrap`: confirms the active `config.json`, CW storage path, and whether `CW_STORAGE_DIR` / `CW_WORKSPACE_DIR` are in play
+- `runtime-bootstrap`: confirms the active `config.json`, default CW storage path, and the resolved workspace root
 
 Expected probe behavior:
 

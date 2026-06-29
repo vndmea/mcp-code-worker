@@ -17,18 +17,12 @@ Additional related settings include:
 - `MCP_SERVER_NAME`
 - `MCP_SERVER_VERSION`
 - `LOG_LEVEL`
-- `CW_WORKSPACE_DIR`
-- `CW_STORAGE_DIR`
-- `CW_DRY_RUN`
-- `CW_ALLOW_WRITE`
-- `CW_ALLOWED_COMMANDS`
 
 Runtime configuration resolves in this order:
 
 1. CLI flags
 2. `~/.cw/workspaces/<workspace-id>/config.json`
-3. Bootstrap / safety environment variables
-4. Built-in defaults
+3. Built-in defaults
 
 Treat `config.json` as the primary source for persisted worker settings used by both CLI and MCP flows. Persist API keys and local client commands there, and never commit real keys into repository files or logs.
 

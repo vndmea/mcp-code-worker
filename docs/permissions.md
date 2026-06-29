@@ -36,7 +36,7 @@ By default, local CW state is stored under:
 ~/.cw/workspaces/<workspace-id>/
 ```
 
-`CW_STORAGE_DIR` overrides the `~/.cw` root. `CW_WORKSPACE_DIR` or explicit `--root` flags affect which repository path maps to `<workspace-id>`.
+The default `~/.cw` root stores user-scoped state. Explicit `--root` flags on supported CLI commands affect which repository path maps to `<workspace-id>`.
 
 ## What Writes Under `cwStorageDir`
 

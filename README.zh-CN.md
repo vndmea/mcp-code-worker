@@ -353,11 +353,6 @@ cw mcp list-tools
 - `MCP_SERVER_NAME`
 - `MCP_SERVER_VERSION`
 - `LOG_LEVEL`
-- `CW_WORKSPACE_DIR`
-- `CW_STORAGE_DIR`
-- `CW_DRY_RUN`
-- `CW_ALLOW_WRITE`
-- `CW_ALLOWED_COMMANDS`
 
 ## 配置优先级
 
@@ -365,10 +360,9 @@ cw mcp list-tools
 
 1. CLI flags
 2. `~/.cw/workspaces/<workspace-id>/config.json`
-3. root/storage 启动定位与安全相关环境变量
-4. 内置默认值
+3. 内置默认值
 
-`config.json` 应作为 worker、validation、安全策略和 MCP 相关运行时默认值的主配置面，包括 provider API key 和本地 client command。`CW_WORKSPACE_DIR`、`CW_STORAGE_DIR` 这类启动定位变量以及安全开关仍通过环境变量提供；worker model 密钥不应再依赖环境变量，且真实密钥不应提交或写入日志。
+`config.json` 应作为 worker、validation、安全策略和 MCP 相关运行时默认值的主配置面，包括 provider API key 和本地 client command。请从目标仓库根目录启动 `cw`，不要再依赖环境变量覆盖 root/storage；worker model 密钥也不应通过环境变量提供，且真实密钥不应提交或写入日志。
 
 用户级 CW `config.json` 里的 repository context 配置用于控制 review、fix、patch 和 task workflow 的默认 `ignoredPaths` 与 `strictFiles` 行为。
 

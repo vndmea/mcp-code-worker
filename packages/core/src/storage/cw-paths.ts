@@ -27,12 +27,8 @@ const canonicalizeWorkspaceRootDir = (rootDir: string): string => {
   }
 };
 
-export const getCwHomeDir = (
-  env: NodeJS.ProcessEnv = process.env
-): string =>
-  normalizeFileSystemPath(
-    env.CW_STORAGE_DIR ?? process.env.CW_STORAGE_DIR ?? join(homedir(), ".cw")
-  );
+export const getCwHomeDir = (): string =>
+  normalizeFileSystemPath(join(homedir(), ".cw"));
 
 export const getCwWorkspaceId = (rootDir: string): string => {
   const canonicalRootDir = canonicalizeWorkspaceRootDir(rootDir);
@@ -47,8 +43,8 @@ export const getCwWorkspaceId = (rootDir: string): string => {
 
 export const getCwWorkspaceDir = (
   rootDir: string,
-  env: NodeJS.ProcessEnv = process.env
-): string => join(getCwHomeDir(env), "workspaces", getCwWorkspaceId(rootDir));
+  _env?: NodeJS.ProcessEnv
+): string => join(getCwHomeDir(), "workspaces", getCwWorkspaceId(rootDir));
 
 export const getCwWorkspaceFilePathFromStorageDir = (
   cwStorageDir: string,
@@ -58,9 +54,9 @@ export const getCwWorkspaceFilePathFromStorageDir = (
 export const getCwWorkspaceFilePath = (
   rootDir: string,
   fileName: string,
-  env: NodeJS.ProcessEnv = process.env
+  _env?: NodeJS.ProcessEnv
 ): string =>
-  getCwWorkspaceFilePathFromStorageDir(getCwWorkspaceDir(rootDir, env), fileName);
+  getCwWorkspaceFilePathFromStorageDir(getCwWorkspaceDir(rootDir), fileName);
 
 export const getCwWorkspaceRunsDirFromStorageDir = (
   cwStorageDir: string
@@ -68,8 +64,8 @@ export const getCwWorkspaceRunsDirFromStorageDir = (
 
 export const getCwWorkspaceRunsDir = (
   rootDir: string,
-  env: NodeJS.ProcessEnv = process.env
-): string => getCwWorkspaceRunsDirFromStorageDir(getCwWorkspaceDir(rootDir, env));
+  _env?: NodeJS.ProcessEnv
+): string => getCwWorkspaceRunsDirFromStorageDir(getCwWorkspaceDir(rootDir));
 
 export const getCwWorkspaceAuditDirFromStorageDir = (
   cwStorageDir: string
@@ -77,5 +73,5 @@ export const getCwWorkspaceAuditDirFromStorageDir = (
 
 export const getCwWorkspaceAuditDir = (
   rootDir: string,
-  env: NodeJS.ProcessEnv = process.env
-): string => getCwWorkspaceAuditDirFromStorageDir(getCwWorkspaceDir(rootDir, env));
+  _env?: NodeJS.ProcessEnv
+): string => getCwWorkspaceAuditDirFromStorageDir(getCwWorkspaceDir(rootDir));

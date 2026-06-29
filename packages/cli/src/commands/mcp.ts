@@ -4,7 +4,6 @@ import {
   buildMcpToolCatalogView,
   serveCwMcpServer
 } from "@mcp-code-worker/mcp-server";
-import { normalizeFileSystemPath } from "@mcp-code-worker/core";
 
 import type { CliIo } from "../index.js";
 import { writeOutput } from "../output.js";
@@ -23,28 +22,12 @@ export type McpHost = (typeof MCP_HOSTS)[number];
 export const isMcpHost = (value: string): value is McpHost =>
   MCP_HOSTS.includes(value as McpHost);
 
-export const getHostPresetRootDir = (
-  host: McpHost
-): string | undefined => {
-  switch (host) {
-    case "codex":
-    case "cursor":
-    case "vscode":
-      return "${workspaceFolder}";
-    default:
-      return undefined;
-  }
-};
-
 export const buildMcpConfigSnippet = (options: {
   args?: string[];
   command?: string;
-  cwHomeDir?: string;
   host?: string;
-  rootDir?: string;
 } = {}) => {
   const args = [...(options.args ?? ["mcp", "serve"])];
-  const env: Record<string, string> = {};
   const requestedHost = options.host ?? "generic";
 
   if (!isMcpHost(requestedHost)) {
@@ -53,26 +36,11 @@ export const buildMcpConfigSnippet = (options: {
     );
   }
 
-  if (options.rootDir) {
-    env.CW_WORKSPACE_DIR = normalizeFileSystemPath(options.rootDir);
-  } else {
-    const hostRootDir = getHostPresetRootDir(requestedHost);
-
-    if (hostRootDir) {
-      env.CW_WORKSPACE_DIR = hostRootDir;
-    }
-  }
-
-  if (options.cwHomeDir) {
-    env.CW_STORAGE_DIR = normalizeFileSystemPath(options.cwHomeDir);
-  }
-
   return {
     mcpServers: {
       "mcp-code-worker": {
         command: options.command ?? "cw",
-        args,
-        ...(Object.keys(env).length > 0 ? { env } : {})
+        args
       }
     }
   };
@@ -117,20 +85,10 @@ export const registerMcpCommand = (program: Command, io: CliIo): void => {
       `Target host preset: ${MCP_HOSTS.join(", ")}`,
       "generic"
     )
-    .option(
-      "--root-dir <path>",
-      "Embed CW_WORKSPACE_DIR in the snippet when the host does not launch cw from the target workspace root."
-    )
-    .option(
-      "--home-dir <path>",
-      "Embed CW_STORAGE_DIR in the snippet when CW-managed state should use a custom storage root."
-    )
     .action((options: {
       args?: string[];
       command: string;
       host: string;
-      homeDir?: string;
-      rootDir?: string;
     }) => {
       if (!isMcpHost(options.host)) {
         throw new Error(
@@ -143,9 +101,7 @@ export const registerMcpCommand = (program: Command, io: CliIo): void => {
           buildMcpConfigSnippet({
             args: options.args,
             command: options.command,
-            host: options.host,
-            ...(options.homeDir ? { cwHomeDir: options.homeDir } : {}),
-            ...(options.rootDir ? { rootDir: options.rootDir } : {})
+            host: options.host
           }),
           null,
           2

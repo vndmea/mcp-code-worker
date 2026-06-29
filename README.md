@@ -353,16 +353,11 @@ cw mcp list-tools
 
 See [.env.example](https://github.com/vndmea/mcp-code-worker/blob/master/.env.example).
 
-Supported environment variables are limited to launch bootstrap and safety defaults:
+Supported environment variables are limited to process identity diagnostics:
 
 - `MCP_SERVER_NAME`
 - `MCP_SERVER_VERSION`
 - `LOG_LEVEL`
-- `CW_WORKSPACE_DIR`
-- `CW_STORAGE_DIR`
-- `CW_DRY_RUN`
-- `CW_ALLOW_WRITE`
-- `CW_ALLOWED_COMMANDS`
 
 ## Config precedence
 
@@ -370,10 +365,9 @@ Runtime configuration resolves in this order:
 
 1. CLI flags
 2. `~/.cw/workspaces/<workspace-id>/config.json`
-3. Root/storage bootstrap and safety environment variables
-4. built-in defaults
+3. built-in defaults
 
-Use `config.json` as the primary home for persisted worker, validation, safety, and MCP-adjacent runtime defaults, including provider API keys and local client commands. Keep launch-location bootstrap values such as `CW_WORKSPACE_DIR` and `CW_STORAGE_DIR`, plus safety toggles, in environment variables. Do not rely on environment variables for worker model secrets, and never commit real keys or include them in logs.
+Use `config.json` as the primary home for persisted worker, validation, safety, and MCP-adjacent runtime defaults, including provider API keys and local client commands. Launch `cw` from the intended workspace root instead of relying on environment-based root or storage overrides, and never commit real keys or include them in logs.
 
 Repository context settings in the user-scoped CW `config.json` control default `ignoredPaths` and `strictFiles` behavior for review, fix, patch, and task workflows.
 

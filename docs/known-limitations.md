@@ -36,7 +36,7 @@ This document lists current product boundaries and non-goals that users should u
 
 ## MCP And Client Limits
 
-- MCP integrations depend on correct root resolution via the server working directory or `CW_WORKSPACE_DIR`.
+- MCP integrations depend on correct root resolution via the server working directory.
 - Client-specific configuration surfaces vary by host; use the documented JSON snippets as the stable CW-side contract rather than assuming a client-specific file path.
 
 ## Worker Qualification Limits

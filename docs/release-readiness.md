@@ -177,7 +177,7 @@ The MCP surface is part of the shipped product and must be validated directly.
 ### `cw mcp serve`
 
 - starts successfully from the public install path
-- resolves the current working directory as the workspace root when `CW_WORKSPACE_DIR` is unset
+- resolves the current working directory as the workspace root
 - can be connected to by an MCP client or test harness
 - returns the same tool list surfaced by `cw mcp list-tools`
 - shuts down cleanly after the validation run

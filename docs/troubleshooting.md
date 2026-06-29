@@ -38,7 +38,6 @@ If you are using a repository checkout, run the commands as `pnpm exec cw ...` f
 ### Checks
 
 - Start `cw mcp serve` from the intended workspace root
-- Or set `CW_WORKSPACE_DIR`
 - Re-run `cw mcp config` after changing root assumptions
 - Read the `root-dir` and `runtime-bootstrap` checks from `cw doctor` to confirm which root, config path, and CW home path are actually active
 
@@ -53,8 +52,6 @@ Different absolute repository roots produce different workspace ids, so a root m
 
 ### Checks
 
-- Confirm whether `CW_STORAGE_DIR` is set
-- Confirm whether `CW_WORKSPACE_DIR` changed
 - Remember that default state lives under `~/.cw/workspaces/<workspace-id>/`
 - Read the `runtime-bootstrap` check from `cw doctor` for the resolved `config.json`, `cwStorageDir`, `cwHomeDir`, and `workspaceId`
 
@@ -99,7 +96,7 @@ Do not treat a provider-failure interview as a completed onboarding result.
 ### Checks
 
 - Run `cw mcp list-tools` locally first
-- Start the client against the correct workspace root, or set `CW_WORKSPACE_DIR`
+- Start the client against the correct workspace root
 - Compare the client snippet with the output of `cw mcp config`
 - Use `cw doctor --mcp --host codex` when Codex is the host and you want an end-to-end check of config presence, snippet validity, launchability, connectivity, and tool-list parity
 - Confirm the client process sees the same environment variables as your shell
@@ -149,7 +146,7 @@ When escalating an issue, collect:
 - whether you used npm install or a repository checkout
 - Node.js version
 - pnpm version
-- whether `CW_WORKSPACE_DIR` or `CW_STORAGE_DIR` is set
+- whether the client is launching from the expected workspace root
 - the relevant worker id, provider, and model if the issue is worker-specific
 - sanitized error output
 

@@ -23,17 +23,14 @@ When you need a narrower host-managed worker check, use `cw_run_host_worker` or 
 
 ## Root Directory Resolution
 
-By default, the MCP server resolves `rootDir` from the server process cwd. When an MCP client launches `cw` from a shared tools checkout instead of the active workspace, set `CW_WORKSPACE_DIR` in the server environment:
+By default, the MCP server resolves `rootDir` from the server process cwd. When an MCP client launches `cw` from a shared tools checkout instead of the active workspace, change the launch path so `cw mcp serve` starts inside the active repository:
 
 ```json
 {
   "mcpServers": {
     "mcp-code-worker": {
       "command": "cw",
-      "args": ["mcp", "serve"],
-      "env": {
-        "CW_WORKSPACE_DIR": "${workspaceFolder}"
-      }
+      "args": ["mcp", "serve"]
     }
   }
 }
@@ -62,10 +59,8 @@ By default, the MCP server stores CW-managed state under:
 ~/.cw/workspaces/<workspace-id>/
 ```
 
-- `CW_STORAGE_DIR` overrides the `~/.cw` root.
 - `rootDir` determines `<workspace-id>`.
 - Two different absolute checkouts of the same repository produce different workspace ids.
-- If you need shared CW state across tools or checkouts, set the same `CW_STORAGE_DIR` intentionally.
 
 ## Tool Categories
 

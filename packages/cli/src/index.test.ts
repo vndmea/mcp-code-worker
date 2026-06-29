@@ -13,7 +13,6 @@ import {
   getCwWorkspaceAuditDir,
   getCwWorkspaceFilePath,
   getCwWorkspaceRunsDir,
-  normalizeFileSystemPath,
   PatchProposalSchema
 } from "@mcp-code-worker/core";
 import type { InitPrompter } from "./commands/init.js";
@@ -429,16 +428,17 @@ describe("cli parsing", () => {
     expect(output.join("\n")).toContain("\"serve\"");
   });
 
-  it("prints a host-aware mcp config snippet for codex", async () => {
+  it("prints a minimal mcp config snippet for codex", async () => {
     const { io, output } = createIo();
     const cli = buildCli(io);
 
     await cli.parseAsync(["node", "cw", "mcp", "config", "--host", "codex"]);
 
-    expect(output.join("\n")).toContain("\"CW_WORKSPACE_DIR\": \"${workspaceFolder}\"");
+    expect(output.join("\n")).toContain("\"args\": [");
+    expect(output.join("\n")).not.toContain("\"env\":");
   });
 
-  it("lets an explicit root dir override the host preset snippet", async () => {
+  it("prints the same minimal mcp config snippet when a host preset is selected", async () => {
     const { io, output } = createIo();
     const cli = buildCli(io);
 
@@ -448,52 +448,19 @@ describe("cli parsing", () => {
       "mcp",
       "config",
       "--host",
-      "vscode",
-      "--root-dir",
-      "C:\\workspace\\repo"
+      "vscode"
     ]);
 
     const config = parseLastJson<{
       mcpServers?: {
         "mcp-code-worker"?: {
-          env?: Record<string, string>;
+          args?: string[];
         };
       };
     }>(output);
 
-    expect(config.mcpServers?.["mcp-code-worker"]?.env?.CW_WORKSPACE_DIR).toBe(
-      normalizeFileSystemPath("C:\\workspace\\repo")
-    );
-    expect(output.join("\n")).not.toContain("${workspaceFolder}");
-  });
-
-  it("prints an mcp config snippet with explicit launch path env", async () => {
-    const { io, output } = createIo();
-    const cli = buildCli(io);
-
-    await cli.parseAsync([
-      "node",
-      "cw",
-      "mcp",
-      "config",
-      "--root-dir",
-      "C:\\workspace\\repo",
-      "--home-dir",
-      "C:\\Users\\me\\.cw"
-    ]);
-
-    const config = parseLastJson<{
-      mcpServers?: {
-        "mcp-code-worker"?: {
-          env?: Record<string, string>;
-        };
-      };
-    }>(output);
-
-    expect(config.mcpServers?.["mcp-code-worker"]?.env).toEqual({
-      CW_WORKSPACE_DIR: normalizeFileSystemPath("C:\\workspace\\repo"),
-      CW_STORAGE_DIR: normalizeFileSystemPath("C:\\Users\\me\\.cw")
-    });
+    expect(config.mcpServers?.["mcp-code-worker"]?.args).toEqual(["mcp", "serve"]);
+    expect(output.join("\n")).not.toContain("\"env\":");
   });
 
   it("runs worker list", async () => {
@@ -989,10 +956,7 @@ describe("cli parsing", () => {
       await withTempHome(async (homeDir) => {
         await writeCodexConfig(homeDir, {
           command: "cw",
-          args: ["mcp", "serve"],
-          env: {
-            CW_WORKSPACE_DIR: "${workspaceFolder}"
-          }
+          args: ["mcp", "serve"]
         });
         const { io, output } = createIo();
         const cli = buildCli(io);
@@ -1023,10 +987,7 @@ describe("cli parsing", () => {
 
         await writeCodexConfig(homeDir, {
           command: process.execPath,
-          args: [distMainPath, "mcp", "serve"],
-          env: {
-            CW_WORKSPACE_DIR: normalizeFileSystemPath(rootDir)
-          }
+          args: [distMainPath, "mcp", "serve"]
         });
         const { io, output } = createIo();
         const cli = buildCli(io);

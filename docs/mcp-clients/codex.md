@@ -15,10 +15,7 @@ cw mcp config --host codex
   "mcpServers": {
     "mcp-code-worker": {
       "command": "cw",
-      "args": ["mcp", "serve"],
-      "env": {
-        "CW_WORKSPACE_DIR": "${workspaceFolder}"
-      }
+      "args": ["mcp", "serve"]
     }
   }
 }
@@ -33,4 +30,4 @@ Before relying on the client integration:
 - run `cw mcp list-tools`
 - run `cw mcp config`
 
-Keep runtime worker and safety settings in `config.json`; use the MCP snippet only for launch wiring such as `CW_WORKSPACE_DIR` when needed.
+Keep runtime worker and safety settings in `config.json`; use the MCP snippet only for launch wiring, and make sure Codex starts it from the intended workspace root.

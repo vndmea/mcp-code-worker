@@ -1,9 +1,9 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { buildCli } from "@mcp-code-worker/cli";
-import { listAuditEvents } from "@mcp-code-worker/core";
+import { getCwWorkspaceFilePath, listAuditEvents } from "@mcp-code-worker/core";
 import { describe, expect, it } from "vitest";
 
 const createIo = () => {
@@ -24,39 +24,41 @@ const createIo = () => {
   };
 };
 
-const withWritableAuditEnv = async (
+const withWritableAuditWorkspace = async (
   callback: (rootDir: string) => Promise<void>
 ): Promise<void> => {
   const originalCwd = process.cwd();
-  const previousAllowWrite = process.env.CW_ALLOW_WRITE;
-  const previousDryRun = process.env.CW_DRY_RUN;
   const rootDir = await mkdtemp(join(tmpdir(), "cw-cli-audit-effects-"));
 
   try {
     process.chdir(rootDir);
-    process.env.CW_ALLOW_WRITE = "true";
-    process.env.CW_DRY_RUN = "false";
+    const configPath = getCwWorkspaceFilePath(rootDir, "config.json");
+    await mkdir(dirname(configPath), { recursive: true });
+    await writeFile(
+      configPath,
+      JSON.stringify(
+        {
+          version: 1,
+          safety: {
+            dryRun: false,
+            allowWrite: true,
+            allowedCommands: ["git", "node", "pnpm"]
+          }
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
     await callback(rootDir);
   } finally {
     process.chdir(originalCwd);
-
-    if (previousAllowWrite === undefined) {
-      delete process.env.CW_ALLOW_WRITE;
-    } else {
-      process.env.CW_ALLOW_WRITE = previousAllowWrite;
-    }
-
-    if (previousDryRun === undefined) {
-      delete process.env.CW_DRY_RUN;
-    } else {
-      process.env.CW_DRY_RUN = previousDryRun;
-    }
   }
 };
 
 describe("cli audit side effects", () => {
   it("writes an audit event for doctor", async () => {
-    await withWritableAuditEnv(async (rootDir) => {
+    await withWritableAuditWorkspace(async (rootDir) => {
       const { io } = createIo();
       const cli = buildCli(io);
 

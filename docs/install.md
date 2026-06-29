@@ -8,7 +8,7 @@ cw doctor
 cw mcp list-tools
 ```
 
-`cw` stores user-scoped local state under `~/.cw/workspaces/<workspace-id>/` by default. Use `CW_STORAGE_DIR` if you need a non-default CW storage root.
+`cw` stores user-scoped local state under `~/.cw/workspaces/<workspace-id>/` by default.
 
 See [docs/supported-matrix.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/supported-matrix.md) before claiming support for a specific OS, Node.js version, or MCP host.
 
@@ -26,9 +26,9 @@ Notes:
 
 - The published npm package installs the `cw` command.
 - Use `cw init` as the default onboarding path. Run it interactively by default, or use presets such as `--preset mock`, `--preset deepseek`, or `--preset opencode` with `--allow-write` when you need the lower-level scripted setup flow.
-- Persist worker, validation, safety, local client defaults, and optional provider API keys in `config.json`; keep `CW_WORKSPACE_DIR` and `CW_STORAGE_DIR` in environment variables when needed.
+- Persist worker, validation, safety, local client defaults, and optional provider API keys in `config.json`.
 - `cw mcp serve` resolves the workspace from the current directory by default.
-- When launching outside the target repository checkout, set `CW_WORKSPACE_DIR` for the MCP client process.
+- Launch MCP clients from the target repository checkout so cwd-based root resolution stays correct.
 - Repository-local legacy `.cw/` directories are unsupported and ignored by current builds.
 
 ## Development checkout flow
@@ -82,7 +82,6 @@ pnpm exec cw mcp serve
 - MCP clients should launch the server from the repository root.
 - Use `pnpm exec cw mcp config` to print a stdio config snippet.
 - The MCP snippet should only describe how to launch `cw`; runtime worker and safety settings should come from `config.json`.
-- For workspace-scoped IDE use, start `pnpm exec cw mcp serve` from the target repository root, or set `CW_WORKSPACE_DIR` in the MCP server environment when the client launches from elsewhere.
+- For workspace-scoped IDE use, start `pnpm exec cw mcp serve` from the target repository root.
 - For local client providers, `opencode` is the default command. Persist a different compatible local wrapper with `cw init --worker-client-command <command> --allow-write`.
-- For cross-checkout or shared-tool setups, also decide whether `CW_STORAGE_DIR` should be fixed so CW-managed artifacts land in a predictable user-scoped location.
 - See `docs/distribution.md` for the current publish and development distribution shapes.

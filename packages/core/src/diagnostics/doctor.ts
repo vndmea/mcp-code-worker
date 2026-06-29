@@ -199,14 +199,11 @@ const resolveCommandOnPath = async (
 };
 
 const summarizeRootSource = (
-  env: NodeJS.ProcessEnv,
   workspaceBinding: WorkspaceBindingSummary
-): "cwd" | "cw-workspace-dir" | "workspace-switch" =>
-  hasEnvValue(env.CW_WORKSPACE_DIR)
-    ? "cw-workspace-dir"
-    : workspaceBinding.matchesCallerWorkingDirectory
-      ? "cwd"
-      : "workspace-switch";
+): "cwd" | "workspace-switch" =>
+  workspaceBinding.matchesCallerWorkingDirectory
+    ? "cwd"
+    : "workspace-switch";
 
 const readRootScripts = async (
   rootDir: string
@@ -316,11 +313,10 @@ export const runDoctor = async (
 ): Promise<DoctorReport> => {
   const checks: DoctorCheck[] = [];
   const recommendedActions: string[] = [];
-  const env = process.env;
   const rootDirExists = await checkExists(context.rootDir);
   const workspaceBinding = buildWorkspaceBindingSummary(context.rootDir);
-  const rootSource = summarizeRootSource(env, workspaceBinding);
-  const cwHomeDir = getCwHomeDir(env);
+  const rootSource = summarizeRootSource(workspaceBinding);
+  const cwHomeDir = getCwHomeDir();
   const workspaceId = getCwWorkspaceId(context.rootDir);
 
   addCheck(checks, {
@@ -328,15 +324,12 @@ export const runDoctor = async (
     status: rootDirExists ? "pass" : "fail",
     message: rootDirExists
         ? workspaceBinding.matchesCallerWorkingDirectory
-        ? rootSource === "cw-workspace-dir"
-          ? `Resolved rootDir exists and is pinned by CW_WORKSPACE_DIR: ${context.rootDir}`
-          : `Resolved rootDir exists and matches the caller workspace: ${context.rootDir}`
+        ? `Resolved rootDir exists and matches the caller workspace: ${context.rootDir}`
         : `Resolved rootDir exists but is bound away from the caller workspace: ${context.rootDir}`
       : `Resolved rootDir does not exist: ${context.rootDir}`,
     metadata: {
       rootDir: context.rootDir,
       rootSource,
-      cwWorkspaceDir: env.CW_WORKSPACE_DIR,
       callerWorkingDirectory: workspaceBinding.callerWorkingDirectory,
       matchesCallerWorkingDirectory: workspaceBinding.matchesCallerWorkingDirectory,
       switchedFrom: workspaceBinding.switchedFrom
@@ -426,16 +419,12 @@ export const runDoctor = async (
     name: "runtime-bootstrap",
     status: rootDirExists ? "pass" : "warning",
     message:
-      `Resolved config=${config.path}; storage=${context.cwStorageDir}; cwHome=${cwHomeDir}; workspaceId=${workspaceId}; rootSource=${rootSource}; CW_STORAGE_DIR=${hasEnvValue(env.CW_STORAGE_DIR) ? "set" : "default"}.`,
+      `Resolved config=${config.path}; storage=${context.cwStorageDir}; cwHome=${cwHomeDir}; workspaceId=${workspaceId}; rootSource=${rootSource}.`,
     metadata: {
       callerWorkingDirectory: workspaceBinding.callerWorkingDirectory,
       configPath: config.path,
       cwHomeDir,
       cwStorageDir: context.cwStorageDir,
-      env: {
-        CW_STORAGE_DIR: env.CW_STORAGE_DIR,
-        CW_WORKSPACE_DIR: env.CW_WORKSPACE_DIR
-      },
       rootDir: context.rootDir,
       rootSource,
       workspaceId
@@ -448,7 +437,7 @@ export const runDoctor = async (
         ? `cw workspace config is invalid: ${config.error}`
         : config.exists
           ? "cw workspace config is present and readable."
-          : "cw workspace config is missing. Built-in defaults will still work until config.json is written.",
+          : "cw workspace config is missing. Built-in defaults are active until config.json is written.",
       metadata: {
         path: config.path
       }

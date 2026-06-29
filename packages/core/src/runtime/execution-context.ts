@@ -37,25 +37,6 @@ export interface ExecutionContextOverrides {
   workerModel?: Partial<ModelConfig>;
 }
 
-const parseBoolean = (value: string | undefined, defaultValue: boolean) => {
-  if (value === undefined) {
-    return defaultValue;
-  }
-
-  return value.toLowerCase() === "true";
-};
-
-const parseList = (value: string | undefined, fallback: string[]) => {
-  if (!value) {
-    return fallback;
-  }
-
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-};
-
 const mergeModelConfig = (
   base: ModelConfig,
   override?: Partial<ModelConfig>
@@ -82,15 +63,12 @@ export const createExecutionContextFromEnv = (
   overrides: ExecutionContextOverrides = {}
 ): ExecutionContext => {
   const rootDir = normalizeFileSystemPath(
-    overrides.rootDir ?? env.CW_WORKSPACE_DIR ?? process.cwd()
+    overrides.rootDir ?? process.cwd()
   );
-  const cwStorageDir = getCwWorkspaceDir(rootDir, env);
-  const dryRun = overrides.dryRun ?? parseBoolean(env.CW_DRY_RUN, true);
-  const allowWrite =
-    overrides.allowWrite ?? parseBoolean(env.CW_ALLOW_WRITE, false);
-  const allowedCommands =
-    overrides.allowedCommands ??
-    parseList(env.CW_ALLOWED_COMMANDS, ["git", "node", "pnpm"]);
+  const cwStorageDir = getCwWorkspaceDir(rootDir);
+  const dryRun = overrides.dryRun ?? true;
+  const allowWrite = overrides.allowWrite ?? false;
+  const allowedCommands = overrides.allowedCommands ?? ["git", "node", "pnpm"];
   const contextBudget = {
     ...DEFAULT_CONTEXT_BUDGET,
     ...overrides.contextBudget,

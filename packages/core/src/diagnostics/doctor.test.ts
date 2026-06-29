@@ -1,5 +1,5 @@
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -148,16 +148,12 @@ describe("doctor", () => {
     ).toBe("pass");
   });
 
-  it("records bootstrap source details when CW_WORKSPACE_DIR and CW_STORAGE_DIR are set", async () => {
+  it("records cwd-based bootstrap details without environment overrides", async () => {
     const rootDir = await createWorkspace();
-    const cwHomeDir = join(rootDir, ".cw-home");
-    const originalRootDir = process.env.CW_WORKSPACE_DIR;
-    const originalHomeDir = process.env.CW_STORAGE_DIR;
-
-    process.env.CW_WORKSPACE_DIR = rootDir;
-    process.env.CW_STORAGE_DIR = cwHomeDir;
+    const originalCwd = process.cwd();
 
     try {
+      process.chdir(rootDir);
       const report = await runDoctor(
         createExecutionContextFromEnv(undefined, {
           rootDir
@@ -166,28 +162,12 @@ describe("doctor", () => {
 
       const rootMetadata = findCheck(report, "root-dir")?.metadata;
       const runtimeBootstrapMetadata = findCheck(report, "runtime-bootstrap")?.metadata;
-      const runtimeEnv = runtimeBootstrapMetadata?.["env"];
 
-      expect(rootMetadata?.["cwWorkspaceDir"]).toBe(rootDir);
-      expect(rootMetadata?.["rootSource"]).toBe("cw-workspace-dir");
-      expect(runtimeBootstrapMetadata?.["cwHomeDir"]).toBe(cwHomeDir);
-      expect(runtimeEnv).toMatchObject({
-        CW_STORAGE_DIR: cwHomeDir,
-        CW_WORKSPACE_DIR: rootDir
-      });
+      expect(rootMetadata?.["rootSource"]).toBe("cwd");
+      expect(runtimeBootstrapMetadata?.["cwHomeDir"]).toBe(join(homedir(), ".cw"));
       expect(typeof runtimeBootstrapMetadata?.["workspaceId"]).toBe("string");
     } finally {
-      if (originalRootDir === undefined) {
-        delete process.env.CW_WORKSPACE_DIR;
-      } else {
-        process.env.CW_WORKSPACE_DIR = originalRootDir;
-      }
-
-      if (originalHomeDir === undefined) {
-        delete process.env.CW_STORAGE_DIR;
-      } else {
-        process.env.CW_STORAGE_DIR = originalHomeDir;
-      }
+      process.chdir(originalCwd);
     }
   });
 });

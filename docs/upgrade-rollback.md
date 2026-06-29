@@ -15,7 +15,7 @@ Record the current environment before upgrading or rolling back:
 - current Node.js version (`22` required)
 - current pnpm version (`>=10`)
 - whether you use the public install path or a repository checkout
-- whether `CW_STORAGE_DIR` or `CW_WORKSPACE_DIR` is set
+- whether the client launch root changed
 
 Before changing versions:
 
@@ -79,7 +79,7 @@ If state-dependent workflows matter for the rollback decision, also verify:
 
 - worker profiles can still be listed
 - task reports can still be read
-- MCP startup still works from the expected workspace root or with the expected `CW_WORKSPACE_DIR`
+- MCP startup still works from the expected workspace root
 
 ## Upgrade: Repository Checkout Path
 
@@ -114,8 +114,8 @@ If a rollback spans a meaningful change in worker configuration or local state s
 
 ## State And Root Resolution Notes
 
-- `CW_STORAGE_DIR` changes the base CW storage directory.
-- `CW_WORKSPACE_DIR` changes how the active repository root is resolved.
+- `cw` stores user-scoped state under the default `~/.cw` root.
+- The active repository root is resolved from cwd unless a supported CLI command passes `--root`.
 - Different absolute repository roots produce different workspace ids.
 - Changing either variable can make existing state appear to “move” even when files were not deleted.
 
