@@ -504,18 +504,24 @@ describe("mcp tool registration", () => {
   });
 
   it("executes the dedicated host-worker MCP tool", async () => {
-    const result = await cwRunHostWorkerTool.execute({
-      goal: "Review the selected repository files for direct implementation risks",
-      taskType: "review-lite",
-      files: ["packages/core/src/index.ts"],
-      strictFiles: true
-    });
+    await withTempCwd(async (rootDir) => {
+      await writeWorkspaceFixture(rootDir);
+      await writeRegistry(rootDir, [createRegistration()]);
 
-    expect(result.workerResult).not.toBeNull();
-    expect(result.qualityGate.answered).toBe(true);
-    expect(result.qualityGate.workflowStatus).toBe("completed");
-    expect(result.qualityGate.answerStatus).toBe("complete");
-    expect(result.finalResult.status).toBe("success");
+      const result = await cwRunHostWorkerTool.execute({
+        goal: "Review the selected repository files for direct implementation risks",
+        taskType: "review-lite",
+        files: ["packages/core/src/index.ts"],
+        strictFiles: true,
+        workerId: "default-worker"
+      });
+
+      expect(result.workerResult).not.toBeNull();
+      expect(result.qualityGate.answered).toBe(true);
+      expect(result.qualityGate.workflowStatus).toBe("completed");
+      expect(result.qualityGate.answerStatus).toBe("complete");
+      expect(result.finalResult.status).toBe("success");
+    });
   });
 
   it("executes doctor and returns a structured report", async () => {
@@ -625,15 +631,18 @@ describe("mcp tool registration", () => {
     await withTempCwd(async (rootDir) => {
       await writeWorkspaceFixture(rootDir);
       await initGitRepo(rootDir);
+      await writeRegistry(rootDir, [createRegistration()]);
       const proposal = await createPatchProposal(rootDir);
 
       const proposed = await cwProposePatchTool.execute({
         goal: "Fix typecheck",
-        scope: "packages/core"
+        scope: "packages/core",
+        workerId: "default-worker"
       }) as Record<string, unknown>;
       const proposedFull = await cwProposePatchTool.execute({
         goal: "Fix typecheck",
         scope: "packages/core",
+        workerId: "default-worker",
         detailLevel: "full"
       }) as {
         proposal: {
@@ -663,11 +672,13 @@ describe("mcp tool registration", () => {
   it("executes task session tools", async () => {
     await withTempCwd(async (rootDir) => {
       await writeWorkspaceFixture(rootDir);
+      await writeRegistry(rootDir, [createRegistration()]);
       const started = await cwStartTaskTool.execute({
         goal: "Review packages/core",
         scope: "packages/core",
         typecheck: true,
         allowWriteSession: true,
+        workerId: "default-worker",
         detailLevel: "full"
       }) as TaskSessionWorkflowOutput;
       const listed = await cwListTasksTool.execute({

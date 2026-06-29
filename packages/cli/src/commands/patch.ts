@@ -236,7 +236,7 @@ export const registerPatchCommand = (program: Command, io: CliIo): void => {
     .option("--scope <scope>", "Optional scope")
     .option("--error-log <text>", "Inline error log")
     .option("--error-log-file <path>", "Repository-local error log file")
-    .option("--worker <workerId>", "Optional worker id")
+    .requiredOption("--worker <workerId>", "Worker id")
     .option("--require-profile", "Require a persisted worker profile", false)
     .option("--output <path>", "Optional patch proposal output path")
     .option("--allow-write-output", "Allow writing the output file", false)
@@ -255,7 +255,7 @@ export const registerPatchCommand = (program: Command, io: CliIo): void => {
         requireProfile: boolean;
         scope?: string;
         summary: boolean;
-        worker?: string;
+        worker: string;
       }) => {
         const context = await resolveExecutionContext();
         const errorLog = options.errorLog ??

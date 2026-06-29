@@ -23,7 +23,7 @@ const inputSchema = z.object({
     "json-extraction",
     "doc-generation"
   ]),
-  workerId: z.string().optional(),
+  workerId: z.string().min(1),
   requireProfile: z.boolean().optional()
 });
 

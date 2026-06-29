@@ -16,8 +16,9 @@ import {
 } from "@mcp-code-worker/core";
 import {
   assessWorkerTaskEligibility,
-  resolveWorkerTarget,
-  resolveWorkerProfile
+  requireConfiguredWorkerId,
+  resolveWorkerProfile,
+  resolveWorkerTarget
 } from "@mcp-code-worker/models";
 import { buildRepositoryContextPack } from "@mcp-code-worker/tools";
 
@@ -501,11 +502,17 @@ export const runHostWorkerWorkflow = async (
   input: HostWorkerWorkflowInput
 ): Promise<HostWorkerWorkflowOutput> => {
   const context = input.context ?? await resolveExecutionContext();
+  const requestedWorkerId = requireConfiguredWorkerId(
+    context,
+    input.workerId,
+    "host-managed worker execution"
+  );
   const workerModelResolution = await resolveWorkerTarget({
     context,
-    workerId: input.workerId
+    workerId: requestedWorkerId,
+    requireNamedWorker: true
   });
-  const resolvedWorkerId = workerModelResolution.workerId ?? "ad-hoc-worker";
+  const resolvedWorkerId = workerModelResolution.workerId ?? requestedWorkerId;
   const workerContext = createExecutionContextWithWorkerModel(
     context,
     workerModelResolution.modelConfig

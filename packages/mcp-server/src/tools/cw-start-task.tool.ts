@@ -15,7 +15,7 @@ import {
 const inputSchema = z.object({
   goal: z.string().min(1),
   scope: z.string().optional(),
-  workerId: z.string().optional(),
+  workerId: z.string().min(1),
   requireProfile: z.boolean().optional(),
   errorLog: z.string().optional(),
   errorLogFile: z.string().optional(),

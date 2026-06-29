@@ -24,8 +24,9 @@ import {
   writeTaskArtifact
 } from "@mcp-code-worker/core";
 import {
-  resolveWorkerTarget,
-  resolveWorkerProfile
+  requireConfiguredWorkerId,
+  resolveWorkerProfile,
+  resolveWorkerTarget
 } from "@mcp-code-worker/models";
 import { applyPatchProposal } from "@mcp-code-worker/tools";
 
@@ -279,21 +280,26 @@ const resolveTaskContext = async (
   workerId: string | undefined,
   requireProfile: boolean | undefined
 ): Promise<ResolvedTaskContext> => {
-  const workerModelResolution = await resolveWorkerTarget({
+  const requestedWorkerId = requireConfiguredWorkerId(
     context,
     workerId,
-    requireNamedWorker: requireProfile
+    "task session execution"
+  );
+  const workerModelResolution = await resolveWorkerTarget({
+    context,
+    workerId: requestedWorkerId,
+    requireNamedWorker: true
   });
-  const resolvedWorkerId = workerModelResolution.workerId ?? "ad-hoc-worker";
+  const resolvedWorkerId = workerModelResolution.workerId ?? requestedWorkerId;
   const workerContext = createExecutionContextWithWorkerModel(
     context,
     workerModelResolution.modelConfig
   );
 
-  if (workerModelResolution.workerId || requireProfile) {
+  if (requireProfile) {
     await resolveWorkerProfile({
       context: workerContext,
-      workerId: workerModelResolution.workerId,
+      workerId: resolvedWorkerId,
       modelConfig: workerContext.workerModel,
       requireProfile
     });
@@ -301,7 +307,7 @@ const resolveTaskContext = async (
 
   return {
     context: workerContext,
-    requestedWorkerId: workerId,
+    requestedWorkerId,
     workerId: resolvedWorkerId
   };
 };
@@ -729,12 +735,14 @@ const executeReviewStep = async (input: {
   scope?: string;
   session: TaskSession;
   validate: TaskSessionValidationOptions;
+  workerId: string;
 }): Promise<ReviewWorkflowOutput> => {
   markStepRunning(getStep(input.session, "reviewed"));
   const reviewResult = await runReviewWorkflow({
     context: input.context,
     scope: input.scope,
-    validate: input.validate
+    validate: input.validate,
+    workerId: input.workerId
   });
   await persistArtifact(
     input.context,
@@ -827,6 +835,7 @@ const executeFixStep = async (input: {
   scope?: string;
   session: TaskSession;
   validate: TaskSessionValidationOptions;
+  workerId: string;
 }): Promise<FixErrorWorkflowOutput> => {
   const step = getStep(input.session, "fix-planned");
   markStepRunning(step);
@@ -835,7 +844,8 @@ const executeFixStep = async (input: {
     errorLog: input.errorLog,
     errorLogFile: input.errorLogFile,
     scope: input.scope,
-    validate: input.validate
+    validate: input.validate,
+    workerId: input.workerId
   });
   const repositoryContextPath = await persistArtifact(
     input.context,
@@ -1259,7 +1269,8 @@ export const runTaskSessionWorkflow = async (
     session,
     scope: input.scope,
     validate: validation,
-    allowWriteSession
+    allowWriteSession,
+    workerId: resolved.workerId
   });
   let fixResult: FixErrorWorkflowOutput | undefined;
   let patchResult: PatchProposalWorkflowOutput | undefined;
@@ -1276,7 +1287,8 @@ export const runTaskSessionWorkflow = async (
       validate: validation,
       errorLog: input.errorLog,
       errorLogFile: input.errorLogFile,
-      allowWriteSession
+      allowWriteSession,
+      workerId: resolved.workerId
     });
   } else if (reviewBlockReason) {
     await denyRemainingExecutionSteps({
@@ -1455,7 +1467,8 @@ export const resumeTaskSessionWorkflow = async (
       session,
       scope: session.scope,
       validate: options.validate,
-      allowWriteSession: input.allowWriteSession ?? false
+      allowWriteSession: input.allowWriteSession ?? false,
+      workerId: resolved.workerId
     });
     repositoryContext = reviewResult.repositoryContext;
     validationReport = reviewResult.validationReport;
@@ -1484,7 +1497,8 @@ export const resumeTaskSessionWorkflow = async (
       validate: options.validate,
       errorLog: options.errorLog,
       errorLogFile: options.errorLogFile,
-      allowWriteSession: input.allowWriteSession ?? false
+      allowWriteSession: input.allowWriteSession ?? false,
+      workerId: resolved.workerId
     });
     repositoryContext = fixResult.repositoryContext;
     validationReport = fixResult.validationReport;

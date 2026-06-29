@@ -51,6 +51,31 @@ const createContext = (rootDir: string) =>
     allowWrite: false
   });
 
+const createWriteContext = (rootDir: string) =>
+  createExecutionContextFromEnv(undefined, {
+    rootDir,
+    dryRun: false,
+    allowWrite: true
+  });
+
+const workerId = "mock:gpt-5.4-mini";
+
+const registerWorker = async (rootDir: string): Promise<void> => {
+  await saveWorkerRegistration(
+    createWriteContext(rootDir),
+    {
+      workerId,
+      provider: "mock",
+      model: "gpt-5.4-mini",
+      enabled: true,
+      tags: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    true
+  );
+};
+
 const createProfile = (overrides: Record<string, unknown> = {}) =>
   WorkerCapabilityProfileSchema.parse({
     workerId: "mock:gpt-5.4-mini",
@@ -129,12 +154,14 @@ const createProfile = (overrides: Record<string, unknown> = {}) =>
 describe("patch proposal workflow", () => {
   it("returns a structured proposal with inspection", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
 
     const result = await runPatchProposalWorkflow({
       context: createContext(rootDir),
       goal: "Fix the failing typecheck",
       scope: "packages/core",
-      errorLog: "TS2304: Cannot find name 'missingValue'."
+      errorLog: "TS2304: Cannot find name 'missingValue'.",
+      workerId
     });
 
     expect(result.proposal.id).toBeTruthy();
@@ -146,6 +173,7 @@ describe("patch proposal workflow", () => {
 
   it("marks fallback proposals as denied when model output is invalid", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     const invokeStructuredSpy = vi
       .spyOn(models, "invokeStructured")
       .mockResolvedValue({
@@ -160,7 +188,8 @@ describe("patch proposal workflow", () => {
     const result = await runPatchProposalWorkflow({
       context: createContext(rootDir),
       goal: "Fix the failing typecheck",
-      scope: "packages/core"
+      scope: "packages/core",
+      workerId
     });
 
     expect(result.inspection.ok).toBe(false);
@@ -186,6 +215,7 @@ describe("patch proposal workflow", () => {
 
   it("passes validation reports through to structured patch generation", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     const validationReport: ValidationReport = {
       ok: false,
       warnings: ["typecheck still failing"],
@@ -217,7 +247,8 @@ describe("patch proposal workflow", () => {
       context: createContext(rootDir),
       goal: "Fix the failing typecheck",
       scope: "packages/core",
-      validationReport
+      validationReport,
+      workerId
     });
 
     expect(capturedPrompt).toContain("Validation report:");
@@ -230,9 +261,9 @@ describe("patch proposal workflow", () => {
   it("returns a blocked placeholder when the persisted worker profile is not qualified for patch generation", async () => {
     const rootDir = await createWorkspace();
     await saveWorkerRegistration(
-      createContext(rootDir),
+      createWriteContext(rootDir),
       {
-        workerId: "mock:gpt-5.4-mini",
+        workerId,
         provider: "mock",
         model: "gpt-5.4-mini",
         enabled: true,
@@ -242,13 +273,13 @@ describe("patch proposal workflow", () => {
       },
       true
     );
-    await saveWorkerProfile(createContext(rootDir), createProfile(), true);
+    await saveWorkerProfile(createWriteContext(rootDir), createProfile(), true);
 
     const result = await runPatchProposalWorkflow({
       context: createContext(rootDir),
       goal: "Fix the failing typecheck",
       scope: "packages/core",
-      workerId: "mock:gpt-5.4-mini",
+      workerId,
       requireProfile: true
     });
 
@@ -264,11 +295,13 @@ describe("patch proposal workflow", () => {
 describe("fix workflow patch integration", () => {
   it("does not generate patch proposals by default", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
 
     const result = await runFixErrorWorkflow({
       context: createContext(rootDir),
       errorLog: "TS2304: Cannot find name 'missingValue'.",
-      scope: "packages/core"
+      scope: "packages/core",
+      workerId
     });
 
     expect(result.patchProposal).toBeUndefined();
@@ -277,11 +310,13 @@ describe("fix workflow patch integration", () => {
 
   it("includes patch proposal output when requested", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
 
     const result = await runFixErrorWorkflow({
       context: createContext(rootDir),
       errorLog: "TS2304: Cannot find name 'missingValue'.",
       scope: "packages/core",
+      workerId,
       proposePatch: true
     });
 

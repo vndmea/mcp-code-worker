@@ -16,7 +16,7 @@ const inputSchema = z.object({
   goal: z.string().optional(),
   scope: z.string().optional(),
   errorLog: z.string().optional(),
-  workerId: z.string().optional(),
+  workerId: z.string().min(1),
   requireProfile: z.boolean().optional(),
   detailLevel: workflowOutputOptionShape.detailLevel,
   maxBytes: workflowOutputOptionShape.maxBytes

@@ -160,7 +160,7 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
     .command("start")
     .requiredOption("--goal <goal>", "Task goal")
     .option("--scope <scope>", "Optional scope")
-    .option("--worker <workerId>", "Optional worker id")
+    .requiredOption("--worker <workerId>", "Worker id")
     .option("--require-profile", "Require a persisted worker profile", false)
     .option("--error-log <text>", "Inline error log for fix planning")
     .option("--error-log-file <path>", "Repository-local error log file for fix planning")
@@ -201,7 +201,7 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
         summary: boolean;
         test: boolean;
         typecheck: boolean;
-        worker?: string;
+        worker: string;
       }) => {
         const context = await resolveExecutionContext({
           cliOverrides: {

@@ -85,27 +85,11 @@ export const resolveWorkerProfile = async ({
   requireProfile
 }: ResolveWorkerProfileInput): Promise<ResolveWorkerProfileResult> => {
   const effectiveModelConfig = modelConfig ?? context.workerModel;
-  const configuredWorkerId =
-    requireProfile
-      ? requireConfiguredWorkerId(
-          context,
-          workerId,
-          "worker profile resolution"
-        )
-      : workerId ?? context.defaultWorkerId;
-  const resolvedWorkerId = configuredWorkerId ?? "unconfigured-worker";
-
-  if (!configuredWorkerId) {
-    return failIfRequired(
-      buildFailure(
-        resolvedWorkerId,
-        null,
-        "missing",
-        "No named worker is configured. Set defaultWorkerId or pass --worker before resolving a persisted worker profile."
-      ),
-      requireProfile
-    );
-  }
+  const resolvedWorkerId = requireConfiguredWorkerId(
+    context,
+    workerId,
+    "worker profile resolution"
+  );
 
   const profile = await getWorkerProfile(
     context.rootDir,

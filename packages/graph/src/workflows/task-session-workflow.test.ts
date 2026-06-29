@@ -9,6 +9,7 @@ import {
   readTaskArtifact,
   readTaskSession
 } from "@mcp-code-worker/core";
+import { saveWorkerRegistration } from "@mcp-code-worker/models";
 import {
   getTaskSessionReport,
   resumeTaskSessionWorkflow,
@@ -72,13 +73,37 @@ const createContext = (
     dryRun: options.dryRun ?? true
   });
 
+const workerId = "mock:task-worker";
+
+const registerWorker = async (rootDir: string): Promise<void> => {
+  await saveWorkerRegistration(
+    createExecutionContextFromEnv(undefined, {
+      allowWrite: true,
+      dryRun: false,
+      rootDir
+    }),
+    {
+      workerId,
+      provider: "mock",
+      model: "gpt-5.4-mini",
+      enabled: true,
+      tags: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    true
+  );
+};
+
 describe("task session workflow", () => {
   it("runs a dry-run task session with review and validation", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     const result = await runTaskSessionWorkflow({
       context: createContext(rootDir),
       goal: "Review packages/core",
       scope: "packages/core",
+      workerId,
       validate: {
         typecheck: true
       }
@@ -95,6 +120,7 @@ describe("task session workflow", () => {
 
   it("persists separate artifacts and report when session writes are allowed", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     const result = await runTaskSessionWorkflow({
       context: createContext(rootDir, {
         allowWrite: true,
@@ -102,6 +128,7 @@ describe("task session workflow", () => {
       }),
       goal: "Review and propose patch",
       scope: "packages/core",
+      workerId,
       errorLogFile: "tmp/error.log",
       runFix: true,
       validate: {
@@ -150,6 +177,7 @@ describe("task session workflow", () => {
 
   it("blocks patch apply without explicit confirmation gates", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     const result = await runTaskSessionWorkflow({
       context: createContext(rootDir, {
         allowWrite: true,
@@ -157,6 +185,7 @@ describe("task session workflow", () => {
       }),
       goal: "Review and apply patch",
       scope: "packages/core",
+      workerId,
       proposePatch: true,
       inspectPatch: true,
       applyPatch: true,
@@ -170,6 +199,7 @@ describe("task session workflow", () => {
 
   it("resumes from patch application steps without rerunning successful review", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     const initial = await runTaskSessionWorkflow({
       context: createContext(rootDir, {
         allowWrite: true,
@@ -177,6 +207,7 @@ describe("task session workflow", () => {
       }),
       goal: "Review and prepare patch",
       scope: "packages/core",
+      workerId,
       proposePatch: true,
       inspectPatch: true,
       allowWriteSession: true
@@ -201,10 +232,12 @@ describe("task session workflow", () => {
 
   it("supports inline error logs for fix planning", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     const result = await runTaskSessionWorkflow({
       context: createContext(rootDir),
       goal: "Fix inline error",
       scope: "packages/core",
+      workerId,
       errorLog: "TS1005: ';' expected",
       runFix: true
     });

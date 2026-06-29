@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { createExecutionContextFromEnv, listAuditEvents } from "@mcp-code-worker/core";
+import { saveWorkerRegistration } from "@mcp-code-worker/models";
 import { runHostWorkerWorkflow } from "./host-worker-workflow.js";
 import { describe, expect, it } from "vitest";
 
@@ -17,9 +18,32 @@ const createRootDir = async () => {
   return rootDir;
 };
 
+const workerId = "mock:audit-worker";
+
+const registerWorker = async (rootDir: string): Promise<void> => {
+  await saveWorkerRegistration(
+    createExecutionContextFromEnv(undefined, {
+      allowWrite: true,
+      dryRun: false,
+      rootDir
+    }),
+    {
+      workerId,
+      provider: "mock",
+      model: "gpt-5.4-mini",
+      enabled: true,
+      tags: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    true
+  );
+};
+
 describe("workflow audit events", () => {
   it("writes start and completion audit events for host-worker workflow", async () => {
     const rootDir = await createRootDir();
+    await registerWorker(rootDir);
     const context = createExecutionContextFromEnv(undefined, {
       allowWrite: true,
       dryRun: false,
@@ -30,7 +54,8 @@ describe("workflow audit events", () => {
       context,
       goal: "Review the repository for workflow regressions",
       taskType: "review-lite",
-      files: ["packages/core/src/generateId.ts"]
+      files: ["packages/core/src/generateId.ts"],
+      workerId
     });
     const events = await listAuditEvents(rootDir, 20);
 

@@ -8,6 +8,7 @@ import {
   createExecutionContextFromEnv,
   type WorkerCapabilityProfile
 } from "@mcp-code-worker/core";
+import { saveWorkerRegistration } from "@mcp-code-worker/models";
 import {
   runHostWorkerWorkflow,
   runWorkerInterviewWorkflow
@@ -105,9 +106,32 @@ const createProfile = (
   ...overrides
 });
 
+const workerId = "mock:worker-model";
+
+const registerWorker = async (rootDir: string): Promise<void> => {
+  await saveWorkerRegistration(
+    createExecutionContextFromEnv(undefined, {
+      allowWrite: true,
+      dryRun: false,
+      rootDir
+    }),
+    {
+      workerId,
+      provider: "mock",
+      model: "worker-model",
+      enabled: true,
+      tags: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    true
+  );
+};
+
 describe("host worker workflow", () => {
   it("runs one explicit worker task without creating an internal plan", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     const result = await runHostWorkerWorkflow({
       context: createExecutionContextFromEnv(undefined, {
         dryRun: true,
@@ -116,6 +140,7 @@ describe("host worker workflow", () => {
       }),
       goal: "Review the selected files for id-generation regressions",
       taskType: "review-lite",
+      workerId,
       files: [
         "packages/core/src/generateId.ts",
         "packages/core/src/schemaMinimum.ts"
@@ -136,6 +161,7 @@ describe("host worker workflow", () => {
 
   it("keeps strict explicit file mode narrow without byte budget failures", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     await writeFile(
       join(rootDir, "packages", "core", "src", "wide.ts"),
       "export const wide = '".concat("x".repeat(200), "';\n"),
@@ -150,6 +176,7 @@ describe("host worker workflow", () => {
       }),
       goal: "Review explicit files only",
       taskType: "review-lite",
+      workerId,
       files: [
         "packages/core/src/generateId.ts",
         "packages/core/src/wide.ts"
@@ -166,6 +193,7 @@ describe("host worker workflow", () => {
 
   it("does not mark coverage gaps from byte budgets", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     await writeFile(
       join(rootDir, "packages", "core", "src", "extra.ts"),
       "export const extra = '".concat("x".repeat(200), "';\n"),
@@ -179,7 +207,8 @@ describe("host worker workflow", () => {
         rootDir
       }),
       goal: "Review the selected files for id-generation regressions",
-      taskType: "review-lite"
+      taskType: "review-lite",
+      workerId
     });
 
     expect(result.workerResult).not.toBeNull();
@@ -192,6 +221,7 @@ describe("host worker workflow", () => {
 
   it("reports policy-blocked workers without mixing in structured-output failure messaging", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     const blockedProfile = createProfile({
       portrait: {
         ...createProfile().portrait!,
@@ -212,6 +242,7 @@ describe("host worker workflow", () => {
       }),
       goal: "Review the selected files for id-generation regressions",
       taskType: "review-lite",
+      workerId,
       files: ["packages/core/src/generateId.ts"],
       workerCapabilityProfile: blockedProfile
     });
@@ -231,6 +262,7 @@ describe("host worker workflow", () => {
 
   it("can force a diagnostic trial run while marking the result as override-driven", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     const blockedProfile = createProfile({
       portrait: {
         ...createProfile().portrait!,
@@ -251,6 +283,7 @@ describe("host worker workflow", () => {
       }),
       goal: "Review the selected files for id-generation regressions",
       taskType: "review-lite",
+      workerId,
       files: ["packages/core/src/generateId.ts"],
       forceExecution: true,
       workerCapabilityProfile: blockedProfile
@@ -273,10 +306,11 @@ describe("worker interview workflow", () => {
       context: createExecutionContextFromEnv(undefined, {
         dryRun: true,
         allowWrite: false
-      })
+      }),
+      workerId
     });
 
-    expect(result.profile.workerId).toBe("default-worker");
+    expect(result.profile.workerId).toBe(workerId);
     expect(result.taskResults.length).toBeGreaterThan(0);
   });
 });

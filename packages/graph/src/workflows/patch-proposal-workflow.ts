@@ -11,6 +11,7 @@ import {
 } from "@mcp-code-worker/core";
 import {
   assessWorkerTaskEligibility,
+  requireConfiguredWorkerId,
   resolveWorkerTarget,
   resolveWorkerProfile
 } from "@mcp-code-worker/models";
@@ -56,33 +57,27 @@ export const runPatchProposalWorkflow = async (
     });
   const effectiveScope = repositoryContext.scope ?? input.scope;
   const warnings: string[] = [];
-  const workerModelResolution =
-    input.workerId || input.requireProfile || context.defaultWorkerId
-      ? await resolveWorkerTarget({
-          context,
-          workerId: input.workerId,
-          requireNamedWorker: input.requireProfile
-        })
-      : undefined;
-  const workerContext = workerModelResolution
-    ? createExecutionContextWithWorkerModel(
-        context,
-        workerModelResolution.modelConfig
-      )
-    : context;
-  const workerProfileResolution =
-    input.workerId || input.requireProfile
-      ? await resolveWorkerProfile({
-          context: workerContext,
-          modelConfig: workerContext.workerModel,
-          workerId: workerModelResolution?.workerId,
-          requireProfile: input.requireProfile
-        })
-      : undefined;
-  const workerId =
-    workerProfileResolution?.workerId ??
-    workerModelResolution?.workerId ??
-    "ad-hoc-worker";
+  const requestedWorkerId = requireConfiguredWorkerId(
+    context,
+    input.workerId,
+    "patch proposal generation"
+  );
+  const workerModelResolution = await resolveWorkerTarget({
+    context,
+    workerId: requestedWorkerId,
+    requireNamedWorker: true
+  });
+  const workerContext = createExecutionContextWithWorkerModel(
+    context,
+    workerModelResolution.modelConfig
+  );
+  const workerId = workerModelResolution.workerId ?? requestedWorkerId;
+  const workerProfileResolution = await resolveWorkerProfile({
+    context: workerContext,
+    modelConfig: workerContext.workerModel,
+    workerId,
+    requireProfile: input.requireProfile
+  });
   const fallbackProposal = buildFallbackPatchProposal(
     {
       goal: input.goal,

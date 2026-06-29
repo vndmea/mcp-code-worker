@@ -1313,7 +1313,14 @@ describe("cli parsing", () => {
       const { io, output } = createIo();
       const cli = buildCli(io);
 
-      await cli.parseAsync(["node", "cw", "worker", "readiness"]);
+      await cli.parseAsync([
+        "node",
+        "cw",
+        "worker",
+        "readiness",
+        "--worker",
+        workerId
+      ]);
 
       const readiness = parseLastJson<{
         unavailableReasonType: string;
@@ -1338,7 +1345,15 @@ describe("cli parsing", () => {
       expect(readiness.checks.benchmark.status).toBe("missing");
       expect(readiness.checks.patchGeneration.status).toBe("allowed");
 
-      await cli.parseAsync(["node", "cw", "worker", "readiness", "--probe"]);
+      await cli.parseAsync([
+        "node",
+        "cw",
+        "worker",
+        "readiness",
+        "--worker",
+        workerId,
+        "--probe"
+      ]);
 
       const probedReadiness = parseLastJson<{
         unavailableReasonType: string;
@@ -1386,7 +1401,14 @@ describe("cli parsing", () => {
       const { io, output } = createIo();
       const cli = buildCli(io);
 
-      await cli.parseAsync(["node", "cw", "worker", "readiness"]);
+      await cli.parseAsync([
+        "node",
+        "cw",
+        "worker",
+        "readiness",
+        "--worker",
+        workerId
+      ]);
 
       const notQualified = parseLastJson<{
         unavailableReasonType: string;
@@ -1398,7 +1420,14 @@ describe("cli parsing", () => {
       expect(notQualified.canRunFormalTasks).toBe(false);
 
       await writeProfiles(rootDir, []);
-      await cli.parseAsync(["node", "cw", "worker", "readiness"]);
+      await cli.parseAsync([
+        "node",
+        "cw",
+        "worker",
+        "readiness",
+        "--worker",
+        workerId
+      ]);
 
       const blocked = parseLastJson<{
         unavailableReasonType: string;
@@ -1495,6 +1524,7 @@ describe("cli parsing", () => {
   it("runs validate and fix error commands", async () => {
     await withTempCwd(async (rootDir) => {
       await writeWorkspaceFixture(rootDir);
+      await writeRegistry(rootDir, [createRegistration()]);
       const { io, output } = createIo();
       const cli = buildCli(io);
 
@@ -1615,6 +1645,8 @@ describe("cli parsing", () => {
         "start",
         "--goal",
         "Review packages/core",
+        "--worker",
+        "mock:registered-worker",
         "--scope",
         "packages/core",
         "--typecheck",
@@ -1634,6 +1666,7 @@ describe("cli parsing", () => {
   it("runs task session lifecycle commands", async () => {
     await withTempCwd(async (rootDir) => {
       await writeWorkspaceFixture(rootDir);
+      await writeRegistry(rootDir, [createRegistration()]);
       const { io, output } = createIo();
       const cli = buildCli(io);
 
@@ -1644,6 +1677,8 @@ describe("cli parsing", () => {
         "start",
         "--goal",
         "Review packages/core",
+        "--worker",
+        "mock:registered-worker",
         "--scope",
         "packages/core",
         "--typecheck",
@@ -1692,6 +1727,7 @@ describe("cli parsing", () => {
   it("renders task start in compact human mode", async () => {
     await withTempCwd(async (rootDir) => {
       await writeWorkspaceFixture(rootDir);
+      await writeRegistry(rootDir, [createRegistration()]);
       const { io, output } = createIo("human");
       const cli = buildCli(io);
 
@@ -1702,6 +1738,8 @@ describe("cli parsing", () => {
         "start",
         "--goal",
         "Review packages/core",
+        "--worker",
+        "mock:registered-worker",
         "--scope",
         "packages/core",
         "--typecheck",
@@ -1718,6 +1756,7 @@ describe("cli parsing", () => {
   it("stabilizes task start --summary output without null placeholders", async () => {
     await withTempCwd(async (rootDir) => {
       await writeWorkspaceFixture(rootDir);
+      await writeRegistry(rootDir, [createRegistration()]);
       const { io, output } = createIo();
       const cli = buildCli(io);
 
@@ -1728,6 +1767,8 @@ describe("cli parsing", () => {
         "start",
         "--goal",
         "Review packages/core",
+        "--worker",
+        "mock:registered-worker",
         "--scope",
         "packages/core",
         "--typecheck",
@@ -1847,6 +1888,7 @@ describe("cli parsing", () => {
       await writeWorkspaceFixture(rootDir);
       await initGitRepo(rootDir);
       await writePatchProposalFile(rootDir);
+      await writeRegistry(rootDir, [createRegistration()]);
       const { io, output } = createIo();
       const cli = buildCli(io);
 
@@ -1857,6 +1899,8 @@ describe("cli parsing", () => {
         "propose",
         "--goal",
         "Fix typecheck",
+        "--worker",
+        "mock:registered-worker",
         "--scope",
         "packages/core",
         "--summary"
@@ -1872,6 +1916,8 @@ describe("cli parsing", () => {
         "propose",
         "--goal",
         "Fix typecheck",
+        "--worker",
+        "mock:registered-worker",
         "--scope",
         "packages/core",
         "--full"
