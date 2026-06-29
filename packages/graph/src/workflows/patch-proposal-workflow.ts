@@ -42,6 +42,25 @@ export interface PatchProposalWorkflowOutput {
   warnings: string[];
 }
 
+export const PATCH_PLACEHOLDER_REASON =
+  "Patch proposal is a fallback placeholder and must not be applied.";
+
+export const isPlaceholderPatchProposal = (input: {
+  inspection?: Pick<PatchInspection, "blockedReasons">;
+  proposal?: Pick<PatchProposal, "title">;
+  warnings?: string[];
+}): boolean => {
+  const title = input.proposal?.title ?? "";
+  const blockedReasons = input.inspection?.blockedReasons ?? [];
+  const warnings = input.warnings ?? [];
+
+  return (
+    title.includes("[PLACEHOLDER]") ||
+    blockedReasons.includes(PATCH_PLACEHOLDER_REASON) ||
+    warnings.includes(PATCH_PLACEHOLDER_REASON)
+  );
+};
+
 const buildDeniedPatchProposalOutput = async (input: {
   context: ExecutionContext;
   fallbackProposal: PatchProposal;
@@ -55,7 +74,7 @@ const buildDeniedPatchProposalOutput = async (input: {
     ok: false,
     blockedReasons: [
       input.reason,
-      "Patch proposal is a fallback placeholder and must not be applied."
+      PATCH_PLACEHOLDER_REASON
     ]
   });
 
@@ -145,12 +164,12 @@ export const runPatchProposalWorkflow = async (
   });
 
   if (!generation.structuredOutputOk) {
-    warnings.push("Patch proposal is a fallback placeholder and must not be applied.");
+    warnings.push(PATCH_PLACEHOLDER_REASON);
     inspection = PatchInspectionSchema.parse({
       ...inspection,
       ok: false,
       blockedReasons: [
-        "Patch proposal is a fallback placeholder and must not be applied.",
+        PATCH_PLACEHOLDER_REASON,
         ...inspection.blockedReasons,
         ...generation.errors
       ]

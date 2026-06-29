@@ -33,6 +33,10 @@ const formatTaskSessionSummaryText = (summary: Record<string, unknown>): string[
   const goal = typeof summary["goal"] === "string" ? summary["goal"] : "";
   const humanSummary =
     typeof summary["humanSummary"] === "string" ? summary["humanSummary"] : null;
+  const outcomeSummary =
+    typeof summary["outcomeSummary"] === "string"
+      ? summary["outcomeSummary"]
+      : null;
   const nextRecommendedActions = Array.isArray(summary["nextRecommendedActions"])
     ? summary["nextRecommendedActions"]
         .map((value) => {
@@ -114,6 +118,10 @@ const formatTaskSessionSummaryText = (summary: Record<string, unknown>): string[
 
   if (humanSummary) {
     lines.push(humanSummary);
+  }
+
+  if (outcomeSummary) {
+    lines.push(`outcome: ${outcomeSummary}`);
   }
 
   if (readinessSummary) {
@@ -251,13 +259,20 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
           allowWriteSession: options.allowWriteSession
         });
 
+        const workflowOutputOptions = resolveWorkflowOutputOptions(options);
         const formatted = formatTaskSessionWorkflowOutput(
           result,
-          resolveWorkflowOutputOptions(options)
+          workflowOutputOptions
         ) as Record<string, unknown>;
 
         if (isHumanOutput(io) && !options.summary && !options.full) {
-          writeTaskOutput(io, formatted);
+          writeTaskOutput(
+            io,
+            formatTaskSessionWorkflowOutput(result, {
+              ...workflowOutputOptions,
+              detailLevel: "summary"
+            }) as Record<string, unknown>
+          );
           return;
         }
 
@@ -293,7 +308,15 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
       ) as Record<string, unknown>;
 
       if (isHumanOutput(io) && !options.summary && !options.full) {
-        writeTaskOutput(io, formatted);
+        const humanFormatted = formatTaskSessionStatusOutput(session, {
+          ...resolveWorkflowOutputOptions(options),
+          detailLevel: "summary"
+        });
+
+        writeTaskOutput(
+          io,
+          humanFormatted
+        );
         return;
       }
 
@@ -364,7 +387,13 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
         ) as Record<string, unknown>;
 
         if (isHumanOutput(io) && !options.summary && !options.full) {
-          writeTaskOutput(io, formatted);
+          writeTaskOutput(
+            io,
+            formatTaskSessionWorkflowOutput(result, {
+              ...resolveWorkflowOutputOptions(options),
+              detailLevel: "summary"
+            }) as Record<string, unknown>
+          );
           return;
         }
 

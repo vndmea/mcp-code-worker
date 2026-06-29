@@ -102,10 +102,83 @@ const summarizePatch = (
   }
 
   if (patchInspection && !patchInspection.ok) {
+    if (isPlaceholderPatch(patchProposal, patchInspection)) {
+      return `Patch ${patchProposal.id} is a blocked placeholder: ${patchInspection.blockedReasons.join("; ")}`;
+    }
+
     return `Patch ${patchProposal.id} was denied: ${patchInspection.blockedReasons.join("; ")}`;
   }
 
   return `Patch ${patchProposal.id} was proposed for manual review.`;
+};
+
+const PATCH_PLACEHOLDER_REASON =
+  "Patch proposal is a fallback placeholder and must not be applied.";
+
+const isPlaceholderPatch = (
+  patchProposal: PatchProposal | undefined,
+  patchInspection: PatchInspection | undefined
+): boolean =>
+  (patchProposal?.title ?? "").includes("[PLACEHOLDER]") ||
+  Boolean(
+    patchInspection?.blockedReasons.includes(PATCH_PLACEHOLDER_REASON)
+  );
+
+const buildExecutiveSummary = (input: {
+  patchApplyResult?: PatchApplyResult;
+  patchInspection?: PatchInspection;
+  patchProposal?: PatchProposal;
+  reviewResult?: unknown;
+  session: TaskSession;
+  validationReport?: ValidationReport;
+}): string => {
+  const reviewAccepted =
+    input.reviewResult &&
+    typeof input.reviewResult === "object" &&
+    "accepted" in input.reviewResult &&
+    typeof input.reviewResult.accepted === "boolean"
+      ? input.reviewResult.accepted
+      : null;
+  const validationSummary = summarizeValidationOutcome(input.validationReport).summary;
+  const placeholderPatch = isPlaceholderPatch(
+    input.patchProposal,
+    input.patchInspection
+  );
+
+  if (input.patchApplyResult?.recovery) {
+    return "Patch applied, but validation failed afterward. Use the recovery guidance before making more repository changes.";
+  }
+
+  if (input.patchApplyResult?.applied) {
+    return "Review, validation, and patch application succeeded.";
+  }
+
+  if (input.patchInspection && !input.patchInspection.ok) {
+    const blockedReason = input.patchInspection.blockedReasons[0] ?? "inspection failed";
+    if (reviewAccepted === true && input.validationReport?.ok) {
+      return placeholderPatch
+        ? `Review and validation succeeded, but patch generation produced a blocked placeholder: ${blockedReason}. No repository writes were applied.`
+        : `Review and validation succeeded, but patch inspection blocked the generated proposal: ${blockedReason}. No repository writes were applied.`;
+    }
+
+    return placeholderPatch
+      ? `Patch generation produced a blocked placeholder: ${blockedReason}.`
+      : `Patch inspection blocked the generated proposal: ${blockedReason}.`;
+  }
+
+  if (input.validationReport && !input.validationReport.ok) {
+    return `Review succeeded, but validation did not pass: ${validationSummary}`;
+  }
+
+  if (reviewAccepted === false) {
+    return "Worker review completed, but the review quality gate did not pass.";
+  }
+
+  if (input.session.status === "completed") {
+    return "Review completed successfully.";
+  }
+
+  return `Task status is ${input.session.status}.`;
 };
 
 const renderRecoverySection = (
@@ -193,6 +266,16 @@ export function renderTaskSessionReport(input: {
 
   return [
     `# Task Session Report`,
+    ``,
+    `## Executive Summary`,
+    `- ${buildExecutiveSummary({
+      session,
+      reviewResult,
+      validationReport,
+      patchProposal,
+      patchInspection,
+      patchApplyResult
+    })}`,
     ``,
     `- Task ID: ${session.taskId}`,
     `- Goal: ${session.goal}`,

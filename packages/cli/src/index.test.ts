@@ -1290,10 +1290,12 @@ describe("cli parsing", () => {
       const summary = parseLastJson<{
         deniedReason?: string;
         humanSummary?: string;
+        proposalState?: string;
       }>(output);
 
       expect(summary.deniedReason).toContain("not qualified for patch-generation tasks");
-      expect(summary.humanSummary).toContain("Patch proposal is blocked");
+      expect(summary.humanSummary).toContain("placeholder only");
+      expect(summary.proposalState).toBe("placeholder");
     });
   });
 
@@ -1990,6 +1992,7 @@ describe("cli parsing", () => {
       ]);
 
       expect(output.at(-1)).toContain("task ");
+      expect(output.at(-1)).toContain("outcome:");
       expect(output.at(-1)).toContain("next:");
       expect(output.at(-1)).toContain("\u001b[");
       expect(output.at(-1)).not.toContain("\"taskId\"");
@@ -2026,6 +2029,7 @@ describe("cli parsing", () => {
         artifactRefsStatus: string;
         finalStatus: string;
         humanSummary: string;
+        outcomeSummary: string;
         validationSummary: string;
         workerReviewStatus: string;
       }>(output);
@@ -2034,6 +2038,7 @@ describe("cli parsing", () => {
       expect(summary.workerReviewStatus).toBeTruthy();
       expect(summary.accepted).not.toBeNull();
       expect(summary.humanSummary).toBeTruthy();
+      expect(summary.outcomeSummary).toContain("review=");
       expect(summary.validationSummary).toBeTruthy();
       expect(summary.artifactRefs).toEqual([]);
       expect(summary.artifactRefsStatus).toBe("suppressed-in-summary");

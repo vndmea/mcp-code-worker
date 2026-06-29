@@ -292,4 +292,58 @@ describe("task session workflow", () => {
     expect(result.fixResult?.rootCauseAnalysis).toContain("error log");
     expect(result.session.steps.find((step) => step.id === "fix-planned")?.status).toBe("success");
   });
+
+  it("marks placeholder patch proposals as denied at the proposal step", async () => {
+    const rootDir = await createWorkspace();
+    const context = createExecutionContextFromEnv(undefined, {
+      allowWrite: true,
+      dryRun: false,
+      rootDir
+    });
+
+    await saveWorkerRegistration(
+      context,
+      {
+        workerId,
+        provider: "mock",
+        model: "gpt-5.4-mini",
+        enabled: true,
+        tags: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      true
+    );
+    await saveWorkerProfile(
+      context,
+      {
+        ...createProfile(),
+        status: "not-qualified",
+        supportedTaskTypes: createProfile().supportedTaskTypes.filter(
+          (taskType) => taskType !== "patch-generation"
+        ),
+        routingPolicy: {
+          ...createProfile().routingPolicy,
+          allowPatchGeneration: false
+        }
+      },
+      true
+    );
+
+    const result = await runTaskSessionWorkflow({
+      context: createContext(rootDir, {
+        allowWrite: true,
+        dryRun: false
+      }),
+      goal: "Review and propose patch",
+      scope: "packages/core",
+      workerId,
+      proposePatch: true,
+      inspectPatch: true
+    });
+
+    expect(result.session.steps.find((step) => step.id === "patch-proposed")?.status).toBe("denied");
+    expect(result.session.steps.find((step) => step.id === "patch-inspected")?.status).toBe("denied");
+    expect(result.patchProposal?.title).toContain("[PLACEHOLDER]");
+  });
 });

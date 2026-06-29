@@ -7,7 +7,10 @@ import {
 } from "@mcp-code-worker/core";
 
 import type { FixErrorWorkflowOutput } from "./fix-error-workflow.js";
-import type { PatchProposalWorkflowOutput } from "./patch-proposal-workflow.js";
+import {
+  isPlaceholderPatchProposal,
+  type PatchProposalWorkflowOutput
+} from "./patch-proposal-workflow.js";
 import type { ReviewWorkflowOutput } from "./review-workflow.js";
 import type { TaskSessionWorkflowOutput } from "./task-session-workflow.js";
 
@@ -24,27 +27,162 @@ const includeArtifactRefs = (
   options: WorkflowOutputOptions | undefined
 ): boolean => options?.includeArtifactRefs ?? true;
 
-const buildTaskHumanSummary = (
-  output: TaskSessionWorkflowOutput,
-  validation: ReturnType<typeof summarizeValidationReport> | null
-): string => {
-  const finalStatus = output.session.status;
+type PatchProposalState = "ready-for-review" | "blocked" | "placeholder";
+
+const buildPatchProposalPresentation = (input: {
+  inspection: PatchProposalWorkflowOutput["inspection"];
+  proposal: PatchProposalWorkflowOutput["proposal"];
+  warnings: PatchProposalWorkflowOutput["warnings"];
+}): {
+  deniedReason: string | undefined;
+  deniedReasons: string[];
+  humanSummary: string;
+  placeholder: boolean;
+  proposalState: PatchProposalState;
+} => {
+  const deniedReasons = input.inspection.ok
+    ? []
+    : input.inspection.blockedReasons;
+  const deniedReason = deniedReasons[0];
+  const placeholder = isPlaceholderPatchProposal(input);
+  const proposalState: PatchProposalState = input.inspection.ok
+    ? "ready-for-review"
+    : placeholder
+      ? "placeholder"
+      : "blocked";
+  const humanSummary = input.inspection.ok
+    ? `Patch proposal ${input.proposal.id} is ready for review.`
+    : placeholder
+      ? `Patch proposal is a placeholder only and must not be applied: ${deniedReason ?? "inspection failed."}`
+      : `Patch proposal is blocked: ${deniedReason ?? "inspection failed."}`;
+
+  return {
+    proposalState,
+    placeholder,
+    humanSummary,
+    deniedReason,
+    deniedReasons
+  };
+};
+
+const buildTaskOutcomeSnapshot = (
+  output: TaskSessionWorkflowOutput
+): {
+  applyStatus: string;
+  outcomeCode: string;
+  outcomeSummary: string;
+  patchDeniedReason: string | null;
+  patchPlaceholder: boolean;
+  patchStatus: string;
+  reviewStatus: string;
+  validationStatus: string;
+} => {
+  const reviewStatus = !output.reviewResult
+    ? "not-produced"
+    : output.reviewResult.accepted
+      ? "passed"
+      : "blocked";
+  const notConfiguredChecks = output.validationReport
+    ? output.validationReport.checks
+        .filter((check) => check.status === "not-configured")
+        .map((check) => check.name)
+    : [];
+  const validationStatus = !output.validationReport
+    ? "not-requested"
+    : output.validationReport.ok
+      ? "passed"
+      : notConfiguredChecks.length > 0
+        ? "not-configured"
+        : "failed";
+  const patchPlaceholder = output.patchProposal
+    ? isPlaceholderPatchProposal({
+        proposal: output.patchProposal,
+        inspection: output.patchInspection,
+        warnings: []
+      })
+    : false;
   const patchDeniedReason =
     output.patchInspection && !output.patchInspection.ok
-      ? output.patchInspection.blockedReasons[0]
+      ? output.patchInspection.blockedReasons[0] ?? null
       : output.patchApplyResult && !output.patchApplyResult.applied
         ? output.patchApplyResult.inspection.blockedReasons[0] ??
           output.patchApplyResult.errors?.[0] ??
           "Patch application was denied."
         : null;
+  const patchStatus = !output.patchProposal && !output.patchInspection && !output.patchApplyResult
+    ? "not-requested"
+    : output.patchApplyResult?.applied
+      ? "applied"
+      : output.patchInspection?.ok
+        ? "ready-for-review"
+        : patchPlaceholder
+          ? "placeholder"
+          : patchDeniedReason
+            ? "blocked"
+            : "not-produced";
+  const applyStatus = !output.patchApplyResult
+    ? output.patchProposal || output.patchInspection
+      ? "skipped"
+      : "not-requested"
+    : output.patchApplyResult.applied
+      ? "applied"
+      : output.patchApplyResult.mode === "dry-run"
+        ? "dry-run"
+        : "denied";
+  const outcomeSummary =
+    `review=${reviewStatus} | validation=${validationStatus} | patch=${patchStatus} | apply=${applyStatus}`;
+
+  let outcomeCode = `status-${output.session.status}`;
+
+  if (output.patchApplyResult?.applied) {
+    outcomeCode = "completed-with-patch";
+  } else if (reviewStatus === "blocked") {
+    outcomeCode = "review-gate-blocked";
+  } else if (validationStatus === "failed") {
+    outcomeCode = "review-passed-validation-failed";
+  } else if (reviewStatus === "passed" && patchPlaceholder) {
+    outcomeCode = "review-passed-patch-placeholder";
+  } else if (reviewStatus === "passed" && patchStatus === "blocked") {
+    outcomeCode = "review-passed-patch-blocked";
+  } else if (output.session.status === "completed") {
+    outcomeCode = "completed";
+  }
+
+  return {
+    reviewStatus,
+    validationStatus,
+    patchStatus,
+    patchPlaceholder,
+    applyStatus,
+    outcomeCode,
+    outcomeSummary,
+    patchDeniedReason
+  };
+};
+
+const buildTaskHumanSummary = (
+  output: TaskSessionWorkflowOutput,
+  validation: ReturnType<typeof summarizeValidationReport> | null
+): string => {
+  const finalStatus = output.session.status;
+  const outcome = buildTaskOutcomeSnapshot(output);
   const notConfiguredChecks = output.validationReport
     ? output.validationReport.checks
         .filter((check) => check.status === "not-configured")
         .map((check) => check.name)
     : [];
 
-  if (patchDeniedReason) {
-    return `Patch generation was denied: ${patchDeniedReason} The task remains ${finalStatus}.`;
+  if (outcome.patchDeniedReason) {
+    if (
+      outcome.reviewStatus === "passed" &&
+      outcome.validationStatus === "passed"
+    ) {
+      return outcome.patchPlaceholder
+        ? `Review and validation succeeded, but patch generation produced a blocked placeholder: ${outcome.patchDeniedReason}. No repository writes were applied. The task remains ${finalStatus}.`
+        : `Review and validation succeeded, but patch inspection blocked the proposal: ${outcome.patchDeniedReason}. No repository writes were applied. The task remains ${finalStatus}.`;
+    }
+
+    return `Patch generation was denied: ${outcome.patchDeniedReason}. The task remains ${finalStatus}.`;
   }
 
   if (output.validationReport && !output.validationReport.ok) {
@@ -91,11 +229,42 @@ export const formatTaskSessionWorkflowOutput = (
     : null;
   const artifactRefsIncluded = includeArtifactRefs(options);
   const humanSummary = buildTaskHumanSummary(output, validation);
+  const outcome = buildTaskOutcomeSnapshot(output);
+  const patchSummary =
+    output.patchProposal || output.patchInspection || output.patchApplyResult
+      ? {
+          proposalId: output.patchProposal?.id ?? "not-produced",
+          title: output.patchProposal?.title ?? "not-produced",
+          proposalState:
+            output.patchProposal && output.patchInspection
+              ? buildPatchProposalPresentation({
+                  proposal: output.patchProposal,
+                  inspection: output.patchInspection,
+                  warnings: []
+                }).proposalState
+              : "not-produced",
+          inspectionOk: output.patchInspection?.ok ?? "not-produced",
+          deniedReason:
+            output.patchInspection && !output.patchInspection.ok
+              ? output.patchInspection.blockedReasons[0] ?? "not-produced"
+              : output.patchApplyResult && !output.patchApplyResult.applied
+                ? output.patchApplyResult.inspection.blockedReasons[0] ??
+                  output.patchApplyResult.errors?.[0] ??
+                  "not-produced"
+                : "not-produced",
+          applied: output.patchApplyResult?.applied ?? "not-produced"
+        }
+      : "not-produced";
 
   return {
     taskId: output.session.taskId,
     goal: output.session.goal,
     humanSummary,
+    outcomeCode: outcome.outcomeCode,
+    outcomeSummary: outcome.outcomeSummary,
+    reviewStatus: outcome.reviewStatus,
+    patchStatus: outcome.patchStatus,
+    applyStatus: outcome.applyStatus,
     scope: output.session.scope,
     workerId: output.workerId,
     localClientRuntime: output.localClientRuntime ?? "not-applicable",
@@ -126,22 +295,7 @@ export const formatTaskSessionWorkflowOutput = (
     nextRecommendedActions: output.nextRecommendedActions,
     reviewSummary: output.reviewResult?.reviewSummary.summary ?? "not-produced",
     fixSummary: output.fixResult?.rootCauseAnalysis ?? "not-produced",
-    patch: output.patchProposal || output.patchInspection || output.patchApplyResult
-      ? {
-          proposalId: output.patchProposal?.id ?? "not-produced",
-          title: output.patchProposal?.title ?? "not-produced",
-          inspectionOk: output.patchInspection?.ok ?? "not-produced",
-          deniedReason:
-            output.patchInspection && !output.patchInspection.ok
-              ? output.patchInspection.blockedReasons[0] ?? "not-produced"
-              : output.patchApplyResult && !output.patchApplyResult.applied
-                ? output.patchApplyResult.inspection.blockedReasons[0] ??
-                  output.patchApplyResult.errors?.[0] ??
-                  "not-produced"
-                : "not-produced",
-          applied: output.patchApplyResult?.applied ?? "not-produced"
-        }
-      : "not-produced",
+    patch: patchSummary,
     validation: validation ?? "not-produced",
     reportPreview: truncateText(output.report, options?.maxBytes ?? 4_000)
   };
@@ -241,23 +395,20 @@ export const formatPatchProposalWorkflowOutput = (
   const files = output.inspection.files.length > 0
     ? output.inspection.files
     : output.proposal.files;
-  const deniedReasons = output.inspection.ok
-    ? []
-    : output.inspection.blockedReasons;
-  const deniedReason = deniedReasons[0];
-  const humanSummary = output.inspection.ok
-    ? `Patch proposal ${output.proposal.id} is ready for review.`
-    : `Patch proposal is blocked: ${deniedReason ?? "inspection failed."}`;
+  const patchPresentation = buildPatchProposalPresentation(output);
 
   return {
     proposalId: output.proposal.id,
     title: output.proposal.title,
-    humanSummary,
+    proposalState: patchPresentation.proposalState,
+    placeholder: patchPresentation.placeholder,
+    readyForReview: patchPresentation.proposalState === "ready-for-review",
+    humanSummary: patchPresentation.humanSummary,
     summary: truncateText(output.proposal.summary, options?.maxBytes ?? 1_500),
     workerId: output.proposal.source.workerId,
     scope: output.proposal.source.scope,
-    deniedReason,
-    deniedReasons,
+    deniedReason: patchPresentation.deniedReason,
+    deniedReasons: patchPresentation.deniedReasons,
     changedFiles: files.map((file) => ({
       path: file.path,
       changeType: file.changeType,

@@ -95,10 +95,19 @@ const formatPatchProposalSummaryText = (summary: Record<string, unknown>): strin
   const deniedReason = toDisplayText(summary["deniedReason"], "");
   const humanSummary = toDisplayText(summary["humanSummary"], "");
   const proposalId = toDisplayText(summary["proposalId"], "unknown");
+  const proposalState = toDisplayText(summary["proposalState"], "unknown");
   const title = toDisplayText(summary["title"], "");
+  const patchLine = proposalState === "ready-for-review"
+    ? "patch: ready for review"
+    : proposalState === "placeholder"
+      ? "patch: placeholder only, do not apply"
+      : proposalState === "blocked"
+        ? "patch: blocked"
+        : `patch: ${proposalState}`;
 
   const lines: string[] = [
-    `patch proposal ${proposalId}: ${title}`.trim(),
+    patchLine,
+    `proposal ${proposalId}: ${title}`.trim(),
     `changed files: ${changedFiles.length}`
   ];
 

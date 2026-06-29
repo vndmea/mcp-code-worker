@@ -67,6 +67,8 @@ describe("task session report", () => {
     });
 
     expect(report).toContain("# Task Session Report");
+    expect(report).toContain("## Executive Summary");
+    expect(report).toContain("Review completed successfully.");
     expect(report).toContain("Task ID: task-1");
     expect(report).toContain("Validation passed across 1 executed check(s).");
     expect(report).toContain("No recovery guidance recorded.");
@@ -141,6 +143,9 @@ describe("task session report", () => {
     });
 
     expect(report).toContain("Recovery Guidance");
+    expect(report).toContain(
+      "Patch applied, but validation failed afterward. Use the recovery guidance before making more repository changes."
+    );
     expect(report).toContain("git restore --worktree -- src/demo.ts");
     expect(report).toContain(
       "Patch applied but validation failed; use the recovery guidance and rerun validation."

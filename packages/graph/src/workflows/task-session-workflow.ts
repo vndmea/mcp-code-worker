@@ -29,6 +29,7 @@ import {
   type FixErrorWorkflowOutput
 } from "./fix-error-workflow.js";
 import {
+  isPlaceholderPatchProposal,
   runPatchProposalWorkflow,
   type PatchProposalWorkflowOutput
 } from "./patch-proposal-workflow.js";
@@ -890,8 +891,16 @@ const executePatchProposalStep = async (input: {
     patchResult.inspection,
     input.allowWriteSession
   );
-  finalizeStep(proposalStep, "success", {
+  const placeholderProposal = isPlaceholderPatchProposal({
+    proposal: patchResult.proposal,
+    inspection: patchResult.inspection,
+    warnings: patchResult.warnings
+  });
+  finalizeStep(proposalStep, placeholderProposal ? "denied" : "success", {
     artifactPath: proposalPath,
+    ...(placeholderProposal
+      ? { errors: patchResult.inspection.blockedReasons }
+      : {}),
     warnings: patchResult.warnings
   });
   finalizeStep(
