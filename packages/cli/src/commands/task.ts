@@ -20,6 +20,7 @@ import {
   writeHumanText,
   writeJson
 } from "../output.js";
+import { resolveCommandContext } from "./command-runtime.js";
 
 const formatTaskSessionSummaryText = (summary: Record<string, unknown>): string[] => {
   const taskId = typeof summary["taskId"] === "string" ? summary["taskId"] : "unknown-task";
@@ -203,15 +204,8 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
         typecheck: boolean;
         worker: string;
       }) => {
-        const context = await resolveExecutionContext({
-          cliOverrides: {
-            ...(options.allowWrite
-              ? {
-                  allowWrite: true,
-                  dryRun: false
-                }
-              : {})
-          }
+        const context = await resolveCommandContext({
+          allowWrite: options.allowWrite
         });
         const result = await runTaskSessionWorkflow({
           context,
@@ -324,15 +318,8 @@ export const registerTaskCommand = (program: Command, io: CliIo): void => {
           summary: boolean;
         }
       ) => {
-        const context = await resolveExecutionContext({
-          cliOverrides: {
-            ...(options.allowWrite
-              ? {
-                  allowWrite: true,
-                  dryRun: false
-                }
-              : {})
-          }
+        const context = await resolveCommandContext({
+          allowWrite: options.allowWrite
         });
         const result = await resumeTaskSessionWorkflow({
           context,

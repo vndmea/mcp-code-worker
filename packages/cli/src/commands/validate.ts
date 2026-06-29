@@ -1,13 +1,13 @@
 import type { Command } from "commander";
 
 import {
-  resolveExecutionContext,
   summarizeValidationReport
 } from "@mcp-code-worker/core";
 import { runRepositoryValidation } from "@mcp-code-worker/tools";
 
 import type { CliIo } from "../index.js";
 import { isHumanOutput, writeJson, writeText } from "../output.js";
+import { resolveCommandContext } from "./command-runtime.js";
 
 const formatValidationText = (
   summary: ReturnType<typeof summarizeValidationReport>
@@ -69,10 +69,8 @@ export const registerValidateCommand = (program: Command, io: CliIo): void => {
         test: boolean;
         typecheck: boolean;
       }) => {
-        const context = await resolveExecutionContext({
-          cliOverrides: {
-            ...(options.execute ? { dryRun: false } : {})
-          }
+        const context = await resolveCommandContext({
+          execute: options.execute
         });
         const result = await runRepositoryValidation(context, {
           all: options.all,

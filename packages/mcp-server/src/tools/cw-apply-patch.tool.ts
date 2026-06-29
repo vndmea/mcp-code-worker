@@ -5,6 +5,7 @@ import { applyPatchProposal } from "@mcp-code-worker/tools";
 
 import {
   createAllowWriteCliOverrides,
+  createExecuteCliOverrides,
   resolveToolContext
 } from "./tool-runtime.js";
 import type { CwToolDefinition } from "./tool-types.js";
@@ -34,7 +35,7 @@ export const cwApplyPatchTool: CwToolDefinition<
         ...createAllowWriteCliOverrides(args.allowWrite, {
           dryRunWhenDisallowed: false
         }),
-        dryRun: false
+        ...createExecuteCliOverrides(true)
       }
     });
     const proposal = PatchProposalSchema.parse(args.patchProposal);

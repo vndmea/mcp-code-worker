@@ -17,6 +17,7 @@ import {
 
 import type { CliIo } from "../index.js";
 import { writeOutput } from "../output.js";
+import { resolveCommandContext } from "./command-runtime.js";
 import {
   buildWorkerReadinessReport,
   formatWorkerReadinessResult
@@ -204,11 +205,9 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
         tag: string[];
         worker: string;
       }) => {
-        const context = await resolveExecutionContext({
-          cliOverrides: {
-            allowWrite: options.allowWrite,
-            dryRun: !options.allowWrite
-          }
+        const context = await resolveCommandContext({
+          allowWrite: options.allowWrite,
+          writeMode: "require-flag"
         });
         const workerId = options.worker;
         const existing = await getWorkerRegistration(
@@ -253,11 +252,9 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
     .argument("<workerId>", "Worker registry id")
     .option("--allow-write", "Persist the removal", false)
     .action(async (workerId: string, options: { allowWrite: boolean }) => {
-      const context = await resolveExecutionContext({
-        cliOverrides: {
-          allowWrite: options.allowWrite,
-          dryRun: !options.allowWrite
-        }
+      const context = await resolveCommandContext({
+        allowWrite: options.allowWrite,
+        writeMode: "require-flag"
       });
       const result = await removeWorkerRegistration(
         context,

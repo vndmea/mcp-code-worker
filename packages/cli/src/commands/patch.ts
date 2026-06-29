@@ -20,6 +20,7 @@ import {
   writeOutput,
   writeText
 } from "../output.js";
+import { resolveCommandContext } from "./command-runtime.js";
 
 const formatPatchInspectResult = (result: {
   inspection: {
@@ -158,10 +159,8 @@ export const registerPatchCommand = (program: Command, io: CliIo): void => {
     .argument("<patchFile>", "Patch proposal file")
     .option("--scope <scope>", "Restrict inspection to a repository scope")
     .action(async (patchFile: string, options: { scope?: string }) => {
-      const context = await resolveExecutionContext({
-        cliOverrides: {
-          dryRun: false
-        }
+      const context = await resolveCommandContext({
+        forceExecute: true
       });
       const proposal = await parsePatchProposalFile(patchFile, context.rootDir);
       const inspection = await inspectPatch(context, proposal, {
@@ -206,11 +205,11 @@ export const registerPatchCommand = (program: Command, io: CliIo): void => {
           typecheck: boolean;
         }
       ) => {
-        const context = await resolveExecutionContext({
-          cliOverrides: {
-            allowWrite: options.allowWrite,
-            dryRun: false
-          }
+        const context = await resolveCommandContext({
+          allowWrite: options.allowWrite,
+          dryRunWhenDisallowed: false,
+          forceExecute: true,
+          writeMode: "require-flag"
         });
         const proposal = await parsePatchProposalFile(patchFile, context.rootDir);
         const result = await applyPatchProposal(context, proposal, {

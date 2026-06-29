@@ -9,12 +9,12 @@ import {
   getCwWorkspaceRunsDir,
   getCwWorkspaceRunsDirFromStorageDir,
   loadCwConfig,
-  resolveExecutionContext,
   writeAuditEvent
 } from "@mcp-code-worker/core";
 
 import type { CliIo } from "../index.js";
 import { formatDisplayPath, writeOutput } from "../output.js";
+import { resolveCommandContext } from "./command-runtime.js";
 
 interface CleanupResult {
   deleted: string[];
@@ -195,11 +195,9 @@ const registerCleanupSubcommand = (
         allowWrite: boolean;
         olderThanDays?: string;
       }) => {
-        const context = await resolveExecutionContext({
-          cliOverrides: {
-            allowWrite: options.allowWrite,
-            dryRun: !options.allowWrite
-          }
+        const context = await resolveCommandContext({
+          allowWrite: options.allowWrite,
+          writeMode: "require-flag"
         });
         const config = await loadCwConfig(context.rootDir);
         const retentionDays = Number.parseInt(

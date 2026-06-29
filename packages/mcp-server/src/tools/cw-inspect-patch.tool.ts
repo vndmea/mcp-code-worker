@@ -4,7 +4,10 @@ import { PatchProposalSchema } from "@mcp-code-worker/core";
 import { inspectPatch } from "@mcp-code-worker/tools";
 
 import type { CwToolDefinition } from "./tool-types.js";
-import { resolveToolContext } from "./tool-runtime.js";
+import {
+  createExecuteCliOverrides,
+  resolveToolContext
+} from "./tool-runtime.js";
 
 const inputSchema = z.object({
   patchProposal: z.unknown(),
@@ -20,9 +23,7 @@ export const cwInspectPatchTool: CwToolDefinition<
   inputSchema,
   execute: async (args) => {
     const context = await resolveToolContext({
-      cliOverrides: {
-        dryRun: false
-      }
+      cliOverrides: createExecuteCliOverrides(true)
     });
     const proposal = PatchProposalSchema.parse(args.patchProposal);
 

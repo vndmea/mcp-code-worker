@@ -7,7 +7,10 @@ import { runRepositoryValidation } from "@mcp-code-worker/tools";
 
 import type { CwToolDefinition } from "./tool-types.js";
 import { workflowOutputOptionShape } from "./output-options.js";
-import { resolveToolContext } from "./tool-runtime.js";
+import {
+  createExecuteCliOverrides,
+  resolveToolContext
+} from "./tool-runtime.js";
 
 const inputSchema = z.object({
   typecheck: z.boolean().optional(),
@@ -27,7 +30,7 @@ export const cwValidateRepositoryTool: CwToolDefinition<
   inputSchema,
   execute: async (args) => {
     const context = await resolveToolContext({
-      cliOverrides: args.execute ? { dryRun: false } : {}
+      cliOverrides: createExecuteCliOverrides(args.execute)
     });
 
     const result = await runRepositoryValidation(context, {

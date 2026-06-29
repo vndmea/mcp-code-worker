@@ -1,22 +1,15 @@
 import {
+  createAllowWriteCliOverrides,
+  createExecuteCliOverrides,
   resolveExecutionContext,
   writeAuditEvent,
   type ExecutionContext,
   type ExecutionContextOverrides
 } from "@mcp-code-worker/core";
-
-export const createAllowWriteCliOverrides = (
-  allowWrite: boolean | undefined,
-  options: {
-    dryRunWhenDisallowed?: boolean;
-  } = {}
-): ExecutionContextOverrides =>
-  allowWrite === undefined
-    ? {}
-    : {
-        allowWrite,
-        dryRun: allowWrite ? false : (options.dryRunWhenDisallowed ?? true)
-      };
+export {
+  createAllowWriteCliOverrides,
+  createExecuteCliOverrides
+};
 
 export const resolveToolContext = async (options: {
   cliOverrides?: ExecutionContextOverrides;
