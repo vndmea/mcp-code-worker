@@ -54,6 +54,59 @@ const buildProfileWarnings = (
         ...profile.warnings
       ];
 
+const buildExecutionProfileRefreshAction = (workerId: string): string =>
+  `Run 'cw worker interview --worker ${workerId} --save' to refresh the persisted profile before routing new tasks.`;
+
+const buildUnavailableExecutionProfile = (input: {
+  reason: string;
+  source: "missing" | "stale" | "incompatible" | "provider-error";
+  workerContext: ExecutionContext;
+  workerId: string;
+}): WorkerCapabilityProfile => {
+  const refreshAction = buildExecutionProfileRefreshAction(input.workerId);
+
+  return {
+    workerId: input.workerId,
+    provider: input.workerContext.workerModel.provider,
+    model: input.workerContext.workerModel.model,
+    status: "not-qualified",
+    supportedTaskTypes: [],
+    unsupportedTaskTypes: ["execution-profile-unavailable"],
+    score: {
+      instructionFollowing: 0,
+      structuredOutput: 0,
+      reasoning: 0,
+      codeQuality: 0,
+      domainKnowledge: 0,
+      reliability: 0
+    },
+    risks: [input.reason],
+    warnings: [`${input.reason} ${refreshAction}`],
+    routingPolicy: {
+      maxTaskComplexity: "low",
+      requiresHostReview: true,
+      allowCodegen: false,
+      allowPatchGeneration: false,
+      allowDomainTasks: false
+    },
+    evaluatedAt: new Date().toISOString(),
+    admission: {
+      passed: false,
+      blockingReasons: [input.reason]
+    },
+    ...(input.source === "provider-error"
+      ? {
+          interviewDiagnostics: {
+            outcome: "provider-error" as const,
+            providerInvocationFailures: 1,
+            failedTaskCount: 0,
+            recommendedActions: [refreshAction]
+          }
+        }
+      : {})
+  };
+};
+
 export const resolveWorkerCapabilityProfileForExecution = async (input: {
   providedProfile?: WorkerCapabilityProfile | null;
   requireProfile?: boolean;
@@ -81,24 +134,16 @@ export const resolveWorkerCapabilityProfileForExecution = async (input: {
     };
   }
 
-  const interviewResult = await runWorkerInterviewWorkflow({
-    context: input.workerContext,
-    workerId: resolution.workerId,
-    modelConfig: input.workerContext.workerModel
+  const profile = buildUnavailableExecutionProfile({
+    reason: resolution.freshness.reason,
+    source: resolution.source,
+    workerContext: input.workerContext,
+    workerId: resolution.workerId
   });
 
-  const sourceWarning =
-    resolution.source === "missing"
-      ? `Worker profile for ${resolution.workerId} was missing; ran a fresh interview for this invocation.`
-      : resolution.source === "stale"
-        ? `Worker profile for ${resolution.workerId} was stale; ran a fresh interview for this invocation.`
-        : resolution.source === "provider-error"
-          ? `Worker profile for ${resolution.workerId} looked like a provider/configuration failure; ran a fresh interview for this invocation.`
-          : `Worker profile for ${resolution.workerId} was incompatible with the current worker model; ran a fresh interview for this invocation.`;
-
   return {
-    profile: interviewResult.profile,
-    warnings: [sourceWarning, ...buildProfileWarnings(interviewResult.profile)]
+    profile,
+    warnings: buildProfileWarnings(profile)
   };
 };
 

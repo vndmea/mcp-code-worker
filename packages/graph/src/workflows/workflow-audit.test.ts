@@ -2,8 +2,15 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { createExecutionContextFromEnv, listAuditEvents } from "@mcp-code-worker/core";
-import { saveWorkerRegistration } from "@mcp-code-worker/models";
+import {
+  createExecutionContextFromEnv,
+  listAuditEvents,
+  WorkerCapabilityProfileSchema
+} from "@mcp-code-worker/core";
+import {
+  saveWorkerProfile,
+  saveWorkerRegistration
+} from "@mcp-code-worker/models";
 import { runHostWorkerWorkflow } from "./host-worker-workflow.js";
 import { describe, expect, it } from "vitest";
 
@@ -20,13 +27,54 @@ const createRootDir = async () => {
 
 const workerId = "mock:audit-worker";
 
+const createProfile = () =>
+  WorkerCapabilityProfileSchema.parse({
+    workerId,
+    provider: "mock",
+    model: "gpt-5.4-mini",
+    status: "qualified",
+    supportedTaskTypes: [
+      "summarization",
+      "code-understanding",
+      "log-analysis",
+      "json-extraction",
+      "review-lite",
+      "risk-analysis",
+      "codegen",
+      "test-generation",
+      "validation-fix",
+      "doc-generation"
+    ],
+    unsupportedTaskTypes: [],
+    score: {
+      instructionFollowing: 0.9,
+      structuredOutput: 0.9,
+      reasoning: 0.85,
+      codeQuality: 0.82,
+      domainKnowledge: 0.78,
+      reliability: 0.88
+    },
+    risks: [],
+    warnings: [],
+    routingPolicy: {
+      maxTaskComplexity: "medium",
+      requiresHostReview: false,
+      allowCodegen: true,
+      allowPatchGeneration: true,
+      allowDomainTasks: true
+    },
+    evaluatedAt: new Date().toISOString()
+  });
+
 const registerWorker = async (rootDir: string): Promise<void> => {
+  const context = createExecutionContextFromEnv(undefined, {
+    allowWrite: true,
+    dryRun: false,
+    rootDir
+  });
+
   await saveWorkerRegistration(
-    createExecutionContextFromEnv(undefined, {
-      allowWrite: true,
-      dryRun: false,
-      rootDir
-    }),
+    context,
     {
       workerId,
       provider: "mock",
@@ -38,6 +86,7 @@ const registerWorker = async (rootDir: string): Promise<void> => {
     },
     true
   );
+  await saveWorkerProfile(context, createProfile(), true);
 };
 
 describe("workflow audit events", () => {

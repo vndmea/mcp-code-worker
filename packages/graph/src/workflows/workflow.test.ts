@@ -8,7 +8,10 @@ import {
   createExecutionContextFromEnv,
   type WorkerCapabilityProfile
 } from "@mcp-code-worker/core";
-import { saveWorkerRegistration } from "@mcp-code-worker/models";
+import {
+  saveWorkerProfile,
+  saveWorkerRegistration
+} from "@mcp-code-worker/models";
 import {
   runHostWorkerWorkflow,
   runWorkerInterviewWorkflow
@@ -108,13 +111,18 @@ const createProfile = (
 
 const workerId = "mock:worker-model";
 
-const registerWorker = async (rootDir: string): Promise<void> => {
+const registerWorker = async (
+  rootDir: string,
+  options: { persistProfile?: boolean } = {}
+): Promise<void> => {
+  const context = createExecutionContextFromEnv(undefined, {
+    allowWrite: true,
+    dryRun: false,
+    rootDir
+  });
+
   await saveWorkerRegistration(
-    createExecutionContextFromEnv(undefined, {
-      allowWrite: true,
-      dryRun: false,
-      rootDir
-    }),
+    context,
     {
       workerId,
       provider: "mock",
@@ -126,6 +134,18 @@ const registerWorker = async (rootDir: string): Promise<void> => {
     },
     true
   );
+
+  if (options.persistProfile ?? true) {
+    await saveWorkerProfile(
+      context,
+      createProfile({
+        workerId,
+        provider: "mock",
+        model: "worker-model"
+      }),
+      true
+    );
+  }
 };
 
 describe("host worker workflow", () => {
@@ -157,6 +177,33 @@ describe("host worker workflow", () => {
     expect(result.qualityGate.workflowStatus).toBe("completed");
     expect(result.qualityGate.answerStatus).toBe("complete");
     expect(result.finalResult.status).toBe("success");
+  });
+
+  it("blocks task execution when no persisted worker profile is available", async () => {
+    const rootDir = await createWorkspace();
+    await registerWorker(rootDir, { persistProfile: false });
+
+    const result = await runHostWorkerWorkflow({
+      context: createExecutionContextFromEnv(undefined, {
+        dryRun: true,
+        allowWrite: false,
+        rootDir
+      }),
+      goal: "Review the selected files for id-generation regressions",
+      taskType: "review-lite",
+      workerId,
+      files: ["packages/core/src/generateId.ts"]
+    });
+
+    expect(result.workerResult).toBeNull();
+    expect(result.execution.state).toBe("blocked_by_policy");
+    expect(result.qualityGate.failureStages).toContain("worker-blocked-by-policy");
+    expect(result.warnings.join("\n")).toContain(
+      "No persisted worker profile found for mock:worker-model."
+    );
+    expect(result.warnings.join("\n")).toContain(
+      "cw worker interview --worker mock:worker-model --save"
+    );
   });
 
   it("keeps strict explicit file mode narrow without byte budget failures", async () => {

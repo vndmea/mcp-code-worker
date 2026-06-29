@@ -61,8 +61,10 @@ const createWriteContext = (rootDir: string) =>
 const workerId = "mock:gpt-5.4-mini";
 
 const registerWorker = async (rootDir: string): Promise<void> => {
+  const context = createWriteContext(rootDir);
+
   await saveWorkerRegistration(
-    createWriteContext(rootDir),
+    context,
     {
       workerId,
       provider: "mock",
@@ -74,6 +76,7 @@ const registerWorker = async (rootDir: string): Promise<void> => {
     },
     true
   );
+  await saveWorkerProfile(context, createProfile(), true);
 };
 
 const createProfile = (overrides: Record<string, unknown> = {}) =>
