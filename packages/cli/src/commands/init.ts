@@ -641,7 +641,7 @@ const collectInitSetupOptions = async (
       ? "Primary worker name?"
       : "Additional worker name?";
     const suggestedWorkerId = isDefault
-      ? "default-worker"
+      ? "primary-worker"
       : `worker-${workerSummaries.length + 1}`;
     let workerId = "";
 

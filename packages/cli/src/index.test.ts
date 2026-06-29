@@ -800,7 +800,7 @@ describe("cli parsing", () => {
           "api",
           "guided-worker",
           "mock",
-          "default-worker",
+          "primary-worker",
           "skip",
           false,
           false
@@ -881,9 +881,9 @@ describe("cli parsing", () => {
           true,
           "custom",
           "api",
-          "default-worker",
+          "primary-worker-model",
           "mock",
-          "default-worker",
+          "primary-worker",
           "skip",
           true,
           "custom",
@@ -922,12 +922,12 @@ describe("cli parsing", () => {
       };
 
       expect(result.applied).toBe(true);
-      expect(result.worker.workerId).toBe("default-worker");
+      expect(result.worker.workerId).toBe("primary-worker");
       expect(result.worker.additionalWorkers[0]?.workerId).toBe("extra-worker");
       expect(savedConfig.workerModel?.provider).toBe("mock");
-      expect(savedConfig.workerModel?.model).toBe("default-worker");
+      expect(savedConfig.workerModel?.model).toBe("primary-worker-model");
       expect(savedRegistry.workers.map((worker) => worker.workerId)).toEqual(
-        expect.arrayContaining(["default-worker", "extra-worker"])
+        expect.arrayContaining(["primary-worker", "extra-worker"])
       );
     });
   });
