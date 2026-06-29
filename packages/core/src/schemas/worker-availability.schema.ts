@@ -10,7 +10,6 @@ export const WorkerAvailabilityReasonCodeSchema = z.enum([
   "profile-missing",
   "profile-provider-error",
   "profile-stale",
-  "worker-id-required",
   "worker-not-qualified",
   "worker-resolution-failed"
 ]);
@@ -57,7 +56,7 @@ export const WorkerAvailabilitySnapshotSchema = z.object({
   status: AvailabilityStatusSchema,
   summary: z.string().min(1),
   unavailableReasonType: WorkerAvailabilityReasonCodeSchema,
-  workerId: z.string().min(1).optional()
+  workerId: z.string().min(1)
 });
 
 export type WorkerAvailabilityReasonCode = z.infer<

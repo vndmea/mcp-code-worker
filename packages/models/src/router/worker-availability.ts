@@ -139,11 +139,9 @@ const buildSummary = (input: {
   canRunPatchGeneration: boolean;
   status: WorkerAvailabilitySnapshot["status"];
   unavailableReasonType: WorkerAvailabilityReasonCode;
-  workerId?: string;
+  workerId: string;
 }): string => {
-  const workerLabel = input.workerId
-    ? `Worker ${input.workerId}`
-    : "The selected worker";
+  const workerLabel = `Worker ${input.workerId}`;
 
   if (input.status === "ready") {
     return input.canRunPatchGeneration
@@ -154,8 +152,6 @@ const buildSummary = (input: {
   switch (input.unavailableReasonType) {
     case "config-invalid":
       return `${workerLabel} is unavailable for formal tasks because config.json is invalid.`;
-    case "worker-id-required":
-      return "Formal worker readiness requires an explicit worker id.";
     case "worker-resolution-failed":
       return `${workerLabel} is unavailable for formal tasks because worker resolution failed.`;
     case "profile-missing":
@@ -179,24 +175,17 @@ const buildNextSteps = (input: {
   checks: WorkerAvailabilityChecks;
   status: WorkerAvailabilitySnapshot["status"];
   unavailableReasonType: WorkerAvailabilityReasonCode;
-  workerId?: string;
+  workerId: string;
 }): string[] => {
   const actions: string[] = [];
 
-  if (input.unavailableReasonType === "worker-id-required") {
-    actions.push(
-      "Rerun with --worker <id> before checking formal worker readiness."
-    );
-  }
-
-  if (input.workerId && input.checks.registry.status === "missing") {
+  if (input.checks.registry.status === "missing") {
     actions.push(
       `Register the worker first: cw worker register --worker ${input.workerId} --provider <provider> --model <model> --allow-write`
     );
   }
 
   if (
-    input.workerId &&
     ["missing", "stale", "incompatible", "provider-error"].includes(
       input.checks.profile.status
     )
@@ -206,20 +195,19 @@ const buildNextSteps = (input: {
     );
   }
 
-  if (input.workerId && input.checks.probe.status === "failed") {
+  if (input.checks.probe.status === "failed") {
     actions.push(
       `Fix connectivity, then rerun: cw worker readiness --worker ${input.workerId} --probe`
     );
   }
 
-  if (input.workerId && input.unavailableReasonType === "worker-not-qualified") {
+  if (input.unavailableReasonType === "worker-not-qualified") {
     actions.push(
       `Keep this worker out of formal tasks until it qualifies. Re-run onboarding after fixing the weak capability areas: cw worker interview --worker ${input.workerId} --save`
     );
   }
 
   if (
-    input.workerId &&
     input.status === "ready" &&
     ["missing", "not-qualified"].includes(input.checks.benchmark.status)
   ) {
@@ -229,7 +217,6 @@ const buildNextSteps = (input: {
   }
 
   if (
-    input.workerId &&
     actions.length === 0 &&
     input.checks.probe.status === "not-run"
   ) {
@@ -244,7 +231,7 @@ const buildNextSteps = (input: {
 export const buildWorkerAvailabilitySnapshot = async (input: {
   context: ExecutionContext;
   probe?: boolean;
-  workerId?: string;
+  workerId: string;
 }): Promise<WorkerAvailabilitySnapshot> => {
   const configResult = await loadCwConfig(input.context.rootDir);
   const requestedWorkerId = input.workerId;
@@ -257,15 +244,10 @@ export const buildWorkerAvailabilitySnapshot = async (input: {
             "missing",
             "No cw config.json was found. Runtime defaults are coming from built-in defaults plus bootstrap env."
           ),
-    registry: requestedWorkerId
-      ? defaultCheck(
-          "missing",
-          `Worker ${requestedWorkerId} has not been resolved yet.`
-        )
-      : defaultCheck(
-          "unavailable",
-          "Formal worker readiness requires an explicit worker id."
-        ),
+    registry: defaultCheck(
+      "missing",
+      `Worker ${requestedWorkerId} has not been resolved yet.`
+    ),
     profile: defaultCheck("not-produced", "Worker profile was not checked yet."),
     probe: defaultCheck("not-run", "No live probe was requested."),
     benchmark: defaultCheck(
@@ -282,60 +264,53 @@ export const buildWorkerAvailabilitySnapshot = async (input: {
   let resolvedContext = input.context;
   let resolvedWorkerModelError: string | null = null;
 
-  if (requestedWorkerId) {
-    const registration = await getWorkerRegistration(
-      input.context.rootDir,
-      requestedWorkerId,
-      input.context.cwStorageDir
-    );
-    checks.registry = registration
-      ? defaultCheck(
-          "registered",
-          `Worker ${requestedWorkerId} is registered in the local registry.`
-        )
-      : defaultCheck(
-          "missing",
-          `Worker ${requestedWorkerId} is not registered in the local registry.`
-        );
-
-    try {
-      const resolvedWorker = await resolveWorkerTarget({
-        context: input.context,
-        workerId: requestedWorkerId
-      });
-
-      resolvedWorkerId = resolvedWorker.workerId ?? requestedWorkerId;
-      resolvedContext = {
-        ...createExecutionContextWithWorkerModel(
-          input.context,
-          resolvedWorker.modelConfig
-        )
-      };
-      checks.registry = defaultCheck(
+  const registration = await getWorkerRegistration(
+    input.context.rootDir,
+    requestedWorkerId,
+    input.context.cwStorageDir
+  );
+  checks.registry = registration
+    ? defaultCheck(
         "registered",
-        `Worker ${resolvedWorkerId} resolves through the local registry.`
+        `Worker ${requestedWorkerId} is registered in the local registry.`
+      )
+    : defaultCheck(
+        "missing",
+        `Worker ${requestedWorkerId} is not registered in the local registry.`
       );
-    } catch (error) {
-      resolvedWorkerModelError =
-        error instanceof Error ? error.message : String(error);
-      checks.registry = defaultCheck("unavailable", resolvedWorkerModelError);
-    }
+
+  try {
+    const resolvedWorker = await resolveWorkerTarget({
+      context: input.context,
+      workerId: requestedWorkerId
+    });
+
+    resolvedWorkerId = resolvedWorker.workerId ?? requestedWorkerId;
+    resolvedContext = {
+      ...createExecutionContextWithWorkerModel(
+        input.context,
+        resolvedWorker.modelConfig
+      )
+    };
+    checks.registry = defaultCheck(
+      "registered",
+      `Worker ${resolvedWorkerId} resolves through the local registry.`
+    );
+  } catch (error) {
+    resolvedWorkerModelError =
+      error instanceof Error ? error.message : String(error);
+    checks.registry = defaultCheck("unavailable", resolvedWorkerModelError);
   }
 
   const profileResolution =
-    resolvedWorkerModelError || !requestedWorkerId
+    resolvedWorkerModelError
       ? null
       : await resolveWorkerProfile({
           context: resolvedContext,
           workerId: resolvedWorkerId
         });
 
-  if (!requestedWorkerId) {
-    checks.profile = defaultCheck(
-      "resolution-failed",
-      "Worker profile cannot be evaluated until a named worker is configured."
-    );
-  } else if (!profileResolution) {
+  if (!profileResolution) {
     checks.profile = defaultCheck(
       "resolution-failed",
       "Worker profile could not be evaluated because worker model resolution failed."
@@ -359,14 +334,12 @@ export const buildWorkerAvailabilitySnapshot = async (input: {
     );
   }
 
-  if (requestedWorkerId) {
-    checks.probe = await readProbeCheck(
-      resolvedContext,
-      resolvedWorkerId,
-      input.probe ?? false
-    );
-    checks.benchmark = await readBenchmarkCheck(resolvedContext, resolvedWorkerId);
-  }
+  checks.probe = await readProbeCheck(
+    resolvedContext,
+    resolvedWorkerId,
+    input.probe ?? false
+  );
+  checks.benchmark = await readBenchmarkCheck(resolvedContext, resolvedWorkerId);
 
   if (profileResolution?.profile) {
     checks.patchGeneration = profileResolution.profile.routingPolicy.allowPatchGeneration
@@ -385,9 +358,7 @@ export const buildWorkerAvailabilitySnapshot = async (input: {
           );
   }
 
-  const unavailableReasonType = requestedWorkerId
-    ? deriveUnavailableReasonType(checks)
-    : "worker-id-required";
+  const unavailableReasonType = deriveUnavailableReasonType(checks);
   const status = unavailableReasonType === "not-applicable"
     ? "ready"
     : "unavailable";

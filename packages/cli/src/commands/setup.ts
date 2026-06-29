@@ -1070,17 +1070,19 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
       workerReadiness.unavailableReasonType;
   }
 
-  const readiness = await buildWorkerAvailabilitySnapshot({
-    context: readinessWorkerPlan
-      ? createExecutionContextWithWorkerModel(
+  const readiness = readinessWorkerPlan
+    ? await buildWorkerAvailabilitySnapshot({
+        context: createExecutionContextWithWorkerModel(
           finalContext,
           buildPlannedWorkerModel(finalContext, readinessWorkerPlan)
-        )
-      : finalContext,
-    probe: readinessWorkerPlan?.probeWorker ?? normalizedOptions.probeWorker,
-    ...(readinessWorkerPlan ? { workerId: readinessWorkerPlan.workerId } : {})
-  });
-  applyWorkerAvailabilityToDoctorReport(finalDoctor, readiness);
+        ),
+        probe: readinessWorkerPlan.probeWorker,
+        workerId: readinessWorkerPlan.workerId
+      })
+    : null;
+  if (readiness) {
+    applyWorkerAvailabilityToDoctorReport(finalDoctor, readiness);
+  }
   const readinessSummary: string = finalDoctor.summary;
   const readinessCapabilities: SetupStepResult["details"] = {
     capabilities: finalDoctor.capabilities,
@@ -1096,7 +1098,13 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
 
   steps.push({
     id: "readiness-summary",
-    status: readiness.status === "ready" ? "completed" : "unavailable",
+    status: readiness
+      ? readiness.status === "ready"
+        ? "completed"
+        : "unavailable"
+      : finalDoctor.status === "ready"
+        ? "completed"
+        : "unavailable",
     command: "cw doctor",
     summary: readinessSummary,
     details: readinessCapabilities

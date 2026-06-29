@@ -11,7 +11,7 @@ export type WorkerReadinessReport = WorkerAvailabilitySnapshot;
 export const buildWorkerReadinessReport = async (input: {
   context: ExecutionContext;
   probe?: boolean;
-  workerId?: string;
+  workerId: string;
 }): Promise<WorkerReadinessReport> =>
   buildWorkerAvailabilitySnapshot(input);
 
