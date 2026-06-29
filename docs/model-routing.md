@@ -2,7 +2,7 @@
 
 CW keeps two separate concepts:
 
-- worker model defaults come from user-scoped config, while launch bootstrap values remain limited to environment-bound root/storage/safety inputs
+- worker model defaults come from user-scoped config, while launch identity metadata remains limited to process-level diagnostics
 - worker execution targets come from explicit named worker registrations plus an explicit `workerId`
 
 This means provider/model/base URL defaults still exist, but task execution no longer guesses which worker to run. Every worker execution flow now expects a registered worker name such as `--worker qwen-local`.

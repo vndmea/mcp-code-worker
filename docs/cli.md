@@ -49,9 +49,9 @@ Writes remain in dry-run mode unless a command explicitly enables repository wri
 
 `--allow-write-session` is narrower than `--allow-write`: it only permits local task artifacts under `cwStorageDir/runs`, not project file writes.
 
-For MCP clients, `cw mcp serve` does not take `--root`. Launch it from the intended repository root by default, or set `CW_WORKSPACE_DIR` when the client starts `cw` from some other directory.
+For MCP clients, `cw mcp serve` does not take `--root`. Launch it from the intended repository root so the active workspace binding is unambiguous.
 
-Treat `config.json` as the primary runtime config surface for worker, validation, safety, and local client defaults. Treat the MCP host snippet as launch-only: command, args, and optionally `CW_WORKSPACE_DIR` / `CW_STORAGE_DIR`.
+Treat `config.json` as the primary runtime config surface for worker, validation, safety, and local client defaults. Treat the MCP host snippet as launch-only: command and args only.
 
 For local client providers, `opencode` is the default command. Start with `cw init --preset opencode --allow-write`, then persist a different compatible CLI name or path in `config.json` through `cw init --worker-client-command <command> --allow-write` or a manual edit when needed.
 

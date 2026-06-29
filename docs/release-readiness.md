@@ -156,7 +156,7 @@ For each required document, confirm:
 - the described workflow can be reproduced with the documented install path
 - storage paths are described consistently with `~/.cw/workspaces/<workspace-id>/`
 - no unsupported platform, packaging, or client claims are made
-- examples that mention MCP root resolution align with `cw mcp serve` from the target workspace root and `CW_WORKSPACE_DIR`
+- examples that mention MCP root resolution align with `cw mcp serve` from the target workspace root
 
 ## MCP Readiness Checks
 
