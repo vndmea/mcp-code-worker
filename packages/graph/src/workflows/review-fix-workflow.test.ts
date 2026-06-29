@@ -138,6 +138,52 @@ describe("review workflow", () => {
     expect(summary.debug?.workerMetadata?.prompt).toBeTypeOf("string");
   });
 
+  it("falls back to workspace-root validation scripts for scoped reviews", async () => {
+    const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
+    await writeFile(
+      join(rootDir, "package.json"),
+      JSON.stringify(
+        {
+          scripts: {
+            typecheck: "node -e \"process.exit(0)\""
+          }
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+    await writeFile(
+      join(rootDir, "packages", "core", "package.json"),
+      JSON.stringify({ scripts: {} }, null, 2),
+      "utf8"
+    );
+
+    const result = await runReviewWorkflow({
+      context: createContext(rootDir),
+      scope: "packages/core",
+      workerId,
+      validate: {
+        typecheck: true
+      }
+    });
+
+    expect(result.validationReport.checks).toEqual([
+      expect.objectContaining({
+        name: "typecheck",
+        status: "dry-run",
+        scriptName: "typecheck",
+        resolutionSource: "canonical"
+      })
+    ]);
+    expect(result.validationReport.warnings).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("fell back to workspace-root script typecheck")
+      ])
+    );
+  });
+
   it("includes git diff context when requested", async () => {
     const rootDir = await createWorkspace(true);
     await registerWorker(rootDir);

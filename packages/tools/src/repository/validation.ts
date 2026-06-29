@@ -29,25 +29,39 @@ export interface RunRepositoryValidationOptions {
 
 type RequestedValidationCheck = "build" | "typecheck" | "lint" | "test";
 
+interface ValidationScriptExecutionPlan {
+  executionContext: ExecutionContext;
+  resolution: ReturnType<typeof resolveValidationScript>;
+  scopeSource: "scoped" | "workspace-root";
+}
+
 const appendNotRunChecks = (
   checks: ValidationCheck[],
-  scripts: Record<string, string>,
+  context: ExecutionContext,
   rootConfig: Awaited<ReturnType<typeof loadCwConfig>>,
+  rootScripts: Record<string, string>,
+  scopedContext: ExecutionContext,
+  scopedScripts: Record<string, string>,
+  scopedValidationRequested: boolean,
   checkNames: RequestedValidationCheck[]
 ): void => {
   for (const checkName of checkNames) {
-    const resolution = resolveValidationScript(
-      scripts,
-      rootConfig.config.validation,
-      checkName
-    );
+    const plan = resolveValidationExecutionPlan({
+      checkName,
+      context,
+      rootConfig,
+      rootScripts,
+      scopedContext,
+      scopedScripts,
+      scopedValidationRequested
+    });
 
     checks.push({
       name: checkName,
-      command: resolution.command ?? `pnpm run ${checkName}`,
+      command: plan.resolution.command ?? `pnpm run ${checkName}`,
       status: "not-run",
-      scriptName: resolution.scriptName,
-      resolutionSource: resolution.source
+      scriptName: plan.resolution.scriptName,
+      resolutionSource: plan.resolution.source
     });
   }
 };
@@ -60,6 +74,54 @@ const readScripts = async (rootDir: string): Promise<Record<string, string>> => 
   } catch {
     return {};
   }
+};
+
+const resolveValidationExecutionPlan = (input: {
+  checkName: RequestedValidationCheck;
+  context: ExecutionContext;
+  rootConfig: Awaited<ReturnType<typeof loadCwConfig>>;
+  rootScripts: Record<string, string>;
+  scopedContext: ExecutionContext;
+  scopedScripts: Record<string, string>;
+  scopedValidationRequested: boolean;
+}): ValidationScriptExecutionPlan => {
+  const scopedResolution = resolveValidationScript(
+    input.scopedScripts,
+    input.rootConfig.config.validation,
+    input.checkName
+  );
+
+  if (
+    !input.scopedValidationRequested ||
+    scopedResolution.source !== "missing" ||
+    input.scopedContext.rootDir === input.context.rootDir
+  ) {
+    return {
+      executionContext: input.scopedContext,
+      resolution: scopedResolution,
+      scopeSource: "scoped"
+    };
+  }
+
+  const rootResolution = resolveValidationScript(
+    input.rootScripts,
+    input.rootConfig.config.validation,
+    input.checkName
+  );
+
+  if (rootResolution.source !== "missing" && rootResolution.command) {
+    return {
+      executionContext: input.context,
+      resolution: rootResolution,
+      scopeSource: "workspace-root"
+    };
+  }
+
+  return {
+    executionContext: input.scopedContext,
+    resolution: scopedResolution,
+    scopeSource: "scoped"
+  };
 };
 
 const buildUnconfiguredCheck = (
@@ -130,11 +192,16 @@ export const runRepositoryValidation = async (
   options: RunRepositoryValidationOptions
 ): Promise<ValidationReport> => {
   const scopedContext = createScopedContext(context, options.scope);
-  const scripts = await readScripts(scopedContext.rootDir);
+  const scopedScripts = await readScripts(scopedContext.rootDir);
+  const rootScripts =
+    scopedContext.rootDir === context.rootDir
+      ? scopedScripts
+      : await readScripts(context.rootDir);
   const rootConfig = await loadCwConfig(context.rootDir);
   const checks: ValidationCheck[] = [];
   const warnings: string[] = [];
   const runAll = options.all ?? false;
+  const scopedValidationRequested = scopedContext.rootDir !== context.rootDir;
   const requestedChecks = [
     { enabled: runAll || options.build, name: "build" as const },
     { enabled: runAll || options.typecheck, name: "typecheck" as const },
@@ -147,11 +214,16 @@ export const runRepositoryValidation = async (
       continue;
     }
 
-    const resolution = resolveValidationScript(
-      scripts,
-      rootConfig.config.validation,
-      check.name
-    );
+    const plan = resolveValidationExecutionPlan({
+      checkName: check.name,
+      context,
+      rootConfig,
+      rootScripts,
+      scopedContext,
+      scopedScripts,
+      scopedValidationRequested
+    });
+    const resolution = plan.resolution;
 
     if (resolution.source === "missing" || !resolution.command) {
       checks.push(buildUnconfiguredCheck(check.name, resolution.triedScriptNames));
@@ -166,7 +238,16 @@ export const runRepositoryValidation = async (
           .map((candidate) => candidate.name);
 
         if (remainingChecks.length > 0) {
-          appendNotRunChecks(checks, scripts, rootConfig, remainingChecks);
+          appendNotRunChecks(
+            checks,
+            context,
+            rootConfig,
+            rootScripts,
+            scopedContext,
+            scopedScripts,
+            scopedValidationRequested,
+            remainingChecks
+          );
           warnings.push(
             `Validation stopped after ${check.name} was not configured. Skipped: ${remainingChecks.join(", ")}.`
           );
@@ -176,7 +257,7 @@ export const runRepositoryValidation = async (
       continue;
     }
 
-    const result = await runSafeCommand(resolution.command, scopedContext, {
+    const result = await runSafeCommand(resolution.command, plan.executionContext, {
       maxOutputBytes: 120_000,
       timeoutMs: VALIDATION_COMMAND_TIMEOUT_MS
     });
@@ -201,6 +282,12 @@ export const runRepositoryValidation = async (
       diagnosticSummary: buildDiagnosticSummary(result.stdout, result.stderr)
     });
 
+    if (plan.scopeSource === "workspace-root") {
+      warnings.push(
+        `Validation for ${check.name} fell back to workspace-root script ${resolution.scriptName} because no scoped script was available in ${scopedContext.rootDir}.`
+      );
+    }
+
     if (resolution.source === "configured") {
       warnings.push(
         `Validation for ${check.name} is using an explicit script mapping to ${resolution.scriptName}.`
@@ -220,7 +307,16 @@ export const runRepositoryValidation = async (
         .map((candidate) => candidate.name);
 
       if (remainingChecks.length > 0) {
-        appendNotRunChecks(checks, scripts, rootConfig, remainingChecks);
+        appendNotRunChecks(
+          checks,
+          context,
+          rootConfig,
+          rootScripts,
+          scopedContext,
+          scopedScripts,
+          scopedValidationRequested,
+          remainingChecks
+        );
         warnings.push(
           `Validation stopped after ${check.name} failed. Skipped: ${remainingChecks.join(", ")}.`
         );
