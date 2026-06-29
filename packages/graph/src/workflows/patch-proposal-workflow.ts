@@ -64,8 +64,7 @@ export const runPatchProposalWorkflow = async (
   );
   const workerModelResolution = await resolveWorkerTarget({
     context,
-    workerId: requestedWorkerId,
-    requireNamedWorker: true
+    workerId: requestedWorkerId
   });
   const workerContext = createExecutionContextWithWorkerModel(
     context,

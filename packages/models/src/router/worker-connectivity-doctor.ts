@@ -73,10 +73,9 @@ export const createWorkerConnectivityDoctorChecks = async (
   try {
     resolvedWorker = options.workerId
       ? await resolveWorkerTarget({
-          context,
-          workerId: options.workerId,
-          requireNamedWorker: true
-        })
+        context,
+        workerId: options.workerId
+      })
       : undefined;
     const probeConfig = createProbeConfig(
       resolvedWorker?.modelConfig ?? context.workerModel

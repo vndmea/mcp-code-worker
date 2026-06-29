@@ -287,8 +287,7 @@ const resolveTaskContext = async (
   );
   const workerModelResolution = await resolveWorkerTarget({
     context,
-    workerId: requestedWorkerId,
-    requireNamedWorker: true
+    workerId: requestedWorkerId
   });
   const resolvedWorkerId = workerModelResolution.workerId ?? requestedWorkerId;
   const workerContext = createExecutionContextWithWorkerModel(

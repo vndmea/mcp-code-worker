@@ -77,8 +77,7 @@ export const runWorkerInterviewOnboarding = async (input: {
     workerId: input.workerId,
     provider: input.provider,
     model: input.model,
-    baseURL: input.baseURL,
-    requireNamedWorker: true
+    baseURL: input.baseURL
   });
   const result = await runWorkerInterviewWorkflow({
     context: input.context,
@@ -115,8 +114,7 @@ export const runWorkerBenchmarkOnboarding = async (input: {
     workerId: input.workerId,
     provider: input.provider,
     model: input.model,
-    baseURL: input.baseURL,
-    requireNamedWorker: true
+    baseURL: input.baseURL
   });
   const benchmarkResult =
     input.benchmarkResult ??

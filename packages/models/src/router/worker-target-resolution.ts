@@ -12,15 +12,14 @@ export interface ResolveWorkerTargetInput {
   context: ExecutionContext;
   model?: string;
   provider?: string;
-  requireNamedWorker?: boolean;
-  workerId?: string;
+  workerId: string;
 }
 
 export interface ResolveWorkerTargetResult {
   modelConfig: ModelConfig;
-  source: "ad-hoc" | "registry";
+  source: "registry";
   warnings: string[];
-  workerId?: string;
+  workerId: string;
 }
 
 const requiresApiKey = (config: ModelConfig): boolean =>
@@ -83,25 +82,7 @@ export const resolveWorkerTarget = async (
 ): Promise<ResolveWorkerTargetResult> => {
   const chosenWorkerId = input.workerId;
 
-  if (!chosenWorkerId) {
-    if (input.requireNamedWorker) {
-      throw new AgentError(
-        "WORKER_ID_REQUIRED",
-        "No worker id was provided. Pass --worker <id> before continuing."
-      );
-    }
-
-    const modelConfig = mergeTargetModelConfig(input.context.workerModel, input);
-    assertApiKeyIfNeeded(undefined, modelConfig);
-
-    return {
-      modelConfig,
-      source: "ad-hoc",
-      warnings: []
-    };
-  }
-
-    const registration = await getWorkerRegistration(
+  const registration = await getWorkerRegistration(
     input.context.rootDir,
     chosenWorkerId,
     input.context.cwStorageDir
