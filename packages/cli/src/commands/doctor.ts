@@ -37,13 +37,6 @@ const HOST_MCP_CHECK_NAMES = [
 ] as const;
 
 const HOST_MCP_CHECK_NAME_SET = new Set<string>(HOST_MCP_CHECK_NAMES);
-const HOST_MCP_RUNTIME_ENV_KEYS = new Set([
-  "WORKER_MODEL_PROVIDER",
-  "WORKER_MODEL_NAME",
-  "WORKER_MODEL_BASE_URL",
-  "WORKER_MODEL_API_KEY",
-  "CW_WORKER_CLIENT_COMMAND"
-]);
 const SERVER_KEY = "mcp-code-worker";
 const MCP_CONNECTION_TIMEOUT_MS = 20_000;
 const MCP_CONNECTION_ATTEMPTS = 2;
@@ -57,7 +50,6 @@ interface HostMcpConfigInspection {
   host: McpHost;
   pathDiscoverySupported: boolean;
   rawContents: string | null;
-  runtimeEnvKeys: string[];
   serverEntryFound: boolean;
 }
 
@@ -186,8 +178,7 @@ const inspectCodexHostConfig = (
     rawContents: contents,
     serverEntryFound: false,
     args: [],
-    env: {},
-    runtimeEnvKeys: []
+    env: {}
   };
 
   if (!contents) {
@@ -262,10 +253,6 @@ const inspectCodexHostConfig = (
     }
   }
 
-  inspection.runtimeEnvKeys = Object.keys(inspection.env).filter((key) =>
-    HOST_MCP_RUNTIME_ENV_KEYS.has(key)
-  );
-
   return inspection;
 };
 
@@ -282,8 +269,7 @@ const inspectHostMcpConfig = async (
       rawContents: null,
       serverEntryFound: false,
       args: [],
-      env: {},
-      runtimeEnvKeys: []
+      env: {}
     };
   }
 
@@ -609,8 +595,7 @@ const createHostMcpDoctorChecks = async (
     inspection.serverEntryFound &&
     commandMatches &&
     argsMatch &&
-    envMatches &&
-    inspection.runtimeEnvKeys.length === 0;
+    envMatches;
   const foundSummary = inspection.serverEntryFound
     ? `command=${inspection.command ?? "(missing)"}; args=[${inspection.args.join(", ")}]; env={${Object.entries(inspection.env)
         .map(([key, value]) => `${key}=${value}`)
@@ -634,12 +619,6 @@ const createHostMcpDoctorChecks = async (
         .join(", ")}`
     );
   }
-  if (inspection.runtimeEnvKeys.length > 0) {
-    mismatchReasons.push(
-      `launch-only MCP env should not include ${inspection.runtimeEnvKeys.join(", ")}`
-    );
-  }
-
   checks.push({
     name: "host-config-valid",
     status: validHostSnippet ? "pass" : "fail",
