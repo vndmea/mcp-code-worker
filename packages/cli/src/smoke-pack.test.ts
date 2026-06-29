@@ -10,7 +10,7 @@ const execFile = promisify(execFileCallback);
 const repoRoot = process.cwd();
 const cliPackageDir = join(repoRoot, "packages", "cli");
 const publishDir = join(cliPackageDir, ".publish");
-const cwStorageRoot = (prefixDir: string): string => join(prefixDir, ".cw-home");
+const cwStorageRoot = (homeDir: string): string => join(homeDir, ".cw");
 const installedCwPath = (prefixDir: string): string =>
   join(prefixDir, "node_modules", ".bin", process.platform === "win32" ? "cw.cmd" : "cw");
 
@@ -78,8 +78,9 @@ describe("cli packed tarball smoke", () => {
 
   it("installs from npm pack output and runs the cw bin shim", async () => {
     const installPrefix = await trackTempDir("cw-pack-prefix-");
+    const homeDir = await trackTempDir("cw-pack-home-");
     const workspaceRoot = await trackTempDir("cw-pack-workspace-");
-    const cwHomeDir = cwStorageRoot(installPrefix);
+    const cwHomeDir = cwStorageRoot(homeDir);
 
     await runCommand("pnpm", ["run", "prepack"], cliPackageDir);
 
@@ -101,7 +102,11 @@ describe("cli packed tarball smoke", () => {
 
       const cwPath = installedCwPath(installPrefix);
       const commandEnv = {
-        ...process.env
+        ...process.env,
+        HOME: homeDir,
+        USERPROFILE: homeDir,
+        HOMEDRIVE: undefined,
+        HOMEPATH: undefined
       };
 
       const help = await runCommand(cwPath, ["--help"], workspaceRoot, commandEnv);
