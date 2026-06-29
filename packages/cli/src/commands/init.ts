@@ -95,6 +95,64 @@ const collect = (value: string, previous: string[]): string[] => [
   value
 ];
 
+const formatWorkerVerificationWarning = (
+  verificationDepth: "full" | "probe-only" | "skip"
+): string | null => {
+  if (verificationDepth === "full") {
+    return null;
+  }
+
+  if (verificationDepth === "probe-only") {
+    return [
+      "This only runs a connectivity probe.",
+      "cw will skip interview and benchmark, so no persisted worker profile or patch-generation qualification will be created.",
+      "Formal tasks may remain unavailable until you run those steps manually.",
+      "Continue anyway?"
+    ].join(" ");
+  }
+
+  return [
+    "This skips probe, interview, and benchmark.",
+    "cw will not verify connectivity, will not create a persisted worker profile, and will not establish patch-generation qualification.",
+    "Formal tasks may remain unavailable until you run those steps manually.",
+    "Continue anyway?"
+  ].join(" ");
+};
+
+const promptWorkerVerificationDepth = async (
+  prompter: InitPrompter
+): Promise<"full" | "probe-only" | "skip"> => {
+  while (true) {
+    const verificationDepth = await prompter.select<"full" | "probe-only" | "skip">(
+      "How much worker verification should init perform now?",
+      [
+        {
+          label: "Probe + interview + benchmark",
+          value: "full"
+        },
+        {
+          label: "Probe only",
+          value: "probe-only"
+        },
+        {
+          label: "Skip for now",
+          value: "skip"
+        }
+      ],
+      "probe-only"
+    );
+    const warning = formatWorkerVerificationWarning(verificationDepth);
+
+    if (!warning) {
+      return verificationDepth;
+    }
+
+    if (await prompter.confirm(warning, false)) {
+      return verificationDepth;
+    }
+  }
+};
+
 const normalizeConfirmAnswer = (
   value: string,
   defaultValue: boolean
@@ -621,26 +679,7 @@ const collectInitSetupOptions = async (
       workerId = candidate;
     }
 
-    const verificationDepth = await prompter.select<
-      "full" | "probe-only" | "skip"
-    >(
-      "How much worker verification should init perform now?",
-      [
-        {
-          label: "Probe + interview + benchmark",
-          value: "full"
-        },
-        {
-          label: "Probe only",
-          value: "probe-only"
-        },
-        {
-          label: "Skip for now",
-          value: "skip"
-        }
-      ],
-      "probe-only"
-    );
+    const verificationDepth = await promptWorkerVerificationDepth(prompter);
 
     return {
       apiKey,

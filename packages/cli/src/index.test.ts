@@ -841,6 +841,7 @@ describe("cli parsing", () => {
           "mock",
           "primary-worker",
           "skip",
+          true,
           false,
           false
         ])
@@ -866,6 +867,92 @@ describe("cli parsing", () => {
       expect(result.worker.workerProvider).toBe("mock");
       expect(result.worker.workerModel).toBe("guided-worker");
       await expect(readFile(getCwConfigPath(rootDir), "utf8")).rejects.toThrow();
+    });
+  });
+
+  it("warns before skipping worker qualification and re-prompts when the user declines", async () => {
+    await withTempCwd(async (rootDir) => {
+      const { io, output } = createIo();
+      const confirmMessages: string[] = [];
+      const confirmAnswers = [true, false, true, false, false, true, false];
+      const selectAnswers = ["mock", "skip", "full"];
+      const textAnswers = [rootDir, "primary-worker"];
+      const cli = buildCli(io, {
+        initPrompter: {
+          confirm: (message: string) => {
+            confirmMessages.push(message);
+            return Promise.resolve(confirmAnswers.shift() ?? false);
+          },
+          select: <T extends string>() =>
+            Promise.resolve(selectAnswers.shift() as T),
+          text: () => Promise.resolve(textAnswers.shift() ?? ""),
+          close: () => undefined
+        }
+      });
+
+      await cli.parseAsync(["node", "cw", "init"]);
+
+      const result = parseLastJson<{
+        applied: boolean;
+        worker: {
+          benchmarkWorker: boolean;
+          interviewWorker: boolean;
+          probeWorker: boolean;
+        };
+      }>(output);
+
+      expect(
+        confirmMessages.some((message) =>
+          message.includes("This skips probe, interview, and benchmark.")
+        )
+      ).toBe(true);
+      expect(result.applied).toBe(true);
+      expect(result.worker.probeWorker).toBe(true);
+      expect(result.worker.interviewWorker).toBe(true);
+      expect(result.worker.benchmarkWorker).toBe(true);
+    });
+  });
+
+  it("warns before probe-only verification and keeps the partial qualification when confirmed", async () => {
+    await withTempCwd(async (rootDir) => {
+      const { io, output } = createIo();
+      const confirmMessages: string[] = [];
+      const confirmAnswers = [true, false, true, true, false, true, false];
+      const selectAnswers = ["mock", "probe-only"];
+      const textAnswers = [rootDir, "primary-worker"];
+      const cli = buildCli(io, {
+        initPrompter: {
+          confirm: (message: string) => {
+            confirmMessages.push(message);
+            return Promise.resolve(confirmAnswers.shift() ?? false);
+          },
+          select: <T extends string>() =>
+            Promise.resolve(selectAnswers.shift() as T),
+          text: () => Promise.resolve(textAnswers.shift() ?? ""),
+          close: () => undefined
+        }
+      });
+
+      await cli.parseAsync(["node", "cw", "init"]);
+
+      const result = parseLastJson<{
+        applied: boolean;
+        worker: {
+          benchmarkWorker: boolean;
+          interviewWorker: boolean;
+          probeWorker: boolean;
+        };
+      }>(output);
+
+      expect(
+        confirmMessages.some((message) =>
+          message.includes("This only runs a connectivity probe.")
+        )
+      ).toBe(true);
+      expect(result.applied).toBe(true);
+      expect(result.worker.probeWorker).toBe(true);
+      expect(result.worker.interviewWorker).toBe(false);
+      expect(result.worker.benchmarkWorker).toBe(false);
     });
   });
 
@@ -925,12 +1012,14 @@ describe("cli parsing", () => {
           "primary-worker",
           "skip",
           true,
+          true,
           "custom",
           "api",
           "extra-worker",
           "mock",
           "extra-worker",
           "skip",
+          true,
           false,
           true,
           false
