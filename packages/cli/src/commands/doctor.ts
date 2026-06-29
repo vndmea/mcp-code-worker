@@ -9,10 +9,8 @@ import type { Command } from "commander";
 
 import {
   resolveExecutionContext,
-  type DoctorCapability,
   type DoctorCheck,
   type DoctorReport,
-  type DoctorStatus,
   type ExecutionContext,
   writeAuditEvent
 } from "@mcp-code-worker/core";
@@ -741,45 +739,6 @@ const createHostMcpDoctorChecks = async (
   return checks;
 };
 
-const buildHostMcpCapability = (
-  host: McpHost,
-  checks: DoctorCheck[]
-): DoctorCapability => {
-  const relevantChecks = checks.filter((check) => HOST_MCP_CHECK_NAME_SET.has(check.name));
-  const status: DoctorStatus = relevantChecks.every((check) => check.status === "pass")
-    ? "ready"
-    : "unavailable";
-
-  return {
-    name: "host-mcp-integration",
-    available: status === "ready",
-    status,
-    summary:
-      status === "ready"
-        ? `${host} host MCP wiring matches the recommended snippet and the stdio server is reachable.`
-        : `${host} host MCP wiring still needs attention before host-side discovery can be trusted.`
-  };
-};
-
-const applyHostMcpCapability = (
-  report: DoctorReport,
-  host: McpHost
-): void => {
-  const capability = buildHostMcpCapability(host, report.checks);
-  report.capabilities.push(capability);
-
-  if (capability.status === "unavailable") {
-    report.status = "unavailable";
-    report.ok = false;
-    report.summary =
-      report.summary.startsWith("unavailable:")
-        ? `${report.summary} Host MCP integration for ${host} also needs attention.`
-        : `unavailable: cw is bound to ${report.activeRootDir}, but host MCP integration for ${host} still needs attention before the workflow is reliable.`;
-  } else if (report.status === "ready") {
-    report.summary = `ready: cw is bound to ${report.activeRootDir}, core task workflows are available, and host MCP integration for ${host} is ready.`;
-  }
-};
-
 const formatDoctorReport = (report: DoctorReport): string[] => {
   const failedChecks = report.checks.filter((check) => check.status === "fail");
   const warningChecks = report.checks.filter((check) => check.status === "warning");
@@ -911,12 +870,8 @@ export const registerDoctorCommand = (program: Command, io: CliIo): void => {
         const report = await buildDoctorReport({
           additionalChecks: hostChecks,
           context,
+          hostMcpHost: options.mcp ? requestedHost : undefined,
           probe: options.probe,
-          transformReport: options.mcp
-            ? (currentReport) => {
-                applyHostMcpCapability(currentReport, requestedHost);
-              }
-            : undefined,
           workerId: options.worker
         });
 
