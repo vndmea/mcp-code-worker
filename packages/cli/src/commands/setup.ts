@@ -457,9 +457,12 @@ const buildProbeChecks = async (
 ): Promise<DoctorCheck[]> =>
   createWorkerDoctorChecks({
     ...context,
-    defaultWorkerId: workerId,
     workerModel
-  }, { probe: true, includeLocalClient: false });
+  }, {
+    probe: true,
+    includeLocalClient: false,
+    workerId
+  });
 
 const runSetupWorkerPlan = async (input: {
   allowWrite: boolean;
@@ -485,7 +488,7 @@ const runSetupWorkerPlan = async (input: {
       );
   let probeChecks: DoctorCheck[] = [];
   let interviewedProfile:
-    | Awaited<ReturnType<typeof runWorkerInterviewWorkflow>>["profile"]
+    | Awaited<ReturnType<typeof runWorkerInterviewOnboarding>>["profile"]
     | null = null;
   let interviewPersisted = false;
   const registrationAvailable =
@@ -842,15 +845,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
   const desiredConfig = buildDesiredConfig(configResult.config, normalizedOptions);
   const primaryWorkerModel = resolveSetupWorkerModel(context, desiredConfig);
   const workerPlans = buildSetupWorkerPlans(normalizedOptions, primaryWorkerModel);
-  const defaultWorkerPlan = workerPlans.find(
-    (plan) => plan.isDefault && plan.registerWorker
-  );
-  const configToWrite = defaultWorkerPlan
-    ? CwConfigSchema.parse({
-        ...desiredConfig,
-        defaultWorkerId: defaultWorkerPlan.workerId
-      })
-    : desiredConfig;
+  const configToWrite = desiredConfig;
   const registryState = await readWorkerRegistry(
     context.rootDir,
     context.cwStorageDir
@@ -908,7 +903,6 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
         : "The cw workspace config already matches the requested worker, validation, and safety settings.",
     details: {
       replacedInvalidConfig: Boolean(configResult.error),
-      defaultWorkerId: configToWrite.defaultWorkerId,
       safety: configToWrite.safety,
       workerClientCommand: configToWrite.workerClientCommand,
       workerModel: configToWrite.workerModel
@@ -1062,13 +1056,10 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
       continue;
     }
 
-    const readinessContext = {
-      ...createExecutionContextWithWorkerModel(
-        finalContext,
-        buildPlannedWorkerModel(finalContext, plan)
-      ),
-      defaultWorkerId: plan.workerId
-    };
+    const readinessContext = createExecutionContextWithWorkerModel(
+      finalContext,
+      buildPlannedWorkerModel(finalContext, plan)
+    );
     const workerReadiness = await buildWorkerAvailabilitySnapshot({
       context: readinessContext,
       probe: plan.probeWorker,
@@ -1081,13 +1072,10 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
 
   const readiness = await buildWorkerAvailabilitySnapshot({
     context: readinessWorkerPlan
-      ? {
-          ...createExecutionContextWithWorkerModel(
-            finalContext,
-            buildPlannedWorkerModel(finalContext, readinessWorkerPlan)
-          ),
-          defaultWorkerId: readinessWorkerPlan.workerId
-        }
+      ? createExecutionContextWithWorkerModel(
+          finalContext,
+          buildPlannedWorkerModel(finalContext, readinessWorkerPlan)
+        )
       : finalContext,
     probe: readinessWorkerPlan?.probeWorker ?? normalizedOptions.probeWorker,
     ...(readinessWorkerPlan ? { workerId: readinessWorkerPlan.workerId } : {})

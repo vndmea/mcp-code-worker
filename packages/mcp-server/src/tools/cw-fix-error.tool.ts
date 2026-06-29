@@ -16,6 +16,7 @@ const inputSchema = z.object({
   errorLog: z.string().optional(),
   errorLogFile: z.string().optional(),
   proposePatch: z.boolean().optional(),
+  workerId: z.string().min(1),
   scope: z.string().optional(),
   typecheck: z.boolean().optional(),
   lint: z.boolean().optional(),
@@ -37,6 +38,7 @@ export const cwFixErrorTool: CwToolDefinition<
       errorLog: args.errorLog,
       errorLogFile: args.errorLogFile,
       proposePatch: args.proposePatch,
+      workerId: args.workerId,
       scope: args.scope,
       validate: {
         typecheck: args.typecheck,

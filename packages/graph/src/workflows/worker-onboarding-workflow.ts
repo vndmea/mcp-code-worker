@@ -1,6 +1,5 @@
 import type {
   ExecutionContext,
-  ModelConfig,
   WorkerCapabilityProfile,
   WorkerInterviewPersistenceAdvice
 } from "@mcp-code-worker/core";

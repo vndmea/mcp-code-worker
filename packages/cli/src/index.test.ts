@@ -659,7 +659,6 @@ describe("cli parsing", () => {
       const savedConfig = JSON.parse(
         await readFile(getCwConfigPath(rootDir), "utf8")
       ) as {
-        defaultWorkerId?: string;
         workerClientCommand?: string;
         workerModel?: { apiKey?: string; model?: string };
         validation?: {
@@ -680,7 +679,6 @@ describe("cli parsing", () => {
 
       expect(savedConfig.workerModel?.model).toBe("setup-worker");
       expect(savedConfig.workerModel?.apiKey).toBe("setup-secret");
-      expect(savedConfig.defaultWorkerId).toBe("primary-worker");
       expect(savedConfig.workerClientCommand).toBe("node");
       expect(savedConfig.validation?.scripts?.typecheck).toContain("check-types");
       expect(savedConfig.validation?.scripts?.lint).toContain("lint:ci");
@@ -748,7 +746,6 @@ describe("cli parsing", () => {
       const savedConfig = JSON.parse(
         await readFile(getCwConfigPath(rootDir), "utf8")
       ) as {
-        defaultWorkerId?: string;
         safety?: {
           allowWrite?: boolean;
           dryRun?: boolean;
@@ -765,7 +762,6 @@ describe("cli parsing", () => {
       expect(result.paths.globalAgentsPath).toContain(".codex");
       expect(result.tips[0]).toContain("config.json");
       expect(openedPath).toBe(result.paths.cwConfigDir);
-      expect(savedConfig.defaultWorkerId).toBeUndefined();
       expect(savedConfig.safety?.dryRun).toBe(true);
       expect(savedConfig.safety?.allowWrite).toBe(false);
     });
@@ -894,7 +890,6 @@ describe("cli parsing", () => {
       const savedConfig = JSON.parse(
         await readFile(getCwConfigPath(rootDir), "utf8")
       ) as {
-        defaultWorkerId?: string;
         workerModel?: {
           model?: string;
           provider?: string;
@@ -909,7 +904,6 @@ describe("cli parsing", () => {
       expect(result.applied).toBe(true);
       expect(result.worker.workerId).toBe("default-worker");
       expect(result.worker.additionalWorkers[0]?.workerId).toBe("extra-worker");
-      expect(savedConfig.defaultWorkerId).toBe("default-worker");
       expect(savedConfig.workerModel?.provider).toBe("mock");
       expect(savedConfig.workerModel?.model).toBe("default-worker");
       expect(savedRegistry.workers.map((worker) => worker.workerId)).toEqual(
@@ -1292,7 +1286,6 @@ describe("cli parsing", () => {
     await withTempCwd(async (rootDir) => {
       const workerId = "readiness-worker";
       await writeCwConfig(rootDir, {
-        defaultWorkerId: workerId,
         workerModel: {
           provider: "mock",
           model: "gpt-5.4-mini"
@@ -1372,7 +1365,6 @@ describe("cli parsing", () => {
     await withTempCwd(async (rootDir) => {
       const workerId = "readiness-not-qualified-worker";
       await writeCwConfig(rootDir, {
-        defaultWorkerId: workerId,
         workerModel: {
           provider: "mock",
           model: "gpt-5.4-mini"
@@ -1468,6 +1460,7 @@ describe("cli parsing", () => {
     await withTempCwd(async (rootDir) => {
       await writeWorkspaceFixture(rootDir);
       await initGitRepo(rootDir);
+      await writeRegistry(rootDir, [createRegistration()]);
       const { io, output } = createIo();
       const cli = buildCli(io);
 
@@ -1476,6 +1469,8 @@ describe("cli parsing", () => {
         "cw",
         "review",
         "repo",
+        "--worker",
+        "mock:registered-worker",
         "--scope",
         "packages/core",
         "--typecheck"
@@ -1487,6 +1482,8 @@ describe("cli parsing", () => {
         "cw",
         "review",
         "diff",
+        "--worker",
+        "mock:registered-worker",
         "--base",
         "HEAD",
         "--head",
@@ -1501,6 +1498,8 @@ describe("cli parsing", () => {
         "cw",
         "review",
         "files",
+        "--worker",
+        "mock:registered-worker",
         "--file",
         "packages/core/src/index.ts"
       ]);
@@ -1542,6 +1541,8 @@ describe("cli parsing", () => {
         "cw",
         "fix",
         "error",
+        "--worker",
+        "mock:registered-worker",
         "--error-log-file",
         "tmp/error.log",
         "--scope",
@@ -1599,6 +1600,7 @@ describe("cli parsing", () => {
   it("uses cw config for review, validate, and task entrypoints", async () => {
     await withTempCwd(async (rootDir) => {
       await writeWorkspaceFixture(rootDir);
+      await writeRegistry(rootDir, [createRegistration()]);
       await writeCwConfig(rootDir, {
         context: {
           ignoredPaths: ["tmp"]
@@ -1617,6 +1619,8 @@ describe("cli parsing", () => {
         "cw",
         "review",
         "repo",
+        "--worker",
+        "mock:registered-worker",
         "--scope",
         "packages/core"
       ]);

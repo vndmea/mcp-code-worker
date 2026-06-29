@@ -455,7 +455,6 @@ describe("mcp tool registration", () => {
   it("benchmarks a worker and can persist capability updates through MCP", async () => {
     await withTempCwd(async (rootDir) => {
       await writeCwConfig(rootDir, {
-        defaultWorkerId: "default-worker",
         workerModel: {
           provider: "mock",
           model: "gpt-5.4-mini"
@@ -531,7 +530,7 @@ describe("mcp tool registration", () => {
       const result = await cwDoctorTool.execute({});
 
       expect(result.checks.some((check) => check.name === "worker-profile-store")).toBe(true);
-      expect(result.checks.some((check) => check.name === "default-worker-profile")).toBe(true);
+      expect(result.checks.some((check) => check.name === "worker-registry")).toBe(true);
     });
   });
 
@@ -539,8 +538,10 @@ describe("mcp tool registration", () => {
     await withTempCwd(async (rootDir) => {
       await writeWorkspaceFixture(rootDir);
       await initGitRepo(rootDir);
+      await writeRegistry(rootDir, [createRegistration()]);
 
       const repoReview = await cwReviewRepositoryTool.execute({
+        workerId: "default-worker",
         scope: "packages/core",
         typecheck: true,
         detailLevel: "full"
@@ -548,11 +549,13 @@ describe("mcp tool registration", () => {
       const diffReview = await cwReviewDiffTool.execute({
         base: "HEAD",
         head: "HEAD",
+        workerId: "default-worker",
         scope: "packages/core",
         detailLevel: "full"
       }) as ReviewWorkflowOutput;
       const fileReview = await cwReviewFilesTool.execute({
         files: ["packages/core/src/index.ts"],
+        workerId: "default-worker",
         detailLevel: "full"
       }) as ReviewWorkflowOutput;
       const validation = await cwValidateRepositoryTool.execute({
@@ -561,6 +564,7 @@ describe("mcp tool registration", () => {
       });
       const fix = await cwFixErrorTool.execute({
         errorLogFile: "tmp/error.log",
+        workerId: "default-worker",
         scope: "packages/core",
         detailLevel: "full"
       }) as FixErrorWorkflowOutput;
@@ -579,6 +583,7 @@ describe("mcp tool registration", () => {
     await withTempCwd(async (rootDir) => {
       await writeWorkspaceFixture(rootDir);
       await initGitRepo(rootDir);
+      await writeRegistry(rootDir, [createRegistration()]);
       await writeCwConfig(rootDir, {
         context: {
           ignoredPaths: ["tmp"]
@@ -586,6 +591,7 @@ describe("mcp tool registration", () => {
       });
 
       const repoReview = await cwReviewRepositoryTool.execute({
+        workerId: "default-worker",
         scope: "packages/core",
         detailLevel: "full"
       }) as ReviewWorkflowOutput;
@@ -599,6 +605,7 @@ describe("mcp tool registration", () => {
   it("keeps MCP strict file review scoped to explicit files", async () => {
     await withTempCwd(async (rootDir) => {
       await writeWorkspaceFixture(rootDir);
+      await writeRegistry(rootDir, [createRegistration()]);
       await writeFile(
         join(rootDir, "packages", "core", "src", "extra.ts"),
         "export const extra = true;\n",
@@ -615,6 +622,7 @@ describe("mcp tool registration", () => {
           "packages/core/src/index.ts",
           "packages/core/src/wide.ts"
         ],
+        workerId: "default-worker",
         strictFiles: true,
         detailLevel: "full"
       }) as ReviewWorkflowOutput;

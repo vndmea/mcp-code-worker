@@ -61,15 +61,26 @@ export const createLocalClientDoctorChecks = async (
 };
 
 export const createWorkerConnectivityDoctorChecks = async (
-  context: ExecutionContext
+  context: ExecutionContext,
+  options: {
+    workerId?: string;
+  } = {}
 ): Promise<DoctorCheck[]> => {
   let resolvedWorker:
     | Awaited<ReturnType<typeof resolveWorkerTarget>>
     | undefined;
 
   try {
-    resolvedWorker = await resolveWorkerTarget({ context });
-    const probeConfig = createProbeConfig(resolvedWorker.modelConfig);
+    resolvedWorker = options.workerId
+      ? await resolveWorkerTarget({
+          context,
+          workerId: options.workerId,
+          requireNamedWorker: true
+        })
+      : undefined;
+    const probeConfig = createProbeConfig(
+      resolvedWorker?.modelConfig ?? context.workerModel
+    );
     const router = new ModelRouter(probeConfig);
     const routed = router.route("worker");
     const result = await routed.provider.invoke(probeConfig, {
@@ -84,14 +95,16 @@ export const createWorkerConnectivityDoctorChecks = async (
       {
         name: "worker-connectivity",
         status: "pass",
-        message: `Resolved worker ${resolvedWorker.workerId} responded to the connectivity probe.`,
+        message: resolvedWorker?.workerId
+          ? `Resolved worker ${resolvedWorker.workerId} responded to the connectivity probe.`
+          : "The active worker model responded to the connectivity probe.",
         metadata: {
           baseURL: probeConfig.baseURL,
           model: probeConfig.model,
           provider: probeConfig.provider,
           responsePreview: summarizeWorkerResponse(result.text),
-          source: resolvedWorker.source,
-          workerId: resolvedWorker.workerId ?? context.defaultWorkerId
+          source: resolvedWorker?.source ?? "ad-hoc",
+          workerId: resolvedWorker?.workerId ?? options.workerId
         }
       }
     ];
@@ -108,14 +121,13 @@ export const createWorkerConnectivityDoctorChecks = async (
           clientCommand:
             resolvedWorker?.modelConfig.clientCommand ??
             context.workerModel.clientCommand,
-          defaultWorkerId: context.defaultWorkerId,
           error: message,
           model: resolvedWorker?.modelConfig.model ?? context.workerModel.model,
           provider:
             resolvedWorker?.modelConfig.provider ?? context.workerModel.provider,
           rootDir: context.rootDir,
-          source: resolvedWorker?.source,
-          workerId: resolvedWorker?.workerId ?? context.defaultWorkerId
+          source: resolvedWorker?.source ?? "ad-hoc",
+          workerId: resolvedWorker?.workerId ?? options.workerId
         }
       }
     ];

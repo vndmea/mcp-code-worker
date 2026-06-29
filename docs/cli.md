@@ -12,12 +12,12 @@ cw init
 cw init --preset mock --allow-write
 cw init --preset deepseek --allow-write
 cw init --preset opencode --allow-write
-cw review repo --scope packages/graph
-cw review diff --base main --head HEAD
-cw review files --file packages/graph/src/index.ts
+cw review repo --worker qwen-local --scope packages/graph
+cw review diff --worker qwen-local --base main --head HEAD
+cw review files --worker qwen-local --file packages/graph/src/index.ts
 cw validate --all
 cw validate --all --stop-on-failure --execute
-cw fix error --error-log-file ./tmp/tsc-error.log --scope packages/schema-codegen
+cw fix error --worker qwen-local --error-log-file ./tmp/tsc-error.log --scope packages/schema-codegen
 cw task start --goal "Fix failing typecheck" --scope packages/core --worker qwen-local --typecheck --error-log-file ./tmp/tsc-error.log --run-fix --allow-write-session
 cw task report <taskId>
 cw patch propose --goal "Fix failing typecheck" --scope packages/core --worker qwen-local
@@ -61,13 +61,13 @@ For instruction scoping, put repository-specific guidance in `./AGENTS.md` and g
 
 ## Review Commands
 
-- `cw review repo` builds repository context for a scope and can run deterministic validation.
-- `cw review diff` adds git diff context from `--base` and `--head`.
-- `cw review files` constrains review to an explicit file list and still honors optional `--scope`.
+- `cw review repo` builds repository context for a scope and can run deterministic validation. It now requires `--worker <workerId>`.
+- `cw review diff` adds git diff context from `--base` and `--head` and also requires `--worker <workerId>`.
+- `cw review files` constrains review to an explicit file list, still honors optional `--scope`, and requires `--worker <workerId>`.
 
 ## Fix And Patch Commands
 
-- `cw fix error` analyzes an inline error log or `--error-log-file` and returns a structured fix plan.
+- `cw fix error` analyzes an inline error log or `--error-log-file`, returns a structured fix plan, and requires `--worker <workerId>`.
 - `cw patch propose` generates a reviewable patch proposal without applying changes and now requires an explicit `--worker`.
 - `cw patch propose --summary --max-bytes 4000` prints a smaller proposal summary while `--full` preserves the entire workflow payload.
 - `cw patch inspect` is the safety gate for a stored proposal or raw diff import.

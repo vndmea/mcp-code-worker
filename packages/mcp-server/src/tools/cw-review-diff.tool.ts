@@ -15,6 +15,7 @@ import {
 const inputSchema = z.object({
   base: z.string().optional(),
   head: z.string().optional(),
+  workerId: z.string().min(1),
   scope: z.string().optional(),
   typecheck: z.boolean().optional(),
   lint: z.boolean().optional(),
@@ -34,6 +35,7 @@ export const cwReviewDiffTool: CwToolDefinition<
     const context = await resolveExecutionContext();
     const result = await runReviewWorkflow({
       context,
+      workerId: args.workerId,
       includeDiff: true,
       diffBase: args.base,
       diffHead: args.head,

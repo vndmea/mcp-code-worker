@@ -1,12 +1,14 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import {
   cwDoctorTool,
+  cwRegisterWorkerTool,
   cwListAuditEventsTool,
   cwRunHostWorkerTool
 } from "@mcp-code-worker/mcp-server";
+import { getCwWorkspaceFilePath } from "@mcp-code-worker/core";
 import { describe, expect, it } from "vitest";
 
 const withWritableAuditEnv = async (
@@ -41,10 +43,40 @@ const withWritableAuditEnv = async (
 
 describe("mcp audit side effects", () => {
   it("writes an audit event for cw_run_host_worker", async () => {
-    await withWritableAuditEnv(async () => {
+    await withWritableAuditEnv(async (rootDir) => {
+      const workerId = "audit-worker";
+      const configPath = getCwWorkspaceFilePath(rootDir, "config.json");
+      await mkdir(dirname(configPath), { recursive: true });
+      await writeFile(
+        configPath,
+        JSON.stringify(
+          {
+            version: 1,
+            safety: {
+              dryRun: false,
+              allowWrite: true,
+              allowedCommands: ["git", "node", "pnpm"]
+            },
+            workerModel: {
+              provider: "mock",
+              model: "gpt-5.4-mini"
+            }
+          },
+          null,
+          2
+        ),
+        "utf8"
+      );
+      await cwRegisterWorkerTool.execute({
+        workerId,
+        provider: "mock",
+        model: "gpt-5.4-mini",
+        allowWrite: true
+      });
       await cwRunHostWorkerTool.execute({
         goal: "Review the repository for workflow regressions",
-        taskType: "review-lite"
+        taskType: "review-lite",
+        workerId
       });
       const events = await cwListAuditEventsTool.execute({ limit: 20 });
 

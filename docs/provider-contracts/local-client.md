@@ -29,7 +29,7 @@ Notes:
 
 - `opencode` is the default compatible command
 - use `workerClientCommand` in `config.json` as the primary persisted override
-- use `CW_WORKER_CLIENT_COMMAND` only as a bootstrap fallback when no persisted config exists yet
+- use `CW_WORKER_CLIENT_COMMAND` only as a runtime override when you do not want to persist `workerClientCommand` in `config.json`
 
 ## Required Environment Variables
 

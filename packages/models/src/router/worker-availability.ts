@@ -82,13 +82,13 @@ const readProbeCheck = async (
   }
 
   const probeContext: ExecutionContext = {
-    ...createExecutionContextWithWorkerModel(context, context.workerModel),
-    defaultWorkerId: workerId
+    ...createExecutionContextWithWorkerModel(context, context.workerModel)
   };
   const checks = await createWorkerDoctorChecks(probeContext, {
     probe: true,
     includeLocalClient: false,
-    includeProfile: false
+    includeProfile: false,
+    workerId
   });
   const probe = checks[0];
 
@@ -150,6 +150,8 @@ const buildSummary = (input: {
   switch (input.unavailableReasonType) {
     case "config-invalid":
       return `Worker ${input.workerId} is unavailable for formal tasks because config.json is invalid.`;
+    case "worker-id-required":
+      return "Formal worker readiness requires an explicit worker id.";
     case "worker-resolution-failed":
       return `Worker ${input.workerId} is unavailable for formal tasks because worker resolution failed.`;
     case "profile-missing":
@@ -177,12 +179,9 @@ const buildNextSteps = (input: {
 }): string[] => {
   const actions: string[] = [];
 
-  if (
-    input.checks.registry.status === "unavailable" &&
-    input.workerId === "unconfigured-worker"
-  ) {
+  if (input.unavailableReasonType === "worker-id-required") {
     actions.push(
-      "Configure a named default worker in config.json or rerun with --worker <id> before checking formal worker readiness."
+      "Rerun with --worker <id> before checking formal worker readiness."
     );
   }
 
@@ -238,8 +237,8 @@ export const buildWorkerAvailabilitySnapshot = async (input: {
   workerId?: string;
 }): Promise<WorkerAvailabilitySnapshot> => {
   const configResult = await loadCwConfig(input.context.rootDir);
-  const requestedWorkerId = input.workerId ?? input.context.defaultWorkerId;
-  const resolvedRequestWorkerId = requestedWorkerId ?? "unconfigured-worker";
+  const requestedWorkerId = input.workerId;
+  const resolvedRequestWorkerId = requestedWorkerId ?? "worker-id-required";
   const checks: WorkerAvailabilityChecks = {
     config: configResult.error
       ? defaultCheck("invalid", `cw config is invalid: ${configResult.error}`)
@@ -256,7 +255,7 @@ export const buildWorkerAvailabilitySnapshot = async (input: {
         )
       : defaultCheck(
           "unavailable",
-          "No named worker is configured. Formal worker readiness now requires an explicit worker id or config.json defaultWorkerId."
+          "Formal worker readiness requires an explicit worker id."
         ),
     profile: defaultCheck("not-produced", "Worker profile was not checked yet."),
     probe: defaultCheck("not-run", "No live probe was requested."),
@@ -301,8 +300,7 @@ export const buildWorkerAvailabilitySnapshot = async (input: {
         ...createExecutionContextWithWorkerModel(
           input.context,
           resolvedWorker.modelConfig
-        ),
-        defaultWorkerId: resolvedWorker.workerId ?? requestedWorkerId
+        )
       };
       checks.registry = defaultCheck(
         "registered",
@@ -378,7 +376,9 @@ export const buildWorkerAvailabilitySnapshot = async (input: {
           );
   }
 
-  const unavailableReasonType = deriveUnavailableReasonType(checks);
+  const unavailableReasonType = requestedWorkerId
+    ? deriveUnavailableReasonType(checks)
+    : "worker-id-required";
   const status = unavailableReasonType === "not-applicable"
     ? "ready"
     : "unavailable";

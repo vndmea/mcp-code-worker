@@ -94,13 +94,11 @@ const WHY_THIS_MATTERS: Record<string, string> = {
   "worker-profile-store":
     "Persisted worker profiles let cw reuse capability interviews instead of rediscovering routing quality every time.",
   "worker-registry":
-    "The worker registry enables explicit worker routing beyond the default fallback worker.",
+    "The worker registry stores the named workers that formal task execution and readiness checks can target explicitly.",
   "registered-worker":
     "Disabled workers stay on record but are not eligible for routing.",
   "registered-worker-profile":
     "Registered worker profiles determine whether cw can route specialized tasks confidently.",
-  "default-worker-profile":
-    "The default worker profile determines whether cw can route without interviewing or guessing at runtime.",
   "worker-connectivity":
     "A real connectivity probe confirms the resolved worker can answer with the current runtime wiring."
 };
@@ -657,13 +655,12 @@ export const runDoctor = async (
       relatedChecks: [
         "worker-profile-store",
         "worker-registry",
-        "registered-worker-profile",
-        "default-worker-profile"
+        "registered-worker-profile"
       ],
       readySummary:
         "Explicit worker routing and persisted capability profiles are ready.",
       degradedSummary:
-        "cw can still run with fallback routing, but worker registry or profile coverage is incomplete.",
+        "Named worker routing metadata is only partially ready. Review the registry and persisted profiles before relying on formal worker selection.",
       failSummary:
         "Worker routing metadata is misconfigured and should be repaired before relying on explicit worker selection."
     })
@@ -689,14 +686,14 @@ export const runDoctor = async (
       `1. Confirm the active root directory is ${context.rootDir}.`,
       "2. Verify the worker model credential or local client.",
       "3. Use `cw doctor --probe` when you want a live connectivity probe.",
-      "4. Start a dry-run task with `cw task start --goal \"Review this repository\"`.",
+      "4. Start a dry-run task with `cw task start --worker <id> --goal \"Review this repository\"`.",
       "5. Read the returned report summary or `cw task report <task-id>` if the session is persisted.",
       "6. Decide whether to continue into patch proposal and patch inspection."
     ],
     recommendedActions,
     recommendedEntrypoints: [
       {
-        command: "cw task start --goal \"Review this repository\"",
+        command: "cw task start --worker <id> --goal \"Review this repository\"",
         description:
           "Recommended CLI entrypoint for a dry-run task with reviewable output.",
         toolName: "cw_start_task"

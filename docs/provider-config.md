@@ -271,7 +271,7 @@ Use a local client provider when a compatible local CLI bridges the model calls.
 
 - `opencode` is the default compatible command.
 - Persist `workerClientCommand` in `config.json` when the executable name or path differs.
-- Use `CW_WORKER_CLIENT_COMMAND` only as a bootstrap fallback when no persisted config exists yet.
+- Use `CW_WORKER_CLIENT_COMMAND` only as a runtime override when you intentionally do not want to persist `workerClientCommand` in `config.json`.
 
 Example:
 

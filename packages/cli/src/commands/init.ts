@@ -321,7 +321,7 @@ const buildInitPaths = (rootDir: string): InitResult["paths"] => {
 };
 
 const buildInitTips = (result: Pick<InitResult, "enableMcp" | "paths">): string[] => [
-  `Edit ${result.paths.cwConfigPath} manually if you need to tweak worker defaults or MCP-related runtime state.`,
+  `Edit ${result.paths.cwConfigPath} manually if you need to tweak worker model settings or MCP-related runtime state.`,
   `Put project-only instructions in ${result.paths.projectAgentsPath}; put global Codex defaults in ${result.paths.globalAgentsPath}.`,
   result.enableMcp
     ? "Paste the MCP snippet into a workspace-scoped host config for this repository only, or into the host's global MCP config for every repository."
@@ -348,7 +348,7 @@ const formatWorkerSummary = (result: InitResult["worker"]): string => {
   return workers
     .map((worker) =>
       [
-        worker.isDefault ? "default" : "extra",
+        worker.isDefault ? "primary" : "extra",
         `${worker.workerId} (${worker.workerProvider}/${worker.workerModel})`,
         `configured=${worker.configured ? "yes" : "no"}`,
         `registered=${worker.registerStatus ?? (worker.registerWorker ? "planned" : "skipped")}`,
@@ -488,7 +488,7 @@ const collectInitSetupOptions = async (
     true
   );
   const configureWorker = await prompter.confirm(
-    "Configure a default worker now?",
+    "Configure a primary worker now?",
     false
   );
   const workerContext = await resolveExecutionContext({ rootDir });
@@ -519,7 +519,7 @@ const collectInitSetupOptions = async (
     isDefault: boolean
   ): Promise<InitWorkerPlan> => {
     const presetChoice = await prompter.select<InitPresetId | "custom">(
-      isDefault ? "Default worker preset?" : "Additional worker preset?",
+      isDefault ? "Primary worker preset?" : "Additional worker preset?",
       [
         ...INIT_PRESETS.map((preset) => ({
           label: preset.label,
@@ -549,7 +549,7 @@ const collectInitSetupOptions = async (
 
     if (!selectedPreset) {
       workerMode = await prompter.select(
-        isDefault ? "Default worker mode?" : "Additional worker mode?",
+        isDefault ? "Primary worker mode?" : "Additional worker mode?",
         [
           {
             label: "Local client",
@@ -638,16 +638,16 @@ const collectInitSetupOptions = async (
     }
 
     let workerIdPrompt = isDefault
-      ? "Default worker name?"
+      ? "Primary worker name?"
       : "Additional worker name?";
-    const defaultWorkerId = isDefault
+    const suggestedWorkerId = isDefault
       ? "default-worker"
       : `worker-${workerSummaries.length + 1}`;
     let workerId = "";
 
     while (workerId.length === 0) {
       const candidate = await prompter.text(workerIdPrompt, {
-        defaultValue: defaultWorkerId
+        defaultValue: suggestedWorkerId
       });
 
       if (reservedWorkerIds.has(candidate)) {

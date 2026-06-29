@@ -14,6 +14,7 @@ import {
 
 const inputSchema = z.object({
   files: z.array(z.string()).min(1),
+  workerId: z.string().min(1),
   scope: z.string().optional(),
   typecheck: z.boolean().optional(),
   lint: z.boolean().optional(),
@@ -33,6 +34,7 @@ export const cwReviewFilesTool: CwToolDefinition<
     const context = await resolveExecutionContext();
     const result = await runReviewWorkflow({
       context,
+      workerId: args.workerId,
       files: args.files,
       scope: args.scope,
       strictFiles: args.strictFiles,

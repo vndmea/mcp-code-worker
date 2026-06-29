@@ -123,12 +123,12 @@ cw mcp config
 ## CLI 用法
 
 ```bash
-cw review repo --scope packages/graph
-cw review diff --base main --head HEAD
-cw review files --file packages/graph/src/index.ts --strict-files
+cw review repo --worker qwen-local --scope packages/graph
+cw review diff --worker qwen-local --base main --head HEAD
+cw review files --worker qwen-local --file packages/graph/src/index.ts --strict-files
 cw validate --all
 cw validate --all --stop-on-failure --execute
-cw fix error --error-log-file ./tmp/tsc-error.log --scope packages/schema-codegen
+cw fix error --worker qwen-local --error-log-file ./tmp/tsc-error.log --scope packages/schema-codegen
 cw task start --goal "Fix failing typecheck" --scope packages/core --typecheck --error-log-file ./tmp/tsc-error.log --run-fix --allow-write-session
 cw task report <taskId>
 cw cleanup runs
@@ -253,12 +253,12 @@ cw audit list
 日常工程检查建议直接使用专用命令：
 
 ```bash
-cw review repo --scope packages/graph
-cw review diff --base main --head HEAD
-cw review files --file packages/graph/src/index.ts
+cw review repo --worker qwen-local --scope packages/graph
+cw review diff --worker qwen-local --base main --head HEAD
+cw review files --worker qwen-local --file packages/graph/src/index.ts
 cw validate --all
 cw validate --all --stop-on-failure --execute
-cw fix error --error-log-file ./tmp/tsc-error.log --scope packages/core
+cw fix error --worker qwen-local --error-log-file ./tmp/tsc-error.log --scope packages/core
 ```
 
 这些命令会构建 repository context pack、安全读取 scope 内文件，并把确定性验证结果并入 review 输出。
@@ -268,11 +268,12 @@ cw fix error --error-log-file ./tmp/tsc-error.log --scope packages/core
 patch 相关动作被明确拆成 proposal、inspection 和 gated apply 三步：
 
 ```bash
-cw fix error --error-log-file ./tmp/tsc.log --scope packages/core
+cw fix error --worker qwen-local --error-log-file ./tmp/tsc.log --scope packages/core
 
 cw patch propose \
   --goal "Fix failing typecheck" \
-  --scope packages/core
+  --scope packages/core \
+  --worker qwen-local
 
 cw patch inspect ./tmp/candidate.patch
 

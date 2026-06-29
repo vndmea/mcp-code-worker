@@ -6,7 +6,10 @@ import { promisify } from "node:util";
 
 import { describe, expect, it } from "vitest";
 
-import { createExecutionContextFromEnv } from "@mcp-code-worker/core";
+import {
+  createExecutionContextFromEnv,
+  getCwWorkspaceFilePath
+} from "@mcp-code-worker/core";
 import {
   formatReviewWorkflowOutput,
   runFixErrorWorkflow,
@@ -14,6 +17,7 @@ import {
 } from "@mcp-code-worker/graph";
 
 const execFile = promisify(execFileCallback);
+const workerId = "mock:registered-worker";
 
 const createWorkspace = async (withGit = false): Promise<string> => {
   const rootDir = await mkdtemp(join(tmpdir(), "cw-review-fix-"));
@@ -52,6 +56,33 @@ const createWorkspace = async (withGit = false): Promise<string> => {
   return rootDir;
 };
 
+const registerWorker = async (rootDir: string): Promise<void> => {
+  const registryPath = getCwWorkspaceFilePath(rootDir, "workers.json");
+  await mkdir(dirname(registryPath), { recursive: true });
+  await writeFile(
+    registryPath,
+    JSON.stringify(
+      {
+        version: 1,
+        workers: [
+          {
+            workerId,
+            provider: "mock",
+            model: "gpt-5.4-mini",
+            enabled: true,
+            tags: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ]
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+};
+
 const createContext = (rootDir: string, dryRun = true) =>
   createExecutionContextFromEnv(undefined, {
     dryRun,
@@ -72,10 +103,12 @@ const writeErrorLog = async (
 describe("review workflow", () => {
   it("returns repository context and validation results", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
 
     const result = await runReviewWorkflow({
       context: createContext(rootDir),
       scope: "packages/core",
+      workerId,
       validate: {
         typecheck: true
       }
@@ -107,10 +140,12 @@ describe("review workflow", () => {
 
   it("includes git diff context when requested", async () => {
     const rootDir = await createWorkspace(true);
+    await registerWorker(rootDir);
 
     const result = await runReviewWorkflow({
       context: createContext(rootDir, false),
       includeDiff: true,
+      workerId,
       scope: "packages/core"
     });
 
@@ -119,6 +154,7 @@ describe("review workflow", () => {
 
   it("ignores non-path scope text when explicit files are provided", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     await writeFile(
       join(rootDir, "package.json"),
       JSON.stringify(
@@ -137,6 +173,7 @@ describe("review workflow", () => {
       context: createContext(rootDir),
       files: ["packages/core/src/index.ts"],
       scope: "please focus on id generation only",
+      workerId,
       validate: {
         typecheck: true
       }
@@ -156,11 +193,13 @@ describe("review workflow", () => {
 describe("fix-error workflow", () => {
   it("accepts inline error logs and returns repository context", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
 
     const result = await runFixErrorWorkflow({
       context: createContext(rootDir),
       errorLog: "TS2304: Cannot find name 'missingValue'.",
       scope: "packages/core",
+      workerId,
       validate: {
         typecheck: true
       }
@@ -178,6 +217,7 @@ describe("fix-error workflow", () => {
 
   it("reads error logs from files inside the repository root", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     await writeErrorLog(
       rootDir,
       "tmp/error.log",
@@ -187,6 +227,7 @@ describe("fix-error workflow", () => {
     const result = await runFixErrorWorkflow({
       context: createContext(rootDir),
       errorLogFile: "tmp/error.log",
+      workerId,
       scope: "packages/core"
     });
 

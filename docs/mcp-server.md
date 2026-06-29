@@ -17,6 +17,7 @@ Named worker execution is explicit over MCP as well:
 - `cw_start_task` requires `workerId`
 - `cw_propose_patch` requires `workerId`
 - `cw_run_host_worker` requires `workerId`
+- `cw_review_repository`, `cw_review_diff`, `cw_review_files`, and `cw_fix_error` require `workerId`
 
 When you need a narrower host-managed worker check, use `cw_run_host_worker` or `cw_review_files` with explicit files and `strictFiles=true`. Those paths now expose debug evidence such as requested files, selected files, worker metadata, and `worker-debug.json` artifacts.
 

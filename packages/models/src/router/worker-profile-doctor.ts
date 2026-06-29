@@ -3,7 +3,6 @@ import type { DoctorCheck, ExecutionContext } from "@mcp-code-worker/core";
 import { resolveWorkerProfile } from "./worker-profile-resolution.js";
 import { readWorkerRegistry } from "./worker-registry-store.js";
 import { readPersistedWorkerProfiles } from "./worker-profile-store.js";
-import { requireConfiguredWorkerId } from "./worker-target-resolution.js";
 
 export const createWorkerProfileDoctorChecks = async (
   context: ExecutionContext
@@ -119,38 +118,5 @@ export const createWorkerProfileDoctorChecks = async (
       });
     }
   }
-
-  if (!context.defaultWorkerId) {
-    checks.push({
-      name: "default-worker-profile",
-      status: "warning",
-      message:
-        "No default worker id is configured in config.json. Set defaultWorkerId if you want worker-aware commands to resolve a named default worker.",
-      metadata: {
-        source: "missing-default-worker-id"
-      }
-    });
-  } else {
-    const resolution = await resolveWorkerProfile({
-      context,
-      workerId: requireConfiguredWorkerId(
-        context,
-        undefined,
-        "doctor default worker profile checks"
-      )
-    });
-
-    checks.push({
-      name: "default-worker-profile",
-      status: resolution.freshness.usable ? "pass" : "warning",
-      message: resolution.freshness.reason,
-      metadata: {
-        source: resolution.source,
-        workerId: resolution.workerId,
-        shouldReinterview: resolution.freshness.shouldReinterview
-      }
-    });
-  }
-
   return checks;
 };

@@ -10,6 +10,7 @@ export interface WorkerDoctorCheckOptions {
   includeLocalClient?: boolean;
   includeProfile?: boolean;
   probe?: boolean;
+  workerId?: string;
 }
 
 export const createWorkerDoctorChecks = async (
@@ -27,13 +28,18 @@ export const createWorkerDoctorChecks = async (
   }
 
   if (options.probe) {
-    checks.push(...(await createWorkerConnectivityDoctorChecks(context)));
+    checks.push(
+      ...(await createWorkerConnectivityDoctorChecks(context, {
+        workerId: options.workerId
+      }))
+    );
   }
 
   return checks;
 };
 
 export const createWorkerProbeChecks = async (
-  context: ExecutionContext
+  context: ExecutionContext,
+  workerId?: string
 ): Promise<DoctorCheck[]> =>
-  createWorkerConnectivityDoctorChecks(context);
+  createWorkerConnectivityDoctorChecks(context, { workerId });

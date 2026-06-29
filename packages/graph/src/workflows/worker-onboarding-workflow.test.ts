@@ -3,10 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { ExecutionContext } from "@mcp-code-worker/core";
 
 vi.mock("@mcp-code-worker/models", () => ({
-  getWorkerProfile: vi.fn(async () => ({
+  getWorkerProfile: vi.fn(() => ({
     workerId: "mock:worker"
   })),
-  resolveWorkerTarget: vi.fn(async () => ({
+  resolveWorkerTarget: vi.fn(() => ({
     modelConfig: {
       model: "worker-model",
       provider: "mock"
@@ -15,7 +15,7 @@ vi.mock("@mcp-code-worker/models", () => ({
     warnings: [],
     workerId: "mock:worker"
   })),
-  saveWorkerProfile: vi.fn(async () => ({
+  saveWorkerProfile: vi.fn(() => ({
     mode: "execute",
     path: "/tmp/worker-profile.json"
   }))
@@ -30,7 +30,7 @@ vi.mock("./worker-benchmark-workflow.js", () => ({
     }
   })),
   runWorkerBenchmarkWorkflow: vi.fn(),
-  saveWorkerBenchmarkArtifact: vi.fn(async () => ({
+  saveWorkerBenchmarkArtifact: vi.fn(() => ({
     mode: "execute",
     path: "/tmp/benchmark.json"
   }))

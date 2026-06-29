@@ -10,6 +10,7 @@ export const WorkerAvailabilityReasonCodeSchema = z.enum([
   "profile-missing",
   "profile-provider-error",
   "profile-stale",
+  "worker-id-required",
   "worker-not-qualified",
   "worker-resolution-failed"
 ]);

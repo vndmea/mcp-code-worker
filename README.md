@@ -124,12 +124,12 @@ Legacy repository-local `.cw/` directories are unsupported and ignored by curren
 ## CLI usage
 
 ```bash
-cw review repo --scope packages/graph
-cw review diff --base main --head HEAD
-cw review files --file packages/graph/src/index.ts --strict-files
+cw review repo --worker qwen-local --scope packages/graph
+cw review diff --worker qwen-local --base main --head HEAD
+cw review files --worker qwen-local --file packages/graph/src/index.ts --strict-files
 cw validate --all
 cw validate --all --stop-on-failure --execute
-cw fix error --error-log-file ./tmp/tsc-error.log --scope packages/schema-codegen
+cw fix error --worker qwen-local --error-log-file ./tmp/tsc-error.log --scope packages/schema-codegen
 cw task start --goal "Fix failing typecheck" --scope packages/core --typecheck --error-log-file ./tmp/tsc-error.log --run-fix --allow-write-session
 cw task report <taskId>
 cw cleanup runs
@@ -254,12 +254,12 @@ This flow keeps worker selection local, auditable, and gated by a persisted capa
 Use the dedicated repository workflows for day-to-day engineering checks:
 
 ```bash
-cw review repo --scope packages/graph
-cw review diff --base main --head HEAD
-cw review files --file packages/graph/src/index.ts
+cw review repo --worker qwen-local --scope packages/graph
+cw review diff --worker qwen-local --base main --head HEAD
+cw review files --worker qwen-local --file packages/graph/src/index.ts
 cw validate --all
 cw validate --all --stop-on-failure --execute
-cw fix error --error-log-file ./tmp/tsc-error.log --scope packages/core
+cw fix error --worker qwen-local --error-log-file ./tmp/tsc-error.log --scope packages/core
 ```
 
 These commands build repository context packs, read scoped files safely, and route deterministic validation into the review output.
@@ -269,11 +269,12 @@ These commands build repository context packs, read scoped files safely, and rou
 Patch handling is intentionally separated into proposal, inspection, and gated apply steps:
 
 ```bash
-cw fix error --error-log-file ./tmp/tsc.log --scope packages/core
+cw fix error --worker qwen-local --error-log-file ./tmp/tsc.log --scope packages/core
 
 cw patch propose \
   --goal "Fix failing typecheck" \
-  --scope packages/core
+  --scope packages/core \
+  --worker qwen-local
 
 cw patch inspect ./tmp/candidate.patch
 

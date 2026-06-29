@@ -13,6 +13,7 @@ import {
 } from "./output-options.js";
 
 const inputSchema = z.object({
+  workerId: z.string().min(1),
   scope: z.string().optional(),
   typecheck: z.boolean().optional(),
   lint: z.boolean().optional(),
@@ -32,6 +33,7 @@ export const cwReviewRepositoryTool: CwToolDefinition<
     const context = await resolveExecutionContext();
     const result = await runReviewWorkflow({
       context,
+      workerId: args.workerId,
       scope: args.scope,
       strictFiles: args.strictFiles,
       validate: {

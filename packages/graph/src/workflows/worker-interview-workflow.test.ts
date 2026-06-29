@@ -1,10 +1,13 @@
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { createExecutionContextFromEnv } from "@mcp-code-worker/core";
+import {
+  createExecutionContextFromEnv,
+  getCwWorkspaceFilePath
+} from "@mcp-code-worker/core";
 import {
   createDefaultWorkerEvaluationSuite,
   runHostWorkerWorkflow,
@@ -25,6 +28,36 @@ const createWorkspace = async (): Promise<string> => {
     "utf8"
   );
   return rootDir;
+};
+
+const registerWorker = async (
+  rootDir: string,
+  registrationWorkerId = workerId
+): Promise<void> => {
+  const registryPath = getCwWorkspaceFilePath(rootDir, "workers.json");
+  await mkdir(dirname(registryPath), { recursive: true });
+  await writeFile(
+    registryPath,
+    JSON.stringify(
+      {
+        version: 1,
+        workers: [
+          {
+            workerId: registrationWorkerId,
+            provider: "mock",
+            model: "gpt-5.4-mini",
+            enabled: true,
+            tags: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ]
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
 };
 
 const createContext = () =>
@@ -208,6 +241,7 @@ describe("worker interview workflow", () => {
 
   it("limits routing when code generation quality is too low", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     const interview = await runWorkerInterviewWorkflow({
       context: createContext(),
       workerId,
@@ -227,6 +261,7 @@ describe("worker interview workflow", () => {
       files: ["packages/core/src/generateId.ts"],
       goal: "Generate implementation drafts",
       taskType: "codegen",
+      workerId,
       workerCapabilityProfile: interview.profile
     });
 
@@ -238,6 +273,7 @@ describe("worker interview workflow", () => {
 
   it("prevents not-qualified workers from receiving production tasks", async () => {
     const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
     const interview = await runWorkerInterviewWorkflow({
       context: createContext(),
       workerId,
@@ -255,6 +291,7 @@ describe("worker interview workflow", () => {
       files: ["packages/core/src/generateId.ts"],
       goal: "Draft tests for workflow routing",
       taskType: "review-lite",
+      workerId,
       workerCapabilityProfile: interview.profile
     });
 

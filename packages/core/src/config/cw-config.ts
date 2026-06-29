@@ -171,8 +171,6 @@ export async function resolveExecutionContext(
 
   return createExecutionContextFromEnv(env, {
     ...cliOverrides,
-    defaultWorkerId:
-      cliOverrides.defaultWorkerId ?? config.defaultWorkerId,
     rootDir,
     dryRun,
     allowWrite,

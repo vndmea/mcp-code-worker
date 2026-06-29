@@ -60,6 +60,7 @@ export const registerFixCommand = (program: Command, io: CliIo): void => {
   fix
     .command("error")
     .description("Analyze an error log and return a candidate fix plan.")
+    .requiredOption("--worker <workerId>", "Registered worker id")
     .option("--error-log <text>", "Inline error log")
     .option("--error-log-file <path>", "Path to an error log file")
     .option("--propose-patch", "Generate a candidate patch proposal", false)
@@ -82,6 +83,7 @@ export const registerFixCommand = (program: Command, io: CliIo): void => {
         summary: boolean;
         test: boolean;
         typecheck: boolean;
+        worker: string;
       }) => {
         const context = await resolveExecutionContext();
         const result = await runFixErrorWorkflow({
@@ -90,6 +92,7 @@ export const registerFixCommand = (program: Command, io: CliIo): void => {
           errorLogFile: options.errorLogFile,
           proposePatch: options.proposePatch,
           scope: options.scope,
+          workerId: options.worker,
           validate: {
             typecheck: options.typecheck,
             lint: options.lint,

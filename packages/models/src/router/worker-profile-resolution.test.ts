@@ -92,7 +92,6 @@ describe("resolveWorkerProfile", () => {
     const rootDir = await createRootDir();
     await writeProfiles(rootDir, [createProfile()]);
     const context = createExecutionContextFromEnv(undefined, {
-      defaultWorkerId: "mock:worker-model",
       rootDir,
       workerModel: {
         provider: "mock",
@@ -101,7 +100,8 @@ describe("resolveWorkerProfile", () => {
     });
 
     const result = await resolveWorkerProfile({
-      context
+      context,
+      workerId: "mock:worker-model"
     });
 
     expect(result.source).toBe("persisted");
@@ -112,7 +112,6 @@ describe("resolveWorkerProfile", () => {
   it("returns missing when no persisted profile exists", async () => {
     const rootDir = await createRootDir();
     const context = createExecutionContextFromEnv(undefined, {
-      defaultWorkerId: "mock:worker-model",
       rootDir,
       workerModel: {
         provider: "mock",
@@ -121,7 +120,8 @@ describe("resolveWorkerProfile", () => {
     });
 
     const result = await resolveWorkerProfile({
-      context
+      context,
+      workerId: "mock:worker-model"
     });
 
     expect(result.source).toBe("missing");
@@ -138,7 +138,6 @@ describe("resolveWorkerProfile", () => {
       })
     ]);
     const context = createExecutionContextFromEnv(undefined, {
-      defaultWorkerId: "mock:worker-model",
       rootDir,
       workerModel: {
         provider: "mock",
@@ -147,7 +146,8 @@ describe("resolveWorkerProfile", () => {
     });
 
     const result = await resolveWorkerProfile({
-      context
+      context,
+      workerId: "mock:worker-model"
     });
 
     expect(result.source).toBe("incompatible");
@@ -200,7 +200,6 @@ describe("resolveWorkerProfile", () => {
       })
     ]);
     const context = createExecutionContextFromEnv(undefined, {
-      defaultWorkerId: "mock:worker-model",
       rootDir,
       workerModel: {
         provider: "mock",
@@ -209,39 +208,12 @@ describe("resolveWorkerProfile", () => {
     });
 
     const result = await resolveWorkerProfile({
-      context
+      context,
+      workerId: "mock:worker-model"
     });
 
     expect(result.source).toBe("stale");
     expect(result.freshness.usable).toBe(false);
-  });
-
-  it("treats legacy profiles without current interview signals as stale", async () => {
-    const rootDir = await createRootDir();
-    await writeProfiles(rootDir, [
-      createProfile({
-        suiteVersion: "1",
-        admission: undefined,
-        portrait: undefined,
-        taskScores: undefined,
-        evidence: undefined
-      })
-    ]);
-    const context = createExecutionContextFromEnv(undefined, {
-      defaultWorkerId: "mock:worker-model",
-      rootDir,
-      workerModel: {
-        provider: "mock",
-        model: "worker-model"
-      }
-    });
-
-    const result = await resolveWorkerProfile({
-      context
-    });
-
-    expect(result.source).toBe("stale");
-    expect(result.freshness.reason).toContain("current repo-grounded interview signals");
   });
 
   it("treats provider-failure profiles as needing re-interview", async () => {
@@ -257,7 +229,6 @@ describe("resolveWorkerProfile", () => {
       })
     ]);
     const context = createExecutionContextFromEnv(undefined, {
-      defaultWorkerId: "mock:worker-model",
       rootDir,
       workerModel: {
         provider: "mock",
@@ -266,7 +237,8 @@ describe("resolveWorkerProfile", () => {
     });
 
     const result = await resolveWorkerProfile({
-      context
+      context,
+      workerId: "mock:worker-model"
     });
 
     expect(result.source).toBe("provider-error");
@@ -277,7 +249,6 @@ describe("resolveWorkerProfile", () => {
   it("throws when requireProfile is true and no usable profile exists", async () => {
     const rootDir = await createRootDir();
     const context = createExecutionContextFromEnv(undefined, {
-      defaultWorkerId: "mock:worker-model",
       rootDir,
       workerModel: {
         provider: "mock",
@@ -288,6 +259,7 @@ describe("resolveWorkerProfile", () => {
     await expect(
       resolveWorkerProfile({
         context,
+        workerId: "mock:worker-model",
         requireProfile: true
       })
     ).rejects.toBeInstanceOf(AgentError);

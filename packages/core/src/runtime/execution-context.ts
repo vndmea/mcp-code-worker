@@ -9,7 +9,6 @@ import {
 
 export interface ExecutionContext {
   cwStorageDir: string;
-  defaultWorkerId?: string;
   rootDir: string;
   dryRun: boolean;
   allowWrite: boolean;
@@ -30,7 +29,6 @@ export interface ExecutionContextOverrides {
   allowWrite?: boolean;
   allowedCommands?: string[];
   contextBudget?: Partial<ExecutionContext["contextBudget"]>;
-  defaultWorkerId?: string;
   dryRun?: boolean;
   logLevel?: string;
   rootDir?: string;
@@ -128,7 +126,6 @@ export const createExecutionContextFromEnv = (
 
   return {
     cwStorageDir,
-    defaultWorkerId: overrides.defaultWorkerId,
     rootDir,
     dryRun,
     allowWrite,

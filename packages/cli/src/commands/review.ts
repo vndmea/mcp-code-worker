@@ -70,6 +70,7 @@ export const registerReviewCommand = (program: Command, io: CliIo): void => {
 
   review
     .command("repo")
+    .requiredOption("--worker <workerId>", "Registered worker id")
     .option("--scope <scope>", "Optional scope")
     .option("--strict-files", "Keep review constrained to explicitly requested files when files are provided", false)
     .option("--typecheck", "Run typecheck", false)
@@ -87,10 +88,12 @@ export const registerReviewCommand = (program: Command, io: CliIo): void => {
       summary: boolean;
       test: boolean;
       typecheck: boolean;
+      worker: string;
     }) => {
       const context = await resolveExecutionContext();
       const result = await runReviewWorkflow({
         context,
+        workerId: options.worker,
         strictFiles: options.strictFiles,
         scope: options.scope,
         validate: {
@@ -115,6 +118,7 @@ export const registerReviewCommand = (program: Command, io: CliIo): void => {
 
   review
     .command("diff")
+    .requiredOption("--worker <workerId>", "Registered worker id")
     .option("--base <base>", "Diff base ref")
     .option("--head <head>", "Diff head ref")
     .option("--scope <scope>", "Optional scope")
@@ -137,10 +141,12 @@ export const registerReviewCommand = (program: Command, io: CliIo): void => {
         summary: boolean;
         test: boolean;
         typecheck: boolean;
+        worker: string;
       }) => {
         const context = await resolveExecutionContext();
         const result = await runReviewWorkflow({
           context,
+          workerId: options.worker,
           includeDiff: true,
           diffBase: options.base,
           diffHead: options.head,
@@ -170,6 +176,7 @@ export const registerReviewCommand = (program: Command, io: CliIo): void => {
   review
     .command("files")
     .requiredOption("--file <path...>", "Files to include")
+    .requiredOption("--worker <workerId>", "Registered worker id")
     .option("--scope <scope>", "Optional scope")
     .option("--strict-files", "Keep review constrained to explicitly requested files", false)
     .option("--typecheck", "Run typecheck", false)
@@ -189,10 +196,12 @@ export const registerReviewCommand = (program: Command, io: CliIo): void => {
         summary: boolean;
         test: boolean;
         typecheck: boolean;
+        worker: string;
       }) => {
         const context = await resolveExecutionContext();
         const result = await runReviewWorkflow({
           context,
+          workerId: options.worker,
           files: options.file,
           strictFiles: options.strictFiles,
           scope: options.scope,
