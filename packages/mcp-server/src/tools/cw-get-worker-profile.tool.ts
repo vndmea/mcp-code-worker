@@ -9,7 +9,7 @@ import {
 import type { CwToolDefinition } from "./tool-types.js";
 
 const inputSchema = z.object({
-  workerId: z.string().optional()
+  workerId: z.string().min(1)
 });
 
 export const cwGetWorkerProfileTool: CwToolDefinition<

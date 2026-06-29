@@ -18,7 +18,7 @@ export interface ResolveWorkerTargetInput {
 
 export interface ResolveWorkerTargetResult {
   modelConfig: ModelConfig;
-  source: "ad-hoc" | "config-default" | "registry";
+  source: "ad-hoc" | "registry";
   warnings: string[];
   workerId?: string;
 }
@@ -67,28 +67,27 @@ export const requireConfiguredWorkerId = (
   workerId: string | undefined,
   action: string
 ): string => {
-  const resolvedWorkerId = workerId ?? context.defaultWorkerId;
-
-  if (resolvedWorkerId) {
-    return resolvedWorkerId;
+  void context;
+  if (workerId) {
+    return workerId;
   }
 
   throw new AgentError(
     "WORKER_ID_REQUIRED",
-    `No worker id was provided and config.json does not define defaultWorkerId. Set defaultWorkerId or pass --worker <id> before continuing with ${action}.`
+    `No worker id was provided. Pass --worker <id> before continuing with ${action}.`
   );
 };
 
 export const resolveWorkerTarget = async (
   input: ResolveWorkerTargetInput
 ): Promise<ResolveWorkerTargetResult> => {
-  const chosenWorkerId = input.workerId ?? input.context.defaultWorkerId;
+  const chosenWorkerId = input.workerId;
 
   if (!chosenWorkerId) {
     if (input.requireNamedWorker) {
       throw new AgentError(
         "WORKER_ID_REQUIRED",
-        "No worker id was provided and config.json does not define defaultWorkerId. Set defaultWorkerId or pass --worker <id> before continuing."
+        "No worker id was provided. Pass --worker <id> before continuing."
       );
     }
 
@@ -111,9 +110,7 @@ export const resolveWorkerTarget = async (
   if (!registration) {
     throw new AgentError(
       "WORKER_NOT_REGISTERED",
-      input.workerId
-        ? `Worker '${chosenWorkerId}' was not found in the worker registry. Check the worker id or register it before continuing.`
-        : `Configured default worker '${chosenWorkerId}' was not found in the worker registry. Fix config.json or register that worker before continuing.`,
+      `Worker '${chosenWorkerId}' was not found in the worker registry. Check the worker id or register it before continuing.`,
       {
         workerId: chosenWorkerId
       }

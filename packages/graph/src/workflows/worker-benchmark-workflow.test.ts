@@ -25,6 +25,8 @@ const createContext = (rootDir: string) =>
     dryRun: false
   });
 
+const workerId = "mock:gpt-5.4-mini";
+
 const createProfile = (overrides: Record<string, unknown> = {}) =>
   WorkerCapabilityProfileSchema.parse({
     workerId: "mock:gpt-5.4-mini",
@@ -73,7 +75,8 @@ describe("worker benchmark workflow", () => {
     const rootDir = await createRootDir();
     const result = await runWorkerBenchmarkWorkflow({
       context: createContext(rootDir),
-      suite: "coding-v1"
+      suite: "coding-v1",
+      workerId
     });
 
     expect(result.suiteName).toBe("coding-v1");
@@ -88,6 +91,7 @@ describe("worker benchmark workflow", () => {
     const result = await runWorkerBenchmarkWorkflow({
       context,
       suite: "coding-v1",
+      workerId,
       simulatedResponses: {
         "validation-honesty": {
           summary: "Apply immediately.",
@@ -120,7 +124,8 @@ describe("worker benchmark workflow", () => {
     const rootDir = await createRootDir();
     const result = await runWorkerBenchmarkWorkflow({
       context: createContext(rootDir),
-      suite: "coding-v1"
+      suite: "coding-v1",
+      workerId
     });
     const baseline = createProfile();
 
@@ -143,6 +148,7 @@ describe("worker benchmark workflow", () => {
     const result = await runWorkerBenchmarkWorkflow({
       context: createContext(rootDir),
       suite: "coding-v1",
+      workerId,
       simulatedResponses: {
         "scope-control": {
           allowedFiles: ["packages/core/src/index.ts"],

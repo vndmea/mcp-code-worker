@@ -27,13 +27,6 @@ export const getWorkerRegistryPath = (
     ? getCwWorkspaceFilePathFromStorageDir(cwStorageDir, "workers.json")
     : getCwWorkspaceFilePath(rootDir, "workers.json");
 
-export const DEFAULT_WORKER_ID = "default-worker";
-
-export const deriveWorkerRegistrationId = (config?: unknown): string => {
-  void config;
-  return DEFAULT_WORKER_ID;
-};
-
 export const readWorkerRegistry = async (
   rootDir: string,
   cwStorageDir?: string

@@ -10,7 +10,7 @@ import {
 import type { CwToolDefinition } from "./tool-types.js";
 
 const inputSchema = z.object({
-  workerId: z.string().optional(),
+  workerId: z.string().min(1),
   provider: z.string().optional(),
   model: z.string().optional(),
   baseURL: z.string().optional(),
@@ -39,7 +39,7 @@ const executeWorkerInterview = async (
     provider: args.provider,
     model: args.model,
     baseURL: args.baseURL,
-    requireNamedWorker: args.persistProfile
+    requireNamedWorker: true
   });
   const result = await runWorkerInterviewWorkflow({
     context,

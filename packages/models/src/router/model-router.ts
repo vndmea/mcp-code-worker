@@ -13,7 +13,6 @@ import { LocalClientProvider } from "../providers/local-client-provider.js";
 import { MockModelProvider } from "../providers/mock-provider.js";
 import type { ModelProvider } from "../types/model-provider.js";
 import { assessWorkerTaskEligibility } from "./worker-routing.js";
-import { deriveWorkerProfileId } from "./worker-profile-store.js";
 
 export interface RoutedModel {
   config: ModelConfig;
@@ -44,10 +43,6 @@ export class ModelRouter {
         model: this.workerModel.model
       }
     ];
-  }
-
-  public static deriveWorkerId(config: ModelConfig): string {
-    return deriveWorkerProfileId(config);
   }
 
   public route(role: AgentRole): RoutedModel {

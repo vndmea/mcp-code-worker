@@ -12,6 +12,7 @@ import type {
   WorkerEvaluationSummary
 } from "@mcp-code-worker/core";
 import {
+  AgentError,
   CODING_V1_SUITE_NAME,
   getWorkerBenchmarkArtifactPath,
   qualifiesPatchGenerationCapability,
@@ -367,7 +368,14 @@ export const runWorkerBenchmarkWorkflow = async (
 ): Promise<WorkerBenchmarkWorkflowOutput> => {
   const context = input.context ?? await resolveExecutionContext();
   const modelConfig = input.modelConfig ?? context.workerModel;
-  const workerId = input.workerId ?? ModelRouter.deriveWorkerId(modelConfig);
+  const workerId = input.workerId;
+
+  if (!workerId) {
+    throw new AgentError(
+      "WORKER_ID_REQUIRED",
+      "Worker benchmark requires an explicit workerId."
+    );
+  }
   const router = new ModelRouter(modelConfig);
   const provider = router.route("worker").provider;
   const fixtures = buildCodingV1Fixtures();

@@ -47,11 +47,10 @@ const createRegistration = (overrides: Record<string, unknown> = {}) => {
 };
 
 describe("worker target resolution", () => {
-  it("resolves a configured default worker id from the registry", async () => {
+  it("resolves an explicit worker id from the registry", async () => {
     const rootDir = await createRootDir();
     await writeRegistry(rootDir, [createRegistration()]);
     const context = createExecutionContextFromEnv(undefined, {
-      defaultWorkerId: "primary-worker",
       rootDir,
       workerModel: {
         provider: "mock",
@@ -59,7 +58,10 @@ describe("worker target resolution", () => {
       }
     });
 
-    const result = await resolveWorkerTarget({ context });
+    const result = await resolveWorkerTarget({
+      context,
+      workerId: "primary-worker"
+    });
 
     expect(result.source).toBe("registry");
     expect(result.workerId).toBe("primary-worker");
@@ -89,6 +91,6 @@ describe("worker target resolution", () => {
     ).toThrowError(AgentError);
     expect(() =>
       requireConfiguredWorkerId(context, undefined, "worker profile lookup")
-    ).toThrow("defaultWorkerId");
+    ).toThrow("--worker <id>");
   });
 });

@@ -1180,6 +1180,38 @@ describe("cli parsing", () => {
     });
   });
 
+  it("requires explicit worker ids for worker execution commands", async () => {
+    await withTempCwd(async () => {
+      const { io, errors } = createIo();
+      const cli = buildCli(io);
+
+      await expect(
+        cli.parseAsync(["node", "cw", "worker", "interview"])
+      ).rejects.toThrow('process.exit unexpectedly called with "1"');
+      expect(errors.at(-1)).toContain("Usage: cw worker interview [options]");
+      expect(errors.at(-1)).toContain("--worker <workerId>");
+
+      await expect(
+        cli.parseAsync([
+          "node",
+          "cw",
+          "worker",
+          "benchmark",
+          "--suite",
+          "coding-v1"
+        ])
+      ).rejects.toThrow('process.exit unexpectedly called with "1"');
+      expect(errors.at(-1)).toContain("Usage: cw worker benchmark [options]");
+      expect(errors.at(-1)).toContain("--worker <workerId>");
+
+      await expect(
+        cli.parseAsync(["node", "cw", "worker", "readiness"])
+      ).rejects.toThrow('process.exit unexpectedly called with "1"');
+      expect(errors.at(-1)).toContain("Usage: cw worker readiness [options]");
+      expect(errors.at(-1)).toContain("--worker <workerId>");
+    });
+  });
+
   it("updates patch-generation capabilities only when explicitly requested during benchmarks", async () => {
     await withTempCwd(async (rootDir) => {
       await writeRegistry(rootDir, [createRegistration()]);

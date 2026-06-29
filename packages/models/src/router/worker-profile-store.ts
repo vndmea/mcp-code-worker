@@ -10,7 +10,6 @@ import type {
   ExecutionContext,
   WorkerCapabilityProfile
 } from "@mcp-code-worker/core";
-import { DEFAULT_WORKER_ID } from "./worker-registry-store.js";
 
 const inMemoryProfiles = new Map<string, WorkerCapabilityProfile>();
 export interface PersistedWorkerProfilesReadResult {
@@ -36,11 +35,6 @@ const safeParseProfiles = (value: string): WorkerCapabilityProfile[] => {
   } catch {
     return [];
   }
-};
-
-export const deriveWorkerProfileId = (config?: unknown): string => {
-  void config;
-  return DEFAULT_WORKER_ID;
 };
 
 export const listPersistedWorkerProfiles = async (

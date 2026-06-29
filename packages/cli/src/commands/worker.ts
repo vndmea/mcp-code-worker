@@ -311,7 +311,7 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
   worker
     .command("interview")
     .description("Evaluate a worker model before assigning production tasks.")
-    .option("--worker <workerId>", "Optional worker profile id")
+    .requiredOption("--worker <workerId>", "Worker profile id")
     .option("--provider <provider>", "Override worker provider")
     .option("--model <model>", "Override worker model")
     .option("--base-url <url>", "Override worker base URL")
@@ -322,7 +322,7 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
         model?: string;
         provider?: string;
         save: boolean;
-        worker?: string;
+        worker: string;
       }) => {
         const context = await resolveExecutionContext();
         const resolvedTarget = await resolveWorkerTarget({
@@ -331,7 +331,7 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
           provider: options.provider,
           model: options.model,
           baseURL: options.baseUrl,
-          requireNamedWorker: options.save
+          requireNamedWorker: true
         });
         const result = await runWorkerInterviewWorkflow({
           context,
@@ -364,7 +364,7 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
     .command("benchmark")
     .description("Run a coding benchmark suite for a worker model and optionally persist the artifact.")
     .requiredOption("--suite <suite>", "Benchmark suite name")
-    .option("--worker <workerId>", "Optional worker profile id")
+    .requiredOption("--worker <workerId>", "Worker profile id")
     .option("--provider <provider>", "Override worker provider")
     .option("--model <model>", "Override worker model")
     .option("--base-url <url>", "Override worker base URL")
@@ -382,7 +382,7 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
         save: boolean;
         suite: string;
         updateProfileCapabilities: boolean;
-        worker?: string;
+        worker: string;
       }) => {
         if (options.suite !== "coding-v1") {
           throw new Error(`Unsupported benchmark suite: ${options.suite}`);
@@ -398,8 +398,7 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
           provider: options.provider,
           model: options.model,
           baseURL: options.baseUrl,
-          requireNamedWorker:
-            options.save || options.updateProfileCapabilities
+          requireNamedWorker: true
         });
         const result = await runWorkerBenchmarkWorkflow({
           context,
@@ -443,9 +442,9 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
   worker
     .command("readiness")
     .description("Explain whether a worker is ready for formal tasks right now.")
-    .option("--worker <workerId>", "Optional worker id")
+    .requiredOption("--worker <workerId>", "Worker id")
     .option("--probe", "Run a live connectivity probe before finalizing readiness", false)
-    .action(async (options: { probe: boolean; worker?: string }) => {
+    .action(async (options: { probe: boolean; worker: string }) => {
       const context = await resolveExecutionContext();
       const result = await buildWorkerReadinessReport({
         context,
@@ -471,8 +470,8 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
   worker
     .command("profile")
     .description("Get a worker capability profile by id.")
-    .argument("[workerId]", "Worker profile id")
-    .action(async (workerId?: string) => {
+    .argument("<workerId>", "Worker profile id")
+    .action(async (workerId: string) => {
       const context = await resolveExecutionContext();
       const resolvedWorkerId = requireConfiguredWorkerId(
         context,

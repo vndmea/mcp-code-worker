@@ -15,7 +15,6 @@ import {
   runWorkerInterviewWorkflow
 } from "@mcp-code-worker/graph";
 import {
-  deriveWorkerRegistrationId,
   saveWorkerProfile,
   saveWorkerRegistration
 } from "@mcp-code-worker/models";
@@ -67,10 +66,7 @@ describe("local trial e2e", () => {
       allowWrite: true,
       dryRun: false
     });
-    const workerId = deriveWorkerRegistrationId({
-      provider: "mock",
-      model: "trial-worker"
-    });
+    const workerId = "mock:trial-worker";
 
     await saveWorkerRegistration(
       executeContext,

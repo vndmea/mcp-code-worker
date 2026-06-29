@@ -16,7 +16,7 @@ import type { CwToolDefinition } from "./tool-types.js";
 
 const inputSchema = z.object({
   suite: z.literal("coding-v1").optional(),
-  workerId: z.string().optional(),
+  workerId: z.string().min(1),
   provider: z.string().optional(),
   model: z.string().optional(),
   baseURL: z.string().optional(),
@@ -51,8 +51,7 @@ export const cwBenchmarkWorkerTool: CwToolDefinition<
       provider: args.provider,
       model: args.model,
       baseURL: args.baseURL,
-      requireNamedWorker:
-        args.persistArtifact || args.updateProfileCapabilities
+      requireNamedWorker: true
     });
     const result = await runWorkerBenchmarkWorkflow({
       context,

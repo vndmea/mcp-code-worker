@@ -33,10 +33,13 @@ const createContext = () =>
     allowWrite: false
   });
 
+const workerId = "mock:interview-worker";
+
 describe("worker interview workflow", () => {
   it("generates a qualified capability profile for the default mock worker", async () => {
     const result = await runWorkerInterviewWorkflow({
-      context: createContext()
+      context: createContext(),
+      workerId
     });
 
     expect(result.status).toBe("qualified");
@@ -64,6 +67,7 @@ describe("worker interview workflow", () => {
   it("marks workers not-qualified when structured output handling fails admission", async () => {
     const result = await runWorkerInterviewWorkflow({
       context: createContext(),
+      workerId,
       simulatedResponses: {
         "structured-output": "this is not valid json"
       }
@@ -81,6 +85,7 @@ describe("worker interview workflow", () => {
   it("marks provider invocation failures as non-persistable interview results", async () => {
     const result = await runWorkerInterviewWorkflow({
       context: createContext(),
+      workerId,
       simulatedResponses: {
         summarization: new Error("connection refused")
       }
@@ -102,6 +107,7 @@ describe("worker interview workflow", () => {
   it("marks review-heavy tasks unsupported without blocking the whole worker when review grounding is generic", async () => {
     const result = await runWorkerInterviewWorkflow({
       context: createContext(),
+      workerId,
       simulatedResponses: {
         "review-grounding": {
           answer: "Review the files and inspect the implementation.",
@@ -132,6 +138,7 @@ describe("worker interview workflow", () => {
   it("marks summarization and review tasks unsupported without blocking the whole worker when mandatory evidence is missing but the worker guesses", async () => {
     const result = await runWorkerInterviewWorkflow({
       context: createContext(),
+      workerId,
       simulatedResponses: {
         "evidence-sufficiency": {
           decision: "yes",
@@ -157,6 +164,7 @@ describe("worker interview workflow", () => {
   it("routes weak code understanding to not-qualified with code-understanding unsupported", async () => {
     const result = await runWorkerInterviewWorkflow({
       context: createContext(),
+      workerId,
       simulatedResponses: {
         "code-understanding": {
           behavior: "Inspect the code for the implementation details.",
@@ -177,6 +185,7 @@ describe("worker interview workflow", () => {
   it("accepts code understanding risk only when it gives a concrete input and result", async () => {
     const result = await runWorkerInterviewWorkflow({
       context: createContext(),
+      workerId,
       simulatedResponses: {
         "code-understanding": {
           behavior:
@@ -201,6 +210,7 @@ describe("worker interview workflow", () => {
     const rootDir = await createWorkspace();
     const interview = await runWorkerInterviewWorkflow({
       context: createContext(),
+      workerId,
       simulatedResponses: {
         codegen: {
           code: "export const bad: any = 1;",
@@ -230,6 +240,7 @@ describe("worker interview workflow", () => {
     const rootDir = await createWorkspace();
     const interview = await runWorkerInterviewWorkflow({
       context: createContext(),
+      workerId,
       simulatedResponses: {
         "structured-output": "bad",
         summarization: "bad"

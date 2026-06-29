@@ -24,6 +24,7 @@ import type {
   WorkerTaskType
 } from "@mcp-code-worker/core";
 import {
+  AgentError,
   WorkerCapabilityProfileSchema,
   resolveExecutionContext
 } from "@mcp-code-worker/core";
@@ -1776,7 +1777,14 @@ export const runWorkerInterviewWorkflow = async (
 ): Promise<WorkerInterviewWorkflowOutput> => {
   const context = input.context ?? (await resolveExecutionContext());
   const modelConfig = input.modelConfig ?? context.workerModel;
-  const workerId = input.workerId ?? ModelRouter.deriveWorkerId(modelConfig);
+  const workerId = input.workerId;
+
+  if (!workerId) {
+    throw new AgentError(
+      "WORKER_ID_REQUIRED",
+      "Worker interview requires an explicit workerId."
+    );
+  }
   const router = new ModelRouter(modelConfig);
   const runtimeTasks = buildInterviewTasks({
     modelConfig,
