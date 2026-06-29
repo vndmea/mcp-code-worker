@@ -6,13 +6,15 @@ import type {
 import { resolveExecutionContext } from "@mcp-code-worker/core";
 import {
   buildRepositoryContextPack,
-  readRepositoryFile,
-  runRepositoryValidation
+  readRepositoryFile
 } from "@mcp-code-worker/tools";
 
-import type { HostWorkerWorkflowOutput } from "./host-worker-workflow.js";
-import { runHostWorkerWorkflow } from "./host-worker-workflow.js";
 import { runPatchProposalWorkflow } from "./patch-proposal-workflow.js";
+import type { HostWorkerWorkflowOutput } from "./host-worker-workflow.js";
+import {
+  prepareRepositoryWorkflowRuntime,
+  runRepositoryScopedWorkerTask
+} from "./workflow-repository-runtime.js";
 
 export interface FixErrorWorkflowInput {
   context?: ExecutionContext;
@@ -103,39 +105,35 @@ export const runFixErrorWorkflow = async (
     (input.errorLogFile
       ? await readRepositoryFile(input.errorLogFile, context.rootDir)
       : "");
-  const repositoryContext = await buildRepositoryContextPack(context, {
-    rootDir: context.rootDir,
-    scope: input.scope,
-    errorLog
-  });
-  const effectiveScope = repositoryContext.scope;
-  const validationReport = await runRepositoryValidation(context, {
-    typecheck: input.validate?.typecheck,
-    lint: input.validate?.lint,
-    test: input.validate?.test,
-    scope: effectiveScope
+  const runtime = await prepareRepositoryWorkflowRuntime({
+    context,
+    buildRepositoryContext: () =>
+      buildRepositoryContextPack(context, {
+        rootDir: context.rootDir,
+        scope: input.scope,
+        errorLog
+      }),
+    validate: input.validate
   });
   const sharedTaskInput = {
     errorLog,
     errorLogFile: input.errorLogFile,
-    validationReport
+    validationReport: runtime.validationReport
   };
-  const analysisResult = await runHostWorkerWorkflow({
+  const analysisResult = await runRepositoryScopedWorkerTask({
     context,
     goal: "Analyze the supplied error log and summarize the likely root cause using the scoped repository context.",
-    repositoryContext,
+    repositoryContext: runtime.repositoryContext,
     requireProfile: input.requireProfile,
-    scope: effectiveScope,
     taskType: "log-analysis",
     additionalTaskInput: sharedTaskInput,
     workerId: input.workerId
   });
-  const planResult = await runHostWorkerWorkflow({
+  const planResult = await runRepositoryScopedWorkerTask({
     context,
     goal: "Produce a safe candidate fix plan for the supplied error log using only the scoped repository context.",
-    repositoryContext,
+    repositoryContext: runtime.repositoryContext,
     requireProfile: input.requireProfile,
-    scope: effectiveScope,
     taskType: "codegen",
     additionalTaskInput: sharedTaskInput,
     workerId: input.workerId
@@ -155,9 +153,9 @@ export const runFixErrorWorkflow = async (
         goal: input.scope
           ? `Fix issues within ${input.scope}`
           : "Fix the supplied repository issue",
-        repositoryContext,
-        scope: effectiveScope,
-        validationReport,
+        repositoryContext: runtime.repositoryContext,
+        scope: runtime.scope,
+        validationReport: runtime.validationReport,
         workerId: input.workerId,
         requireProfile: input.requireProfile
       })
@@ -176,10 +174,10 @@ export const runFixErrorWorkflow = async (
         }
       : {}),
     planResult,
-    repositoryContext,
+    repositoryContext: runtime.repositoryContext,
     rootCauseAnalysis,
     suggestedPatchArtifact: "candidate-patch-plan.md",
-    validationReport,
+    validationReport: runtime.validationReport,
     workflowStatus:
       analysisResult.qualityGate.workflowStatus === "completed" &&
       planResult.qualityGate.workflowStatus === "completed"

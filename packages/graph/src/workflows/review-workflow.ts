@@ -8,15 +8,14 @@ import type {
 import { resolveExecutionContext } from "@mcp-code-worker/core";
 import {
   buildRepositoryContextPack,
-  readGitDiff,
-  runRepositoryValidation
+  readGitDiff
 } from "@mcp-code-worker/tools";
 
-import type {
-  HostWorkerWorkflowOutput,
-  HostWorkerWorkflowQualityGate
-} from "./host-worker-workflow.js";
-import { runHostWorkerWorkflow } from "./host-worker-workflow.js";
+import type { HostWorkerWorkflowOutput, HostWorkerWorkflowQualityGate } from "./host-worker-workflow.js";
+import {
+  prepareRepositoryWorkflowRuntime,
+  runRepositoryScopedWorkerTask
+} from "./workflow-repository-runtime.js";
 
 export interface ReviewWorkflowInput {
   context?: ExecutionContext;
@@ -134,32 +133,30 @@ export const runReviewWorkflow = async (
         gitDiff: diffSummary
       }
     : repositoryContextBase;
-  const effectiveScope = repositoryContext.scope;
-  const validationReport = await runRepositoryValidation(context, {
-    typecheck: input.validate?.typecheck,
-    lint: input.validate?.lint,
-    test: input.validate?.test,
-    scope: effectiveScope
+  const runtime = await prepareRepositoryWorkflowRuntime({
+    context,
+    repositoryContext,
+    buildRepositoryContext: async () => repositoryContext,
+    validate: input.validate
   });
-  const workerRun = await runHostWorkerWorkflow({
+  const workerRun = await runRepositoryScopedWorkerTask({
     context,
     files: input.files,
     goal: "Review the selected repository context for concrete implementation and validation risks.",
-    repositoryContext,
+    repositoryContext: runtime.repositoryContext,
     requireProfile: input.requireProfile,
-    scope: effectiveScope,
     strictFiles: input.strictFiles,
     taskType: "review-lite",
     additionalTaskInput: {
       diff: diffSummary?.diffText ?? input.diff,
-      validationReport
+      validationReport: runtime.validationReport
     },
     workerId: input.workerId
   });
   const reviewSummary = buildReviewSummary({
     qualityGate: workerRun.qualityGate,
-    repositoryContext,
-    validationReport,
+    repositoryContext: runtime.repositoryContext,
+    validationReport: runtime.validationReport,
     workerResult: workerRun.workerResult
   });
 
@@ -169,9 +166,9 @@ export const runReviewWorkflow = async (
     debug: workerRun.debug,
     errors: workerRun.errors,
     qualityGate: workerRun.qualityGate,
-    repositoryContext,
+    repositoryContext: runtime.repositoryContext,
     reviewSummary,
-    validationReport,
+    validationReport: runtime.validationReport,
     workflowStatus: workerRun.qualityGate.workflowStatus,
     warnings: workerRun.warnings,
     workerReviewResult: workerRun.workerResult
