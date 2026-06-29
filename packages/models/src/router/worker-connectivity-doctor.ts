@@ -1,8 +1,7 @@
 import type { DoctorCheck, ExecutionContext, ModelConfig } from "@mcp-code-worker/core";
 
 import {
-  inspectLocalClientCommand,
-  resolveLocalClientCommand
+  inspectConfiguredLocalClientCommand
 } from "../providers/local-client-command.js";
 import { ModelRouter } from "./model-router.js";
 import { resolveWorkerTarget } from "./worker-target-resolution.js";
@@ -22,18 +21,53 @@ const createProbeConfig = (modelConfig: ModelConfig): ModelConfig => ({
 });
 
 export const createLocalClientDoctorChecks = async (
-  context: ExecutionContext
+  context: ExecutionContext,
+  options: {
+    workerId?: string;
+  } = {}
 ): Promise<DoctorCheck[]> => {
-  if (!LOCAL_CLIENT_PROVIDERS.has(context.workerModel.provider)) {
+  let resolvedWorker:
+    | Awaited<ReturnType<typeof resolveWorkerTarget>>
+    | undefined;
+
+  if (options.workerId) {
+    try {
+      resolvedWorker = await resolveWorkerTarget({
+        context,
+        workerId: options.workerId
+      });
+    } catch {
+      return [];
+    }
+  }
+
+  const modelConfig = resolvedWorker?.modelConfig ?? context.workerModel;
+
+  if (!LOCAL_CLIENT_PROVIDERS.has(modelConfig.provider)) {
     return [];
   }
 
-  const command = resolveLocalClientCommand(context.workerModel);
-  const inspection = await inspectLocalClientCommand(command, {
+  const inspection = await inspectConfiguredLocalClientCommand(modelConfig, {
     checkCompatibility: true
   });
+  const resolvedCommand = inspection.resolvedPath ?? inspection.command;
 
   return [
+    {
+      name: "local-client-command",
+      status: inspection.resolvedPath ? "pass" : "fail",
+      message: inspection.resolvedPath
+        ? `Resolved local client command '${inspection.command}' to '${inspection.resolvedPath}' (${inspection.source}).`
+        : inspection.compatibility.message,
+      metadata: {
+        command: inspection.command,
+        configuredCommand: inspection.configuredCommand ?? "(default)",
+        resolvedCommand,
+        resolvedPath: inspection.resolvedPath,
+        source: inspection.source,
+        workerId: resolvedWorker?.workerId ?? options.workerId
+      }
+    },
     {
       name: "local-client-compatibility",
       status:
@@ -51,10 +85,14 @@ export const createLocalClientDoctorChecks = async (
       metadata: {
         command: inspection.command,
         compatibilityChecked: inspection.compatibility.checked,
+        configuredCommand: inspection.configuredCommand ?? "(default)",
         isPathLike: inspection.isPathLike,
+        resolvedCommand,
         resolvedPath: inspection.resolvedPath,
+        source: inspection.source,
         stderrPreview: inspection.compatibility.stderr?.slice(0, 300),
-        stdoutPreview: inspection.compatibility.stdout?.slice(0, 300)
+        stdoutPreview: inspection.compatibility.stdout?.slice(0, 300),
+        workerId: resolvedWorker?.workerId ?? options.workerId
       }
     }
   ];
@@ -69,17 +107,26 @@ export const createWorkerConnectivityDoctorChecks = async (
   let resolvedWorker:
     | Awaited<ReturnType<typeof resolveWorkerTarget>>
     | undefined;
+  let probeConfig = createProbeConfig(context.workerModel);
+  let localClientInspection:
+    | Awaited<ReturnType<typeof inspectConfiguredLocalClientCommand>>
+    | null = null;
 
   try {
     resolvedWorker = options.workerId
       ? await resolveWorkerTarget({
-        context,
-        workerId: options.workerId
-      })
+          context,
+          workerId: options.workerId
+        })
       : undefined;
-    const probeConfig = createProbeConfig(
+    probeConfig = createProbeConfig(
       resolvedWorker?.modelConfig ?? context.workerModel
     );
+    localClientInspection = LOCAL_CLIENT_PROVIDERS.has(probeConfig.provider)
+      ? await inspectConfiguredLocalClientCommand(probeConfig, {
+          checkCompatibility: false
+        })
+      : null;
     const router = new ModelRouter(probeConfig);
     const routed = router.route("worker");
     const result = await routed.provider.invoke(probeConfig, {
@@ -102,7 +149,14 @@ export const createWorkerConnectivityDoctorChecks = async (
           model: probeConfig.model,
           provider: probeConfig.provider,
           responsePreview: summarizeWorkerResponse(result.text),
+          clientCommand: localClientInspection?.command ?? probeConfig.clientCommand,
+          configuredCommand:
+            localClientInspection?.configuredCommand ?? probeConfig.clientCommand,
+          resolvedCommand:
+            localClientInspection?.resolvedPath ?? localClientInspection?.command,
+          resolvedPath: localClientInspection?.resolvedPath,
           source: resolvedWorker?.source ?? "active-runtime",
+          clientCommandSource: localClientInspection?.source,
           workerId: resolvedWorker?.workerId ?? options.workerId
         }
       }
@@ -116,16 +170,22 @@ export const createWorkerConnectivityDoctorChecks = async (
         status: "warning",
         message: `Worker connectivity probe failed: ${message}`,
         metadata: {
-          baseURL: resolvedWorker?.modelConfig.baseURL ?? context.workerModel.baseURL,
+          baseURL: probeConfig.baseURL,
           clientCommand:
-            resolvedWorker?.modelConfig.clientCommand ??
-            context.workerModel.clientCommand,
+            localClientInspection?.command ?? probeConfig.clientCommand,
+          configuredCommand:
+            localClientInspection?.configuredCommand ??
+            probeConfig.clientCommand ??
+            "(default)",
           error: message,
-          model: resolvedWorker?.modelConfig.model ?? context.workerModel.model,
-          provider:
-            resolvedWorker?.modelConfig.provider ?? context.workerModel.provider,
-          rootDir: context.rootDir,
+          model: probeConfig.model,
+          provider: probeConfig.provider,
+          resolvedCommand:
+            localClientInspection?.resolvedPath ?? localClientInspection?.command,
+          resolvedPath: localClientInspection?.resolvedPath,
           source: resolvedWorker?.source ?? "active-runtime",
+          rootDir: context.rootDir,
+          clientCommandSource: localClientInspection?.source,
           workerId: resolvedWorker?.workerId ?? options.workerId
         }
       }

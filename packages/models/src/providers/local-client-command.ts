@@ -15,6 +15,14 @@ export interface InspectLocalClientCommandOptions {
   timeoutMs?: number;
 }
 
+export type LocalClientCommandSource = "configured" | "default";
+
+export interface LocalClientCommandResolution {
+  command: string;
+  configuredCommand: string | null;
+  source: LocalClientCommandSource;
+}
+
 export interface LocalClientCompatibilityResult {
   checked: boolean;
   message: string;
@@ -26,8 +34,10 @@ export interface LocalClientCompatibilityResult {
 export interface LocalClientCommandInspection {
   command: string;
   compatibility: LocalClientCompatibilityResult;
+  configuredCommand: string | null;
   isPathLike: boolean;
   resolvedPath: string | null;
+  source: LocalClientCommandSource;
   status: "pass" | "warning" | "fail";
 }
 
@@ -83,12 +93,23 @@ const buildCommandCandidates = (
   return Array.from(new Set(candidates));
 };
 
+export const resolveLocalClientCommandResolution = (
+  config: Pick<ModelConfig, "clientCommand">
+): LocalClientCommandResolution => {
+  const configuredCommand = config.clientCommand?.trim();
+
+  return {
+    command: normalizeCommandInput(configuredCommand || "opencode"),
+    configuredCommand: configuredCommand
+      ? normalizeCommandInput(configuredCommand)
+      : null,
+    source: configuredCommand ? "configured" : "default"
+  };
+};
+
 export const resolveLocalClientCommand = (
   config: Pick<ModelConfig, "clientCommand">
-): string =>
-  normalizeCommandInput(
-    config.clientCommand?.trim() || "opencode"
-  );
+): string => resolveLocalClientCommandResolution(config).command;
 
 export const resolveCommandOnPath = async (
   command: string,
@@ -111,12 +132,12 @@ export const resolveCommandOnPath = async (
 };
 
 const runHelpProbe = async (
-  command: string,
+  resolvedCommand: string,
   env: NodeJS.ProcessEnv,
   timeoutMs: number
 ): Promise<LocalClientCompatibilityResult> =>
   await new Promise((resolve) => {
-    const child = spawn(command, ["--help"], {
+    const child = spawn(resolvedCommand, ["--help"], {
       env,
       stdio: ["ignore", "pipe", "pipe"]
     });
@@ -205,8 +226,10 @@ export const inspectLocalClientCommand = async (
   if (!resolvedPath) {
     return {
       command: normalizedCommand,
+      configuredCommand: normalizedCommand,
       isPathLike,
       resolvedPath: null,
+      source: "configured",
       status: "fail",
       compatibility: {
         checked: false,
@@ -223,8 +246,10 @@ export const inspectLocalClientCommand = async (
   ) {
     return {
       command: normalizedCommand,
+      configuredCommand: normalizedCommand,
       isPathLike,
       resolvedPath,
+      source: "configured",
       status: "warning",
       compatibility: {
         checked: false,
@@ -238,8 +263,10 @@ export const inspectLocalClientCommand = async (
   if (!options.checkCompatibility) {
     return {
       command: normalizedCommand,
+      configuredCommand: normalizedCommand,
       isPathLike,
       resolvedPath,
+      source: "configured",
       status: "pass",
       compatibility: {
         checked: false,
@@ -250,15 +277,17 @@ export const inspectLocalClientCommand = async (
   }
 
   const compatibility = await runHelpProbe(
-    normalizedCommand,
+    resolvedPath,
     env,
     options.timeoutMs ?? 5_000
   );
 
   return {
     command: normalizedCommand,
+    configuredCommand: normalizedCommand,
     isPathLike,
     resolvedPath,
+    source: "configured",
     status:
       compatibility.status === "fail"
         ? "fail"
@@ -266,5 +295,19 @@ export const inspectLocalClientCommand = async (
           ? "warning"
           : "pass",
     compatibility
+  };
+};
+
+export const inspectConfiguredLocalClientCommand = async (
+  config: Pick<ModelConfig, "clientCommand">,
+  options: InspectLocalClientCommandOptions = {}
+): Promise<LocalClientCommandInspection> => {
+  const resolution = resolveLocalClientCommandResolution(config);
+  const inspection = await inspectLocalClientCommand(resolution.command, options);
+
+  return {
+    ...inspection,
+    configuredCommand: resolution.configuredCommand,
+    source: resolution.source
   };
 };

@@ -561,6 +561,29 @@ describe("cli parsing", () => {
 
       expect(output.at(-1)).toContain("\"local-client-compatibility\"");
       expect(output.at(-1)).toContain("missing expected flags");
+      expect(output.at(-1)).toContain("\"configuredCommand\": \"node\"");
+      expect(output.at(-1)).toContain("\"resolvedCommand\":");
+    });
+  });
+
+  it("renders resolved local client details in compact human mode", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeCwConfig(rootDir, {
+        workerClientCommand: "node",
+        workerModel: {
+          provider: "client",
+          model: "qwen3-coder"
+        }
+      });
+      const { io, output } = createIo("human");
+      const cli = buildCli(io);
+
+      await cli.parseAsync(["node", "cw", "doctor"]);
+
+      expect(output.at(-1)).toContain("local client:");
+      expect(output.at(-1)).toContain("configured=node");
+      expect(output.at(-1)).toContain("resolved=");
+      expect(output.at(-1)).toContain("source=configured");
     });
   });
 

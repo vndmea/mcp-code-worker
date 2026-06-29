@@ -24,7 +24,9 @@ export const createWorkerDoctorChecks = async (
   }
 
   if (options.includeLocalClient ?? true) {
-    checks.push(...(await createLocalClientDoctorChecks(context)));
+    checks.push(...(await createLocalClientDoctorChecks(context, {
+      workerId: options.workerId
+    })));
   }
 
   if (options.probe) {

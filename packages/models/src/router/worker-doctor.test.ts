@@ -18,4 +18,18 @@ describe("worker doctor checks", () => {
 
     expect(checks).toEqual([]);
   });
+
+  it("does not fail local client checks when an explicit worker cannot be resolved", async () => {
+    const context = createExecutionContextFromEnv(undefined, {
+      rootDir: process.cwd()
+    });
+
+    const checks = await createWorkerDoctorChecks(context, {
+      includeProfile: false,
+      probe: false,
+      workerId: "missing-worker"
+    });
+
+    expect(checks).toEqual([]);
+  });
 });

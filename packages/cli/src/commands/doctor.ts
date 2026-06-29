@@ -67,6 +67,9 @@ const formatDoctorReport = (report: DoctorReport): string[] => {
   );
   const rootCheck = report.checks.find((check) => check.name === "root-dir");
   const workerModel = report.checks.find((check) => check.name === "worker-model");
+  const localClientCommand = report.checks.find(
+    (check) => check.name === "local-client-command"
+  );
   const workerConnectivity = report.checks.find(
     (check) => check.name === "worker-connectivity"
   );
@@ -99,9 +102,14 @@ const formatDoctorReport = (report: DoctorReport): string[] => {
       `worker: provider=${readMetadataString(workerModel.metadata, "provider", "unknown")} | model=${readMetadataString(workerModel.metadata, "model", "unknown")} | baseURL=${readMetadataString(workerModel.metadata, "baseURL", "(default)")} | client=${readMetadataString(workerModel.metadata, "clientCommand", "(default)")}`
     );
   }
+  if (localClientCommand?.metadata) {
+    lines.push(
+      `local client: status=${localClientCommand.status} | configured=${readMetadataString(localClientCommand.metadata, "configuredCommand", "(default)")} | resolved=${readMetadataString(localClientCommand.metadata, "resolvedCommand", readMetadataString(localClientCommand.metadata, "command", "(default)"))} | source=${readMetadataString(localClientCommand.metadata, "source", "unknown")}`
+    );
+  }
   if (workerConnectivity?.metadata) {
     lines.push(
-      `probe: worker=${readMetadataString(workerConnectivity.metadata, "workerId", "(not-specified)")} | source=${readMetadataString(workerConnectivity.metadata, "source", "active-runtime")} | provider=${readMetadataString(workerConnectivity.metadata, "provider", "unknown")} | model=${readMetadataString(workerConnectivity.metadata, "model", "unknown")} | baseURL=${readMetadataString(workerConnectivity.metadata, "baseURL", "(default)")} | client=${readMetadataString(workerConnectivity.metadata, "clientCommand", "(default)")}`
+      `probe: worker=${readMetadataString(workerConnectivity.metadata, "workerId", "(not-specified)")} | source=${readMetadataString(workerConnectivity.metadata, "source", "active-runtime")} | provider=${readMetadataString(workerConnectivity.metadata, "provider", "unknown")} | model=${readMetadataString(workerConnectivity.metadata, "model", "unknown")} | baseURL=${readMetadataString(workerConnectivity.metadata, "baseURL", "(default)")} | client=${readMetadataString(workerConnectivity.metadata, "resolvedCommand", readMetadataString(workerConnectivity.metadata, "clientCommand", "(default)"))} | clientSource=${readMetadataString(workerConnectivity.metadata, "clientCommandSource", "unknown")}`
     );
   }
   if (hostMcpChecks.length > 0) {

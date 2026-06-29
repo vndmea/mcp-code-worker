@@ -1,6 +1,6 @@
 import { access, mkdir, stat } from "node:fs/promises";
 import { constants } from "node:fs";
-import { delimiter, isAbsolute, join } from "node:path";
+import { join } from "node:path";
 
 import type { WorkerAvailabilitySnapshot } from "../schemas/worker-availability.schema.js";
 import { listAuditEvents } from "../audit/audit-log.js";
@@ -60,7 +60,10 @@ export interface DoctorReport {
 
 export interface RunDoctorOptions {
   additionalChecks?: DoctorCheck[];
+  skipLocalClientCommandCheck?: boolean;
 }
+
+const LOCAL_CLIENT_PROVIDERS = new Set(["client"]);
 
 const WHY_THIS_MATTERS: Record<string, string> = {
   "root-dir":
@@ -128,71 +131,6 @@ const canCreateDirectory = async (path: string): Promise<boolean> => {
   } catch {
     return false;
   }
-};
-
-const LOCAL_CLIENT_PROVIDERS = new Set(["client"]);
-
-const resolveLocalClientCommand = (
-  context: ExecutionContext
-): string => context.workerModel.clientCommand?.trim() || "opencode";
-
-const hasPathSeparator = (value: string): boolean =>
-  value.includes("/") || value.includes("\\");
-
-const hasWindowsDrivePrefix = (value: string): boolean =>
-  /^[a-z]:/iu.test(value);
-
-const buildCommandCandidates = (
-  command: string,
-  env: NodeJS.ProcessEnv
-): string[] => {
-  const isWindows = process.platform === "win32";
-  const pathExt = isWindows
-    ? (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
-        .split(";")
-        .map((ext) => ext.trim())
-        .filter((ext) => ext.length > 0)
-    : [];
-  const hasExplicitExtension = /\.[^./\\]+$/u.test(command);
-  const suffixes = hasExplicitExtension || !isWindows ? [""] : ["", ...pathExt];
-  const bases =
-    isAbsolute(command) || hasWindowsDrivePrefix(command) || hasPathSeparator(command)
-      ? [command]
-      : (env.PATH ?? "")
-          .split(delimiter)
-          .map((entry) => entry.trim())
-          .filter((entry) => entry.length > 0)
-          .map((entry) => join(entry, command));
-
-  const candidates: string[] = [];
-
-  for (const base of bases) {
-    for (const suffix of suffixes) {
-      candidates.push(`${base}${suffix}`);
-    }
-  }
-
-  return Array.from(new Set(candidates));
-};
-
-const resolveCommandOnPath = async (
-  command: string,
-  env: NodeJS.ProcessEnv = process.env
-): Promise<string | null> => {
-  const accessMode = process.platform === "win32"
-    ? constants.F_OK
-    : constants.X_OK;
-
-  for (const candidate of buildCommandCandidates(command, env)) {
-    try {
-      await access(candidate, accessMode);
-      return candidate;
-    } catch {
-      // Keep scanning candidates.
-    }
-  }
-
-  return null;
 };
 
 const summarizeRootSource = (
@@ -349,20 +287,18 @@ export const runDoctor = async (
     }
   });
 
-  if (LOCAL_CLIENT_PROVIDERS.has(context.workerModel.provider)) {
-    const localClientCommand = resolveLocalClientCommand(context);
-    const localClientPath = await resolveCommandOnPath(localClientCommand);
-
+  if (
+    !options.skipLocalClientCommandCheck &&
+    context.workerModel.provider === "client"
+  ) {
     addCheck(checks, {
       name: "local-client-command",
-      status: localClientPath ? "pass" : "fail",
-      message: localClientPath
-        ? `Local client command '${localClientCommand}' is available.`
-        : `Local client command '${localClientCommand}' was not found on PATH.`,
+      status: "warning",
+      message:
+        "Local client command checks were not resolved through the worker-aware model layer.",
       metadata: {
-        command: localClientCommand,
-        resolvedPath: localClientPath,
-        configuredInConfig: Boolean(context.workerModel.clientCommand?.trim())
+        command: context.workerModel.clientCommand?.trim() || "opencode",
+        source: context.workerModel.clientCommand?.trim() ? "configured" : "default"
       }
     });
   }

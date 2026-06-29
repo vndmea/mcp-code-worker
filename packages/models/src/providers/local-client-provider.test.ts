@@ -13,7 +13,8 @@ interface MockChildProcess extends EventEmitter {
   stdinText: string;
 }
 
-const { spawnMock } = vi.hoisted(() => ({
+const { inspectConfiguredLocalClientCommandMock, spawnMock } = vi.hoisted(() => ({
+  inspectConfiguredLocalClientCommandMock: vi.fn(),
   spawnMock: vi.fn()
 }));
 
@@ -32,11 +33,19 @@ const createMockChildProcess = (): MockChildProcess => {
   return child;
 };
 
+const waitForSpawn = async (): Promise<void> => {
+  await Promise.resolve();
+};
+
 vi.mock("node:child_process", () => ({
   spawn: spawnMock
 }));
 
-import { LocalClientProvider } from "@mcp-code-worker/models";
+vi.mock("./local-client-command.js", () => ({
+  inspectConfiguredLocalClientCommand: inspectConfiguredLocalClientCommandMock
+}));
+
+import { LocalClientProvider } from "./local-client-provider.js";
 
 const config: ModelConfig = {
   provider: "client",
@@ -45,7 +54,21 @@ const config: ModelConfig = {
 
 describe("LocalClientProvider", () => {
   beforeEach(() => {
+    inspectConfiguredLocalClientCommandMock.mockReset();
     spawnMock.mockReset();
+    inspectConfiguredLocalClientCommandMock.mockResolvedValue({
+      command: "opencode",
+      compatibility: {
+        checked: false,
+        message: "Command resolution passed.",
+        status: "pass"
+      },
+      configuredCommand: null,
+      isPathLike: false,
+      resolvedPath: "resolved-opencode",
+      source: "default",
+      status: "pass"
+    });
   });
 
   it("returns text results from client json output", async () => {
@@ -56,9 +79,10 @@ describe("LocalClientProvider", () => {
     const pending = provider.invoke(config, {
       prompt: "Reply with exactly hello"
     });
+    await waitForSpawn();
 
     expect(spawnMock).toHaveBeenCalledWith(
-      "opencode",
+      "resolved-opencode",
       [
         "-p",
         "--tools",
@@ -114,6 +138,7 @@ describe("LocalClientProvider", () => {
         message: z.string()
       })
     });
+    await waitForSpawn();
 
     const args = spawnMock.mock.calls[0]?.[1] as string[];
     expect(args).toContain("--system-prompt");
@@ -149,6 +174,7 @@ describe("LocalClientProvider", () => {
     const pending = provider.invoke(config, {
       prompt: "Reply with exactly hello"
     });
+    await waitForSpawn();
 
     child.stdout.end();
     child.stderr.end("authentication failed");
@@ -167,6 +193,7 @@ describe("LocalClientProvider", () => {
     const pending = provider.invoke(config, {
       prompt: "Reply with exactly hello"
     });
+    await waitForSpawn();
 
     child.stdout.end(
       JSON.stringify({
@@ -187,6 +214,19 @@ describe("LocalClientProvider", () => {
   it("uses the configured client command override when provided", async () => {
     const child = createMockChildProcess();
     spawnMock.mockReturnValue(child);
+    inspectConfiguredLocalClientCommandMock.mockResolvedValueOnce({
+      command: "custom-client",
+      compatibility: {
+        checked: false,
+        message: "Command resolution passed.",
+        status: "pass"
+      },
+      configuredCommand: "custom-client",
+      isPathLike: false,
+      resolvedPath: "resolved-custom-client",
+      source: "configured",
+      status: "pass"
+    });
 
     const provider = new LocalClientProvider();
     const pending = provider.invoke(
@@ -198,8 +238,9 @@ describe("LocalClientProvider", () => {
         prompt: "Reply with exactly hello"
       }
     );
+    await waitForSpawn();
 
-    expect(spawnMock.mock.calls[0]?.[0]).toBe("custom-client");
+    expect(spawnMock.mock.calls[0]?.[0]).toBe("resolved-custom-client");
 
     child.stdout.end(
       JSON.stringify({
@@ -218,6 +259,19 @@ describe("LocalClientProvider", () => {
   it("uses the model config client command when configured", async () => {
     const child = createMockChildProcess();
     spawnMock.mockReturnValue(child);
+    inspectConfiguredLocalClientCommandMock.mockResolvedValueOnce({
+      command: "config-client",
+      compatibility: {
+        checked: false,
+        message: "Command resolution passed.",
+        status: "pass"
+      },
+      configuredCommand: "config-client",
+      isPathLike: false,
+      resolvedPath: "resolved-config-client",
+      source: "configured",
+      status: "pass"
+    });
 
     const provider = new LocalClientProvider();
     const pending = provider.invoke(
@@ -229,8 +283,9 @@ describe("LocalClientProvider", () => {
         prompt: "Reply with exactly hello"
       }
     );
+    await waitForSpawn();
 
-    expect(spawnMock.mock.calls[0]?.[0]).toBe("config-client");
+    expect(spawnMock.mock.calls[0]?.[0]).toBe("resolved-config-client");
 
     child.stdout.end(
       JSON.stringify({
@@ -244,5 +299,38 @@ describe("LocalClientProvider", () => {
     child.emit("close", 0);
 
     await pending;
+  });
+
+  it("throws a resolution error with configured and resolved command details", async () => {
+    inspectConfiguredLocalClientCommandMock.mockResolvedValueOnce({
+      command: "sparkcode.exe",
+      compatibility: {
+        checked: false,
+        message: "Local client command 'sparkcode.exe' was not found.",
+        status: "fail"
+      },
+      configuredCommand: "sparkcode.exe",
+      isPathLike: false,
+      resolvedPath: null,
+      source: "configured",
+      status: "fail"
+    });
+
+    const provider = new LocalClientProvider();
+
+    await expect(
+      provider.invoke(
+        {
+          ...config,
+          clientCommand: "sparkcode.exe"
+        },
+        {
+          prompt: "Reply with exactly hello"
+        }
+      )
+    ).rejects.toThrow(
+      "Local client command resolution failed: Local client command 'sparkcode.exe' was not found. (configured=sparkcode.exe resolved=(not found) source=configured)"
+    );
+    expect(spawnMock).not.toHaveBeenCalled();
   });
 });

@@ -142,7 +142,10 @@ describe("doctor", () => {
 
     expect(
       report.checks.find((check) => check.name === "local-client-command")?.status
-    ).toBe("pass");
+    ).toBe("warning");
+    expect(
+      report.checks.find((check) => check.name === "local-client-command")?.message
+    ).toContain("worker-aware model layer");
     expect(
       report.checks.find((check) => check.name === "worker-api-key")?.status
     ).toBe("pass");

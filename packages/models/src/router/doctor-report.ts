@@ -102,6 +102,7 @@ export const buildDoctorReport = async (input: {
   workerId?: string;
 }): Promise<DoctorReport> => {
   const report = await runDoctor(input.context, {
+    skipLocalClientCommandCheck: true,
     additionalChecks: [
       ...(await createWorkerDoctorChecks(input.context, {
         probe: input.probe,

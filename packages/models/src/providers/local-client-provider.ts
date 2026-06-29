@@ -8,7 +8,10 @@ import type {
   ModelInvocationResult,
   ModelProvider
 } from "../types/model-provider.js";
-import { resolveLocalClientCommand } from "./local-client-command.js";
+import {
+  inspectConfiguredLocalClientCommand,
+  type LocalClientCommandInspection
+} from "./local-client-command.js";
 
 interface ClientUsagePayload {
   input_tokens?: number;
@@ -127,13 +130,33 @@ const buildClientExitError = (
   );
 };
 
+const buildLocalClientResolutionSummary = (
+  inspection: LocalClientCommandInspection
+): string =>
+  `configured=${inspection.configuredCommand ?? "(default)"} resolved=${inspection.resolvedPath ?? "(not found)"} source=${inspection.source}`;
+
+const buildLocalClientResolutionError = (
+  inspection: LocalClientCommandInspection
+): Error =>
+  new Error(
+    `Local client command resolution failed: ${inspection.compatibility.message} (${buildLocalClientResolutionSummary(inspection)})`
+  );
+
+const buildLocalClientSpawnError = (
+  error: Error,
+  inspection: LocalClientCommandInspection
+): Error =>
+  new Error(
+    `Local client worker failed to start: ${error.message} (${buildLocalClientResolutionSummary(inspection)})`
+  );
+
 const runClient = async (
-  command: string,
+  inspection: LocalClientCommandInspection,
   args: string[],
   prompt: string
 ): Promise<{ exitCode: number; stderr: string; stdout: string }> =>
   new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const child = spawn(inspection.resolvedPath ?? inspection.command, args, {
       stdio: ["pipe", "pipe", "pipe"]
     });
 
@@ -149,7 +172,14 @@ const runClient = async (
     child.stderr.on("data", (chunk: string) => {
       stderr += chunk;
     });
-    child.on("error", reject);
+    child.on("error", (error) => {
+      reject(
+        buildLocalClientSpawnError(
+          error instanceof Error ? error : new Error(String(error)),
+          inspection
+        )
+      );
+    });
     child.on("close", (code) => {
       resolve({
         exitCode: code ?? 1,
@@ -172,9 +202,16 @@ export class LocalClientProvider implements ModelProvider {
       return buildMockResult(config, request);
     }
 
-    const clientCommand = resolveLocalClientCommand(config);
+    const commandInspection = await inspectConfiguredLocalClientCommand(config, {
+      checkCompatibility: false
+    });
+
+    if (!commandInspection.resolvedPath) {
+      throw buildLocalClientResolutionError(commandInspection);
+    }
+
     const { exitCode, stderr, stdout } = await runClient(
-      clientCommand,
+      commandInspection,
       buildClientArgs(config, request),
       request.prompt
     );
