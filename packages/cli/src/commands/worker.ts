@@ -408,6 +408,7 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
           modelConfig: resolvedTarget.modelConfig
         });
         const benchmarkUpdate = await runBenchmarkCapabilityUpdate({
+          benchmarkResult: result,
           context,
           modelConfig: resolvedTarget.modelConfig,
           save: options.save,

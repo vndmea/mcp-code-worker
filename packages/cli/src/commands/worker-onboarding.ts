@@ -29,18 +29,21 @@ export interface WorkerBenchmarkUpdateResult {
 }
 
 export const runBenchmarkCapabilityUpdate = async (input: {
+  benchmarkResult?: Awaited<ReturnType<typeof runWorkerBenchmarkWorkflow>>;
   context: ExecutionContext;
   modelConfig: ModelConfig;
   save: boolean;
   updateProfileCapabilities: boolean;
   workerId: string;
 }): Promise<WorkerBenchmarkUpdateResult> => {
-  const benchmarkResult = await runWorkerBenchmarkWorkflow({
-    context: input.context,
-    suite: "coding-v1",
-    workerId: input.workerId,
-    modelConfig: input.modelConfig
-  });
+  const benchmarkResult =
+    input.benchmarkResult ??
+    (await runWorkerBenchmarkWorkflow({
+      context: input.context,
+      suite: "coding-v1",
+      workerId: input.workerId,
+      modelConfig: input.modelConfig
+    }));
   const persistence = input.save
     ? await saveWorkerBenchmarkArtifact(input.context, benchmarkResult, true)
     : null;
