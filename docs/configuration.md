@@ -63,6 +63,8 @@ The persisted config is intended for workspace-local runtime defaults such as:
 - session retention settings
 - worker and MCP-adjacent runtime defaults that should stay consistent across CLI and MCP entrypoints
 
+Persisted config no longer chooses an implicit execution worker for task, patch, or host-worker flows. Those commands now require an explicit named `workerId` at runtime.
+
 If you choose to persist an API key in the user-scoped config, keep it local to the machine, never commit it into repository files, and avoid pasting it into logs or shared transcripts. Launch-location bootstrap values such as `CW_WORKSPACE_DIR` and `CW_STORAGE_DIR` remain environment-driven.
 
 Path-like inputs such as `CW_WORKSPACE_DIR`, `CW_STORAGE_DIR`, and `workerClientCommand` are normalized before use so mixed slash styles like `C:/Users/me//tool.exe` and `.\bin\client` do not crash the runtime on the current platform.

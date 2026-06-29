@@ -41,6 +41,7 @@ This document lists current product boundaries and non-goals that users should u
 
 ## Worker Qualification Limits
 
+- Worker execution now requires an explicit named `workerId`; CW no longer guesses an execution worker for task, patch, or host-worker flows.
 - Benchmark results do not bypass patch gates.
 - Provider invocation failures during interview should be treated as configuration or connectivity problems, not as completed qualification results.
 - `patch-generation` should only be promoted after explicit benchmark review and capability update.

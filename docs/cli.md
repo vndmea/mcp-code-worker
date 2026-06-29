@@ -18,9 +18,9 @@ cw review files --file packages/graph/src/index.ts
 cw validate --all
 cw validate --all --stop-on-failure --execute
 cw fix error --error-log-file ./tmp/tsc-error.log --scope packages/schema-codegen
-cw task start --goal "Fix failing typecheck" --scope packages/core --typecheck --error-log-file ./tmp/tsc-error.log --run-fix --allow-write-session
+cw task start --goal "Fix failing typecheck" --scope packages/core --worker qwen-local --typecheck --error-log-file ./tmp/tsc-error.log --run-fix --allow-write-session
 cw task report <taskId>
-cw patch propose --goal "Fix failing typecheck" --scope packages/core
+cw patch propose --goal "Fix failing typecheck" --scope packages/core --worker qwen-local
 cw patch inspect ./tmp/candidate.patch
 cw patch apply ./tmp/candidate.patch --dry-run
 cw models list
@@ -68,7 +68,7 @@ For instruction scoping, put repository-specific guidance in `./AGENTS.md` and g
 ## Fix And Patch Commands
 
 - `cw fix error` analyzes an inline error log or `--error-log-file` and returns a structured fix plan.
-- `cw patch propose` generates a reviewable patch proposal without applying changes.
+- `cw patch propose` generates a reviewable patch proposal without applying changes and now requires an explicit `--worker`.
 - `cw patch propose --summary --max-bytes 4000` prints a smaller proposal summary while `--full` preserves the entire workflow payload.
 - `cw patch inspect` is the safety gate for a stored proposal or raw diff import.
 - `cw patch apply` requires both `--allow-write` and `--confirm-apply` before repository writes are permitted.
@@ -98,6 +98,7 @@ cw task resume <taskId> --apply-patch --allow-write --confirm-apply
 
 - `cw task report` is the primary human-readable artifact.
 - `cw task resume` should follow the `nextRecommendedActions` returned by task start/resume.
+- `cw task start` requires an explicit named worker via `--worker <workerId>`.
 - `cw init` and `cw doctor` verify setup, while `cw worker readiness` gives the single task-readiness answer for one worker.
 - `cw doctor --mcp` adds host-level MCP checks for config presence, snippet validity, launchability, live stdio connectivity, and tool-list matching.
 - `patch apply` stays explicitly gated even inside task sessions.

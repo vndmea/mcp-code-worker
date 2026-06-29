@@ -12,6 +12,12 @@ In host-driven use, treat `cw` as the controlled execution/runtime layer:
 
 Use `cw_start_task` as the default high-level entrypoint for coding flows, and follow `nextRecommendedActions` instead of composing patch lifecycle steps by hand.
 
+Named worker execution is explicit over MCP as well:
+
+- `cw_start_task` requires `workerId`
+- `cw_propose_patch` requires `workerId`
+- `cw_run_host_worker` requires `workerId`
+
 When you need a narrower host-managed worker check, use `cw_run_host_worker` or `cw_review_files` with explicit files and `strictFiles=true`. Those paths now expose debug evidence such as requested files, selected files, worker metadata, and `worker-debug.json` artifacts.
 
 ## Root Directory Resolution

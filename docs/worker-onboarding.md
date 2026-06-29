@@ -89,7 +89,7 @@ Interview output produces a `WorkerCapabilityProfile` that affects routing.
 - `not-qualified`: the worker completed evaluation but should stay out of qualified task types
 
 The profile status is not just descriptive. It changes how routing and policy checks behave.
-Run `cw worker readiness` for the separate runtime answer about whether the worker is currently ready or unavailable for formal tasks.
+Run `cw worker readiness --worker <workerId>` for the separate runtime answer about whether that named worker is currently ready or unavailable for formal tasks.
 
 ## Persisted Artifacts
 
@@ -156,6 +156,6 @@ Stop and fix the environment before retrying when:
 - the base URL or model name is wrong
 - a local client provider points to the wrong executable
 
-Use `cw doctor --probe` before a retry when you want a live connectivity probe for the currently resolved default worker.
+Use `cw worker readiness --worker <workerId> --probe` before a retry when you want a live connectivity probe for the exact named worker you plan to run.
 
 Do not treat a provider-failure interview result as a completed qualification result.

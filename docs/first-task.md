@@ -21,12 +21,14 @@ If you are using a repository checkout, read the commands below as `pnpm exec cw
 
 ## Task Goal
 
-Start with a narrow reviewable task that does not require repository writes:
+Start with a narrow reviewable task that does not require repository writes.
+Use the named worker you just configured during `cw init`, or register one first with `cw worker register ...`:
 
 ```bash
 cw task start \
   --goal "Review packages/core and propose safe improvements" \
   --scope packages/core \
+  --worker <workerId> \
   --typecheck \
   --propose-patch \
   --inspect-patch \
