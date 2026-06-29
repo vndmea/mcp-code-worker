@@ -293,6 +293,56 @@ describe("patch proposal workflow", () => {
       "Patch proposal is a fallback placeholder and must not be applied."
     );
   });
+
+  it("accepts legacy qualified profiles that allow patch generation even without the supported task tag", async () => {
+    const rootDir = await createWorkspace();
+    await saveWorkerRegistration(
+      createWriteContext(rootDir),
+      {
+        workerId,
+        provider: "mock",
+        model: "gpt-5.4-mini",
+        enabled: true,
+        tags: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      true
+    );
+    await saveWorkerProfile(
+      createWriteContext(rootDir),
+      createProfile({
+        supportedTaskTypes: [
+          "summarization",
+          "code-understanding",
+          "log-analysis",
+          "json-extraction",
+          "review-lite",
+          "risk-analysis",
+          "codegen",
+          "validation-fix",
+          "doc-generation"
+        ],
+        unsupportedTaskTypes: [],
+        routingPolicy: {
+          ...createProfile().routingPolicy,
+          allowPatchGeneration: true
+        }
+      }),
+      true
+    );
+
+    const result = await runPatchProposalWorkflow({
+      context: createContext(rootDir),
+      goal: "Fix the failing typecheck",
+      scope: "packages/core",
+      workerId,
+      requireProfile: true
+    });
+
+    expect(result.proposal.title).not.toContain("[PLACEHOLDER]");
+    expect(result.inspection.ok).toBe(true);
+  });
 });
 
 describe("fix workflow patch integration", () => {

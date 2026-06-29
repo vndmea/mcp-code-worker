@@ -1631,12 +1631,22 @@ const buildCapabilityProfile = (
     supported.add("test-generation");
   }
 
+  const allowPatchGeneration =
+    supported.has("codegen") &&
+    codeQuality >= 0.82 &&
+    score.reliability >= 0.8;
+
+  if (allowPatchGeneration) {
+    supported.add("patch-generation");
+  }
+
   const interviewQualifiedTaskTypes: WorkerTaskType[] = [
     "summarization",
     "code-understanding",
     "review-lite",
     "risk-analysis",
     "codegen",
+    "patch-generation",
     "test-generation",
     "validation-fix",
     "log-analysis",
@@ -1726,10 +1736,7 @@ const buildCapabilityProfile = (
           : "low",
       requiresHostReview: status !== "qualified" || score.reliability < 0.85,
       allowCodegen: supported.has("codegen"),
-      allowPatchGeneration:
-        supported.has("codegen") &&
-        codeQuality >= 0.82 &&
-        score.reliability >= 0.8,
+      allowPatchGeneration,
       allowDomainTasks: status === "qualified" && score.domainKnowledge >= 0.75
     },
     evaluatedAt: new Date().toISOString(),

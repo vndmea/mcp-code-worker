@@ -9,6 +9,7 @@ import {
   writeAuditEvent
 } from "@mcp-code-worker/core";
 import {
+  assessWorkerTaskEligibility,
   resolveWorkerProfile
 } from "@mcp-code-worker/models";
 import {
@@ -40,6 +41,30 @@ export interface PatchProposalWorkflowOutput {
   proposal: PatchProposal;
   warnings: string[];
 }
+
+const buildDeniedPatchProposalOutput = async (input: {
+  context: ExecutionContext;
+  fallbackProposal: PatchProposal;
+  reason: string;
+  scope?: string;
+}): Promise<PatchProposalWorkflowOutput> => {
+  const inspection = PatchInspectionSchema.parse({
+    ...(await inspectPatch(input.context, input.fallbackProposal, {
+      scope: input.scope
+    })),
+    ok: false,
+    blockedReasons: [
+      input.reason,
+      "Patch proposal is a fallback placeholder and must not be applied."
+    ]
+  });
+
+  return {
+    proposal: input.fallbackProposal,
+    inspection,
+    warnings: [input.reason]
+  };
+};
 
 export const runPatchProposalWorkflow = async (
   input: PatchProposalWorkflowInput
@@ -76,76 +101,29 @@ export const runPatchProposalWorkflow = async (
     workerId
   );
   const workerProfile = workerProfileResolution?.profile;
-  const routedWorkerProfile =
-    workerProfile?.routingPolicy.allowPatchGeneration === true
-      ? workerProfile
-      : null;
+  const patchEligibility = workerProfile
+    ? assessWorkerTaskEligibility(workerProfile, "patch-generation")
+    : null;
+  const routedWorkerProfile = patchEligibility?.allowed ? workerProfile : null;
 
   if (workerProfile) {
     if (workerProfile.status !== "qualified") {
-      const reason =
-        `Worker ${workerProfile.workerId} is ${workerProfile.status} and is not qualified for patch-generation tasks.`;
-      const inspection = PatchInspectionSchema.parse({
-        ...(await inspectPatch(context, fallbackProposal, {
-          scope: effectiveScope
-        })),
-        ok: false,
-        blockedReasons: [
-          reason,
-          "Patch proposal is a fallback placeholder and must not be applied."
-        ]
+      return buildDeniedPatchProposalOutput({
+        context,
+        fallbackProposal,
+        reason:
+          `Worker ${workerProfile.workerId} is ${workerProfile.status} and is not qualified for patch-generation tasks.`,
+        scope: effectiveScope
       });
-
-      return {
-        proposal: fallbackProposal,
-        inspection,
-        warnings: [reason]
-      };
     }
 
-    if (
-      input.requireProfile &&
-      workerProfile.routingPolicy.allowPatchGeneration !== true
-    ) {
-      const reason =
-        `Worker ${workerProfile.workerId} is not allowed to generate patch proposals under its persisted routing policy.`;
-      const inspection = PatchInspectionSchema.parse({
-        ...(await inspectPatch(context, fallbackProposal, {
-          scope: effectiveScope
-        })),
-        ok: false,
-        blockedReasons: [
-          reason,
-          "Patch proposal is a fallback placeholder and must not be applied."
-        ]
+    if (input.requireProfile && patchEligibility && !patchEligibility.allowed) {
+      return buildDeniedPatchProposalOutput({
+        context,
+        fallbackProposal,
+        reason: patchEligibility.reason,
+        scope: effectiveScope
       });
-
-      return {
-        proposal: fallbackProposal,
-        inspection,
-        warnings: [reason]
-      };
-    }
-
-    if (!workerProfile.supportedTaskTypes.includes("patch-generation")) {
-      const reason =
-        `Worker ${workerProfile.workerId} is not qualified for patch-generation tasks.`;
-      const inspection = PatchInspectionSchema.parse({
-        ...(await inspectPatch(context, fallbackProposal, {
-          scope: effectiveScope
-        })),
-        ok: false,
-        blockedReasons: [
-          reason,
-          "Patch proposal is a fallback placeholder and must not be applied."
-        ]
-      });
-
-      return {
-        proposal: fallbackProposal,
-        inspection,
-        warnings: [reason]
-      };
     }
   }
 

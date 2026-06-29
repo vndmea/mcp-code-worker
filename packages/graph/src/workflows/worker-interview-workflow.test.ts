@@ -81,7 +81,10 @@ describe("worker interview workflow", () => {
     expect(result.profile.supportedTaskTypes).toContain("risk-analysis");
     expect(result.profile.supportedTaskTypes).toContain("code-understanding");
     expect(result.profile.supportedTaskTypes).toContain("validation-fix");
+    expect(result.profile.supportedTaskTypes).toContain("patch-generation");
+    expect(result.profile.unsupportedTaskTypes).not.toContain("patch-generation");
     expect(result.profile.routingPolicy.allowCodegen).toBe(true);
+    expect(result.profile.routingPolicy.allowPatchGeneration).toBe(true);
     expect(result.profile.admission?.passed).toBe(true);
     expect(result.profile.portrait?.repoGrounding).toBeGreaterThan(0.7);
     expect(result.profile.taskScores?.reviewLite).toBeGreaterThan(0.7);

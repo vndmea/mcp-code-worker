@@ -81,6 +81,27 @@ const createProfile = (
 });
 
 describe("assessWorkerTaskEligibility", () => {
+  it("allows patch-generation for legacy qualified profiles when routing policy allows it", () => {
+    const result = assessWorkerTaskEligibility(createProfile(), "patch-generation");
+
+    expect(result.allowed).toBe(true);
+  });
+
+  it("blocks patch-generation when the routing policy disallows it", () => {
+    const result = assessWorkerTaskEligibility(
+      createProfile({
+        routingPolicy: {
+          ...createProfile().routingPolicy,
+          allowPatchGeneration: false
+        }
+      }),
+      "patch-generation"
+    );
+
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain("not allowed to generate patch proposals");
+  });
+
   it("allows repo-grounded review when the portrait is strong enough", () => {
     const result = assessWorkerTaskEligibility(createProfile(), "review-lite");
 

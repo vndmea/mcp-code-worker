@@ -13,6 +13,31 @@ export const assessWorkerTaskEligibility = (
   profile: WorkerCapabilityProfile,
   taskType: WorkerTaskType
 ): WorkerTaskEligibility => {
+  if (taskType === "patch-generation") {
+    if (profile.status !== "qualified") {
+      return {
+        allowed: false,
+        reason:
+          `Worker ${profile.workerId} is ${profile.status} and is not qualified for patch-generation tasks.`,
+        requiresHostReview: true
+      };
+    }
+
+    if (!profile.routingPolicy.allowPatchGeneration) {
+      return {
+        allowed: false,
+        reason: `Worker ${profile.workerId} is not allowed to generate patch proposals.`,
+        requiresHostReview: true
+      };
+    }
+
+    return {
+      allowed: true,
+      reason: `Worker ${profile.workerId} is qualified for ${taskType}.`,
+      requiresHostReview: profile.routingPolicy.requiresHostReview
+    };
+  }
+
   if (!profile.supportedTaskTypes.includes(taskType)) {
     return {
       allowed: false,
@@ -125,17 +150,6 @@ export const assessWorkerTaskEligibility = (
     return {
       allowed: false,
       reason: `Worker ${profile.workerId} is not allowed to generate tests.`,
-      requiresHostReview: true
-    };
-  }
-
-  if (
-    taskType === "patch-generation" &&
-    !profile.routingPolicy.allowPatchGeneration
-  ) {
-    return {
-      allowed: false,
-      reason: `Worker ${profile.workerId} is not allowed to generate patch proposals.`,
       requiresHostReview: true
     };
   }
