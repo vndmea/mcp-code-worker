@@ -5,6 +5,7 @@ import type {
 } from "@mcp-code-worker/core";
 import {
   getWorkerProfile,
+  resolveWorkerProfile,
   saveWorkerProfile
 } from "@mcp-code-worker/models";
 
@@ -43,6 +44,64 @@ export interface WorkerBenchmarkOnboardingResult {
     | null;
 }
 
+const buildProfileWarnings = (
+  profile: WorkerCapabilityProfile
+): string[] =>
+  profile.status === "qualified"
+    ? []
+    : [
+        `Worker ${profile.workerId} is ${profile.status}.`,
+        ...profile.warnings
+      ];
+
+export const resolveWorkerCapabilityProfileForExecution = async (input: {
+  providedProfile?: WorkerCapabilityProfile | null;
+  requireProfile?: boolean;
+  workerContext: ExecutionContext;
+  workerId: string;
+}): Promise<{ profile: WorkerCapabilityProfile; warnings: string[] }> => {
+  if (input.providedProfile) {
+    return {
+      profile: input.providedProfile,
+      warnings: buildProfileWarnings(input.providedProfile)
+    };
+  }
+
+  const resolution = await resolveWorkerProfile({
+    context: input.workerContext,
+    modelConfig: input.workerContext.workerModel,
+    workerId: input.workerId,
+    requireProfile: input.requireProfile
+  });
+
+  if (resolution.freshness.usable && resolution.profile) {
+    return {
+      profile: resolution.profile,
+      warnings: buildProfileWarnings(resolution.profile)
+    };
+  }
+
+  const interviewResult = await runWorkerInterviewWorkflow({
+    context: input.workerContext,
+    workerId: resolution.workerId,
+    modelConfig: input.workerContext.workerModel
+  });
+
+  const sourceWarning =
+    resolution.source === "missing"
+      ? `Worker profile for ${resolution.workerId} was missing; ran a fresh interview for this invocation.`
+      : resolution.source === "stale"
+        ? `Worker profile for ${resolution.workerId} was stale; ran a fresh interview for this invocation.`
+        : resolution.source === "provider-error"
+          ? `Worker profile for ${resolution.workerId} looked like a provider/configuration failure; ran a fresh interview for this invocation.`
+          : `Worker profile for ${resolution.workerId} was incompatible with the current worker model; ran a fresh interview for this invocation.`;
+
+  return {
+    profile: interviewResult.profile,
+    warnings: [sourceWarning, ...buildProfileWarnings(interviewResult.profile)]
+  };
+};
+
 const persistInterviewProfile = async (input: {
   context: ExecutionContext;
   persistProfile: boolean;
@@ -78,7 +137,7 @@ export const runWorkerInterviewOnboarding = async (input: {
     baseURL: input.baseURL,
     model: input.model,
     provider: input.provider,
-    workerId: input.workerId,
+    workerId: input.workerId
   });
   const result = await runWorkerInterviewWorkflow({
     context: input.context,
@@ -116,7 +175,7 @@ export const runWorkerBenchmarkOnboarding = async (input: {
     baseURL: input.baseURL,
     model: input.model,
     provider: input.provider,
-    workerId: input.workerId,
+    workerId: input.workerId
   });
   const benchmarkResult =
     input.benchmarkResult ??

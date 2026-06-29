@@ -14,8 +14,7 @@ import {
   writeAuditEvent
 } from "@mcp-code-worker/core";
 import {
-  assessWorkerTaskEligibility,
-  resolveWorkerProfile
+  assessWorkerTaskEligibility
 } from "@mcp-code-worker/models";
 import { buildRepositoryContextPack } from "@mcp-code-worker/tools";
 
@@ -24,7 +23,7 @@ import { ReviewWorker } from "../workers/review-worker.js";
 import { SummarizeWorker } from "../workers/summarize-worker.js";
 import { TestWorker } from "../workers/test-worker.js";
 import { resolveWorkflowWorkerContext } from "./worker-context-resolution.js";
-import { runWorkerInterviewWorkflow } from "./worker-interview-workflow.js";
+import { resolveWorkerCapabilityProfileForExecution } from "./worker-onboarding-workflow.js";
 
 export interface HostWorkerWorkflowInput {
   additionalTaskInput?: Record<string, unknown>;
@@ -442,58 +441,12 @@ const resolveProfile = async (
   workerContext: ExecutionContext,
   workerId: string
 ): Promise<{ profile: WorkerCapabilityProfile; warnings: string[] }> => {
-  if (input.workerCapabilityProfile) {
-    return {
-      profile: input.workerCapabilityProfile,
-      warnings:
-        input.workerCapabilityProfile.status === "qualified"
-          ? []
-          : [
-              `Worker ${input.workerCapabilityProfile.workerId} is ${input.workerCapabilityProfile.status}.`,
-              ...input.workerCapabilityProfile.warnings
-            ]
-    };
-  }
-
-  const resolution = await resolveWorkerProfile({
-    context: workerContext,
-    modelConfig: workerContext.workerModel,
-    workerId,
-    requireProfile: input.requireProfile
+  return resolveWorkerCapabilityProfileForExecution({
+    providedProfile: input.workerCapabilityProfile,
+    requireProfile: input.requireProfile,
+    workerContext,
+    workerId
   });
-
-  if (resolution.freshness.usable && resolution.profile) {
-    return {
-      profile: resolution.profile,
-      warnings:
-        resolution.profile.status === "qualified"
-          ? []
-          : [
-              `Worker ${resolution.profile.workerId} is ${resolution.profile.status}.`,
-              ...resolution.profile.warnings
-            ]
-    };
-  }
-
-  const interviewResult = await runWorkerInterviewWorkflow({
-    context: workerContext,
-    workerId: resolution.workerId,
-    modelConfig: workerContext.workerModel
-  });
-
-  const sourceWarning =
-    resolution.source === "missing"
-      ? `Worker profile for ${resolution.workerId} was missing; ran a fresh interview for this invocation.`
-      : resolution.source === "stale"
-        ? `Worker profile for ${resolution.workerId} was stale; ran a fresh interview for this invocation.`
-        : resolution.source === "provider-error"
-          ? `Worker profile for ${resolution.workerId} looked like a provider/configuration failure; ran a fresh interview for this invocation.`
-          : `Worker profile for ${resolution.workerId} was incompatible with the current worker model; ran a fresh interview for this invocation.`;
-
-  return {
-    profile: interviewResult.profile,
-    warnings: [sourceWarning, ...interviewResult.profile.warnings]
-  };
 };
 
 export const runHostWorkerWorkflow = async (
