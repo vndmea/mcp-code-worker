@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { resolveExecutionContext } from "@mcp-code-worker/core";
 import {
   formatPatchProposalWorkflowOutput,
   runPatchProposalWorkflow
@@ -11,6 +10,7 @@ import {
   resolveWorkflowOutputOptions,
   workflowOutputOptionShape
 } from "./output-options.js";
+import { resolveToolContext } from "./tool-runtime.js";
 
 const inputSchema = z.object({
   goal: z.string().optional(),
@@ -30,7 +30,7 @@ export const cwProposePatchTool: CwToolDefinition<
   description: "Generate a structured patch proposal and inspect it without applying changes.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext();
+    const context = await resolveToolContext();
     const result = await runPatchProposalWorkflow({
       context,
       goal: args.goal,

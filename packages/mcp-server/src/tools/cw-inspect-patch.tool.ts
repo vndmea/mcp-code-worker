@@ -1,9 +1,10 @@
 import { z } from "zod";
 
-import { PatchProposalSchema, resolveExecutionContext } from "@mcp-code-worker/core";
+import { PatchProposalSchema } from "@mcp-code-worker/core";
 import { inspectPatch } from "@mcp-code-worker/tools";
 
 import type { CwToolDefinition } from "./tool-types.js";
+import { resolveToolContext } from "./tool-runtime.js";
 
 const inputSchema = z.object({
   patchProposal: z.unknown(),
@@ -18,7 +19,7 @@ export const cwInspectPatchTool: CwToolDefinition<
   description: "Inspect a structured patch proposal for safety and applicability.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext({
+    const context = await resolveToolContext({
       cliOverrides: {
         dryRun: false
       }

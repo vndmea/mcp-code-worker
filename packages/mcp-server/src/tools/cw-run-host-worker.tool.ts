@@ -1,8 +1,11 @@
 import { z } from "zod";
 
-import { resolveExecutionContext, writeAuditEvent } from "@mcp-code-worker/core";
 import { runHostWorkerWorkflow } from "@mcp-code-worker/graph";
 
+import {
+  resolveToolContext,
+  writeToolAuditEvent
+} from "./tool-runtime.js";
 import type { CwToolDefinition } from "./tool-types.js";
 
 const inputSchema = z.object({
@@ -36,7 +39,7 @@ export const cwRunHostWorkerTool: CwToolDefinition<
     "Run one explicit worker task under host control without introducing another decision-making surface.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext();
+    const context = await resolveToolContext();
     const result = await runHostWorkerWorkflow({
       context,
       files: args.files,
@@ -48,10 +51,8 @@ export const cwRunHostWorkerTool: CwToolDefinition<
       taskType: args.taskType,
       workerId: args.workerId
     });
-    await writeAuditEvent(context, {
-      actor: "mcp",
-      action: "tool-call",
-      mode: context.dryRun ? "dry-run" : "execute",
+    await writeToolAuditEvent({
+      context,
       tool: "cw_run_host_worker",
       inputSummary: args.goal,
       outputSummary: "Host-managed worker MCP workflow completed.",

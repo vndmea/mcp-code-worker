@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-import { resolveExecutionContext } from "@mcp-code-worker/core";
 import { getWorkerRegistration } from "@mcp-code-worker/models";
 
 import type { CwToolDefinition } from "./tool-types.js";
+import { resolveToolContext } from "./tool-runtime.js";
 
 const inputSchema = z.object({
   workerId: z.string().min(1)
@@ -17,7 +17,7 @@ export const cwGetWorkerRegistrationTool: CwToolDefinition<
   description: "Get one registered worker model.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext();
+    const context = await resolveToolContext();
     return getWorkerRegistration(
       context.rootDir,
       args.workerId,

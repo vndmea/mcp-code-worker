@@ -4,11 +4,11 @@ import {
   AgentError,
   readTaskArtifact,
   readTaskSession,
-  resolveExecutionContext,
   truncateText
 } from "@mcp-code-worker/core";
 
 import type { CwToolDefinition } from "./tool-types.js";
+import { resolveToolContext } from "./tool-runtime.js";
 
 const inputSchema = z.object({
   taskId: z.string().min(1),
@@ -34,7 +34,7 @@ export const cwReadTaskArtifactTool: CwToolDefinition<
     "Read one persisted task artifact from user-scoped cw storage using a session-scoped artifact name.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext();
+    const context = await resolveToolContext();
     const rootDir = context.rootDir;
     const session = await readTaskSession(
       rootDir,

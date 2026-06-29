@@ -1,16 +1,26 @@
 import { z } from "zod";
 
 import {
-  resolveExecutionContext,
-  writeAuditEvent
-} from "@mcp-code-worker/core";
-import {
   buildDoctorReport
 } from "@mcp-code-worker/models";
 
+import {
+  createHostMcpDoctorChecks
+} from "./host-mcp-doctor.js";
+import {
+  isMcpHost,
+  MCP_HOSTS,
+  type McpHost
+} from "./mcp-host-config.js";
+import {
+  resolveToolContext,
+  writeToolAuditEvent
+} from "./tool-runtime.js";
 import type { CwToolDefinition } from "./tool-types.js";
 
 const inputSchema = z.object({
+  host: z.enum(MCP_HOSTS).optional(),
+  mcp: z.boolean().optional(),
   probe: z.boolean().optional(),
   workerId: z.string().min(1).optional()
 });
@@ -23,18 +33,31 @@ export const cwDoctorTool: CwToolDefinition<
   description: "Inspect resolved configuration and local workflow prerequisites.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext();
+    const requestedHost = args.host ?? "codex";
+    const runHostChecks = args.mcp === true || args.host !== undefined;
+
+    if (runHostChecks && !isMcpHost(requestedHost)) {
+      throw new Error(
+        `Unsupported MCP host '${requestedHost}'. Expected one of: ${MCP_HOSTS.join(", ")}.`
+      );
+    }
+
+    const context = await resolveToolContext();
+    const hostChecks = runHostChecks
+      ? await createHostMcpDoctorChecks(context, requestedHost as McpHost)
+      : [];
     const report = await buildDoctorReport({
+      additionalChecks: hostChecks,
       context,
+      hostMcpHost: runHostChecks ? requestedHost : undefined,
       probe: args.probe,
       workerId: args.workerId
     });
-    await writeAuditEvent(context, {
-      actor: "mcp",
-      action: "tool-call",
-      mode: context.dryRun ? "dry-run" : "execute",
+    await writeToolAuditEvent({
+      context,
       tool: "cw_doctor",
-      inputSummary: `cw_doctor${args.workerId ? ` worker=${args.workerId}` : ""}${args.probe ? " probe=true" : ""}`,
+      inputSummary:
+        `cw_doctor${args.workerId ? ` worker=${args.workerId}` : ""}${args.probe ? " probe=true" : ""}${runHostChecks ? ` mcp=true host=${requestedHost}` : ""}`,
       outputSummary: `Doctor completed with ok=${String(report.ok)}.`,
       warnings: report.checks
         .filter((check) => check.status === "warning")

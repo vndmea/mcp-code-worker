@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { resolveExecutionContext } from "@mcp-code-worker/core";
 import {
   formatFixErrorWorkflowOutput,
   runFixErrorWorkflow
@@ -11,6 +10,7 @@ import {
   resolveWorkflowOutputOptions,
   workflowOutputOptionShape
 } from "./output-options.js";
+import { resolveToolContext } from "./tool-runtime.js";
 
 const inputSchema = z.object({
   errorLog: z.string().optional(),
@@ -32,7 +32,7 @@ export const cwFixErrorTool: CwToolDefinition<
   description: "Analyze an error log, propose a safe fix plan, and return validation guidance.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext();
+    const context = await resolveToolContext();
     const result = await runFixErrorWorkflow({
       context,
       errorLog: args.errorLog,

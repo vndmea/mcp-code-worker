@@ -1,8 +1,9 @@
 import { z } from "zod";
 
-import { listAuditEvents, resolveExecutionContext } from "@mcp-code-worker/core";
+import { listAuditEvents } from "@mcp-code-worker/core";
 
 import type { CwToolDefinition } from "./tool-types.js";
+import { resolveToolContext } from "./tool-runtime.js";
 
 const inputSchema = z.object({
   limit: z.number().int().positive().max(100).optional()
@@ -16,7 +17,7 @@ export const cwListAuditEventsTool: CwToolDefinition<
   description: "List local audit events in reverse chronological order.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext();
+    const context = await resolveToolContext();
     return listAuditEvents(
       context.rootDir,
       args.limit ?? 50,

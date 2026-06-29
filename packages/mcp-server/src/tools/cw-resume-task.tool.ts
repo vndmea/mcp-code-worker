@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { resolveExecutionContext } from "@mcp-code-worker/core";
 import {
   formatTaskSessionWorkflowOutput,
   resumeTaskSessionWorkflow
@@ -11,6 +10,10 @@ import {
   resolveWorkflowOutputOptions,
   workflowOutputOptionShape
 } from "./output-options.js";
+import {
+  createAllowWriteCliOverrides,
+  resolveToolContext
+} from "./tool-runtime.js";
 
 const inputSchema = z.object({
   taskId: z.string().min(1),
@@ -36,15 +39,8 @@ export const cwResumeTaskTool: CwToolDefinition<
   description: "Resume a stored local task session, skip successful steps unless told otherwise, and return updated next recommended actions.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext({
-      cliOverrides: {
-        ...(args.allowWrite
-          ? {
-              allowWrite: true,
-              dryRun: false
-            }
-          : {})
-      }
+    const context = await resolveToolContext({
+      cliOverrides: createAllowWriteCliOverrides(args.allowWrite)
     });
 
     const result = await resumeTaskSessionWorkflow({

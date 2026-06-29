@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { resolveExecutionContext } from "@mcp-code-worker/core";
 import { runWorkerInterviewOnboarding } from "@mcp-code-worker/graph";
 
+import { resolveToolContext } from "./tool-runtime.js";
 import type { CwToolDefinition } from "./tool-types.js";
 
 const inputSchema = z.object({
@@ -20,7 +20,7 @@ type WorkerInterviewToolResult = Awaited<
 const executeWorkerInterview = async (
   args: z.infer<typeof inputSchema>
 ): Promise<WorkerInterviewToolResult> => {
-  const context = await resolveExecutionContext();
+  const context = await resolveToolContext();
   return runWorkerInterviewOnboarding({
     baseURL: args.baseURL,
     context,

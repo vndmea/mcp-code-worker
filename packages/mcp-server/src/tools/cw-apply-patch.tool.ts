@@ -1,8 +1,12 @@
 import { z } from "zod";
 
-import { PatchProposalSchema, resolveExecutionContext } from "@mcp-code-worker/core";
+import { PatchProposalSchema } from "@mcp-code-worker/core";
 import { applyPatchProposal } from "@mcp-code-worker/tools";
 
+import {
+  createAllowWriteCliOverrides,
+  resolveToolContext
+} from "./tool-runtime.js";
 import type { CwToolDefinition } from "./tool-types.js";
 
 const inputSchema = z.object({
@@ -25,9 +29,11 @@ export const cwApplyPatchTool: CwToolDefinition<
   description: "Apply a structured patch proposal with dry-run default and explicit confirmation gates.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext({
+    const context = await resolveToolContext({
       cliOverrides: {
-        allowWrite: args.allowWrite,
+        ...createAllowWriteCliOverrides(args.allowWrite, {
+          dryRunWhenDisallowed: false
+        }),
         dryRun: false
       }
     });

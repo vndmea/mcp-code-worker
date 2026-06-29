@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { resolveExecutionContext } from "@mcp-code-worker/core";
 import {
   formatReviewWorkflowOutput,
   runReviewWorkflow
@@ -11,6 +10,7 @@ import {
   resolveWorkflowOutputOptions,
   workflowOutputOptionShape
 } from "./output-options.js";
+import { resolveToolContext } from "./tool-runtime.js";
 
 const inputSchema = z.object({
   base: z.string().optional(),
@@ -32,7 +32,7 @@ export const cwReviewDiffTool: CwToolDefinition<
   description: "Review a git diff and return structured impact analysis.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext();
+    const context = await resolveToolContext();
     const result = await runReviewWorkflow({
       context,
       workerId: args.workerId,

@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { resolveExecutionContext } from "@mcp-code-worker/core";
 import {
   formatTaskSessionWorkflowOutput,
   runTaskSessionWorkflow
@@ -11,6 +10,10 @@ import {
   resolveWorkflowOutputOptions,
   workflowOutputOptionShape
 } from "./output-options.js";
+import {
+  createAllowWriteCliOverrides,
+  resolveToolContext
+} from "./tool-runtime.js";
 
 const inputSchema = z.object({
   goal: z.string().min(1),
@@ -41,15 +44,8 @@ export const cwStartTaskTool: CwToolDefinition<
   description: "Recommended host-facing coding entrypoint. Keep the host in control while cw manages repository context, validation, task artifacts, and patch gates.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext({
-      cliOverrides: {
-        ...(args.allowWrite
-          ? {
-              allowWrite: true,
-              dryRun: false
-            }
-          : {})
-      }
+    const context = await resolveToolContext({
+      cliOverrides: createAllowWriteCliOverrides(args.allowWrite)
     });
 
     const result = await runTaskSessionWorkflow({

@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-import { resolveExecutionContext } from "@mcp-code-worker/core";
 import {
   runWorkerBenchmarkOnboarding
 } from "@mcp-code-worker/graph";
 
+import { resolveToolContext } from "./tool-runtime.js";
 import type { CwToolDefinition } from "./tool-types.js";
 
 const inputSchema = z.object({
@@ -37,7 +37,7 @@ export const cwBenchmarkWorkerTool: CwToolDefinition<
       throw new Error("updateProfileCapabilities requires persistArtifact.");
     }
 
-    const context = await resolveExecutionContext();
+    const context = await resolveToolContext();
     const result = await runWorkerBenchmarkOnboarding({
       baseURL: args.baseURL,
       context,

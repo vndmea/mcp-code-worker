@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { resolveExecutionContext } from "@mcp-code-worker/core";
 import {
   formatTaskSessionListOutput,
   listStoredTaskSessions
@@ -11,6 +10,7 @@ import {
   resolveWorkflowOutputOptions,
   workflowOutputOptionShape
 } from "./output-options.js";
+import { resolveToolContext } from "./tool-runtime.js";
 
 const inputSchema = z.object({
   limit: z.number().int().positive().max(100).optional(),
@@ -25,7 +25,7 @@ export const cwListTasksTool: CwToolDefinition<
   description: "List stored local task sessions in reverse chronological order.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext();
+    const context = await resolveToolContext();
     const sessions = await listStoredTaskSessions(
       context.rootDir,
       args.limit ?? 50,

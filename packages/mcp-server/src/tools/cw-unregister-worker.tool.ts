@@ -1,8 +1,11 @@
 import { z } from "zod";
 
-import { resolveExecutionContext } from "@mcp-code-worker/core";
 import { removeWorkerRegistration } from "@mcp-code-worker/models";
 
+import {
+  createAllowWriteCliOverrides,
+  resolveToolContext
+} from "./tool-runtime.js";
 import type { CwToolDefinition } from "./tool-types.js";
 
 const inputSchema = z.object({
@@ -18,11 +21,8 @@ export const cwUnregisterWorkerTool: CwToolDefinition<
   description: "Remove a worker from the local worker registry.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext({
-      cliOverrides: {
-        allowWrite: args.allowWrite ?? false,
-        dryRun: !(args.allowWrite ?? false)
-      }
+    const context = await resolveToolContext({
+      cliOverrides: createAllowWriteCliOverrides(args.allowWrite ?? false)
     });
     return removeWorkerRegistration(
       context,

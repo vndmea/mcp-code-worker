@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 import {
-  resolveExecutionContext,
   summarizeValidationReport
 } from "@mcp-code-worker/core";
 import { runRepositoryValidation } from "@mcp-code-worker/tools";
 
 import type { CwToolDefinition } from "./tool-types.js";
 import { workflowOutputOptionShape } from "./output-options.js";
+import { resolveToolContext } from "./tool-runtime.js";
 
 const inputSchema = z.object({
   typecheck: z.boolean().optional(),
@@ -26,10 +26,8 @@ export const cwValidateRepositoryTool: CwToolDefinition<
   description: "Run deterministic repository validation checks with dry-run by default.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext({
-      cliOverrides: {
-        ...(args.execute ? { dryRun: false } : {})
-      }
+    const context = await resolveToolContext({
+      cliOverrides: args.execute ? { dryRun: false } : {}
     });
 
     const result = await runRepositoryValidation(context, {

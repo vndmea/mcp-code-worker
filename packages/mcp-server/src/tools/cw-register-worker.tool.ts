@@ -1,11 +1,14 @@
 import { z } from "zod";
 
-import { resolveExecutionContext } from "@mcp-code-worker/core";
 import {
   getWorkerRegistration,
   saveWorkerRegistration
 } from "@mcp-code-worker/models";
 
+import {
+  createAllowWriteCliOverrides,
+  resolveToolContext
+} from "./tool-runtime.js";
 import type { CwToolDefinition } from "./tool-types.js";
 
 const inputSchema = z.object({
@@ -26,11 +29,8 @@ export const cwRegisterWorkerTool: CwToolDefinition<
   description: "Register a worker model in the local worker registry.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext({
-      cliOverrides: {
-        allowWrite: args.allowWrite ?? false,
-        dryRun: !(args.allowWrite ?? false)
-      }
+    const context = await resolveToolContext({
+      cliOverrides: createAllowWriteCliOverrides(args.allowWrite ?? false)
     });
     const workerId = args.workerId;
     const existing = await getWorkerRegistration(

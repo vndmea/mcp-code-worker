@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-import { resolveExecutionContext } from "@mcp-code-worker/core";
 import { listWorkerRegistrations } from "@mcp-code-worker/models";
 
 import type { CwToolDefinition } from "./tool-types.js";
+import { resolveToolContext } from "./tool-runtime.js";
 
 const inputSchema = z.object({});
 
@@ -15,7 +15,7 @@ export const cwListWorkerRegistryTool: CwToolDefinition<
   description: "List registered worker models.",
   inputSchema,
   execute: async () => {
-    const context = await resolveExecutionContext();
+    const context = await resolveToolContext();
     return listWorkerRegistrations(context.rootDir, context.cwStorageDir);
   }
 };

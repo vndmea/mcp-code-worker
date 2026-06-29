@@ -27,5 +27,8 @@ export * from "./tools/cw-run-host-worker.tool.js";
 export * from "./tools/cw-start-task.tool.js";
 export * from "./tools/cw-unregister-worker.tool.js";
 export * from "./tools/cw-validate-repository.tool.js";
+export * from "./tools/host-mcp-doctor.js";
 export * from "./tools/mcp-tool-catalog.js";
+export * from "./tools/mcp-host-config.js";
+export * from "./tools/tool-runtime.js";
 export * from "./tools/tool-types.js";

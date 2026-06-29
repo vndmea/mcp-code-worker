@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { resolveExecutionContext } from "@mcp-code-worker/core";
 import {
   formatReviewWorkflowOutput,
   runReviewWorkflow
@@ -11,6 +10,7 @@ import {
   resolveWorkflowOutputOptions,
   workflowOutputOptionShape
 } from "./output-options.js";
+import { resolveToolContext } from "./tool-runtime.js";
 
 const inputSchema = z.object({
   workerId: z.string().min(1),
@@ -30,7 +30,7 @@ export const cwReviewRepositoryTool: CwToolDefinition<
   description: "Review repository context for a scope and return structured findings.",
   inputSchema,
   execute: async (args) => {
-    const context = await resolveExecutionContext();
+    const context = await resolveToolContext();
     const result = await runReviewWorkflow({
       context,
       workerId: args.workerId,

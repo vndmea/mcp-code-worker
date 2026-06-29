@@ -1,50 +1,18 @@
 import type { Command } from "commander";
 
 import {
+  buildMcpConfigSnippet,
   buildMcpToolCatalogView,
-  serveCwMcpServer
+  isMcpHost,
+  MCP_HOSTS,
+  serveCwMcpServer,
+  type McpHost
 } from "@mcp-code-worker/mcp-server";
 
 import type { CliIo } from "../index.js";
 import { writeOutput } from "../output.js";
 
-export const MCP_HOSTS = [
-  "generic",
-  "codex",
-  "cursor",
-  "vscode",
-  "claude-desktop",
-  "opencode"
-] as const;
-
-export type McpHost = (typeof MCP_HOSTS)[number];
-
-export const isMcpHost = (value: string): value is McpHost =>
-  MCP_HOSTS.includes(value as McpHost);
-
-export const buildMcpConfigSnippet = (options: {
-  args?: string[];
-  command?: string;
-  host?: string;
-} = {}) => {
-  const args = [...(options.args ?? ["mcp", "serve"])];
-  const requestedHost = options.host ?? "generic";
-
-  if (!isMcpHost(requestedHost)) {
-    throw new Error(
-      `Unsupported MCP host '${requestedHost}'. Expected one of: ${MCP_HOSTS.join(", ")}.`
-    );
-  }
-
-  return {
-    mcpServers: {
-      "mcp-code-worker": {
-        command: options.command ?? "cw",
-        args
-      }
-    }
-  };
-};
+export { buildMcpConfigSnippet, isMcpHost, MCP_HOSTS, type McpHost };
 
 export const registerMcpCommand = (program: Command, io: CliIo): void => {
   const mcp = program.command("mcp").description("Manage the MCP server.");
