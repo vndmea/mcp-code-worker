@@ -1,13 +1,11 @@
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import {
-  createExecutionContextFromEnv,
-  getCwWorkspaceFilePath
-} from "@mcp-code-worker/core";
+import { createExecutionContextFromEnv } from "@mcp-code-worker/core";
+import { saveWorkerRegistration } from "@mcp-code-worker/models";
 import {
   createDefaultWorkerEvaluationSuite,
   runHostWorkerWorkflow,
@@ -34,29 +32,22 @@ const registerWorker = async (
   rootDir: string,
   registrationWorkerId = workerId
 ): Promise<void> => {
-  const registryPath = getCwWorkspaceFilePath(rootDir, "workers.json");
-  await mkdir(dirname(registryPath), { recursive: true });
-  await writeFile(
-    registryPath,
-    JSON.stringify(
-      {
-        version: 1,
-        workers: [
-          {
-            workerId: registrationWorkerId,
-            provider: "mock",
-            model: "gpt-5.4-mini",
-            enabled: true,
-            tags: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        ]
-      },
-      null,
-      2
-    ),
-    "utf8"
+  await saveWorkerRegistration(
+    createExecutionContextFromEnv(undefined, {
+      rootDir,
+      allowWrite: true,
+      dryRun: false
+    }),
+    {
+      workerId: registrationWorkerId,
+      provider: "mock",
+      model: "gpt-5.4-mini",
+      enabled: true,
+      tags: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    true
   );
 };
 

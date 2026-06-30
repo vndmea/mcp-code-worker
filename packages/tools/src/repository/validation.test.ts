@@ -81,7 +81,7 @@ describe("runRepositoryValidation", () => {
       configPath,
       JSON.stringify(
         {
-          version: 1,
+          version: 2,
           validation: {
             autoDiscover: false,
             scripts: {

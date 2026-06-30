@@ -1,16 +1,18 @@
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import {
+  bootstrapSqliteWorkspaceStore,
   createExecutionContextFromEnv,
+  createTaskSession,
   getCwConfigPath,
-  getCwWorkspaceAuditDir,
-  getCwWorkspaceRunsDir,
+  getCwWorkspaceDir,
   runDoctor
 } from "@mcp-code-worker/core";
+import { updateTaskSession } from "../session/task-session-store.js";
 
 const createWorkspace = async (): Promise<string> =>
   mkdtemp(join(tmpdir(), "cw-doctor-"));
@@ -34,16 +36,33 @@ describe("doctor", () => {
     const runtimeBootstrapMetadata = findCheck(report, "runtime-bootstrap")?.metadata;
 
     expect(runtimeBootstrapMetadata?.["configPath"]).toBe(getCwConfigPath(rootDir));
-    expect(runtimeBootstrapMetadata?.["cwStorageDir"]).toEqual(
-      expect.stringContaining("workspaces")
-    );
+    expect(runtimeBootstrapMetadata?.["cwStorageDir"]).toBe(getCwWorkspaceDir(rootDir));
     expect(runtimeBootstrapMetadata?.["rootDir"]).toBe(rootDir);
   });
 
   it("fails on invalid config and warns about invalid task sessions", async () => {
     const rootDir = await createWorkspace();
-    const runsDir = getCwWorkspaceRunsDir(rootDir);
-    await mkdir(join(runsDir, "broken"), { recursive: true });
+    const sessionContext = createExecutionContextFromEnv(undefined, {
+      allowWrite: true,
+      dryRun: false,
+      rootDir
+    });
+    const created = await createTaskSession(
+      sessionContext,
+      {
+        goal: "broken",
+        scope: "packages/core"
+      },
+      true
+    );
+    await updateTaskSession(
+      sessionContext,
+      {
+        ...created.session,
+        status: "failed"
+      },
+      true
+    );
     await writeFile(
       getCwConfigPath(rootDir),
       JSON.stringify({
@@ -57,11 +76,6 @@ describe("doctor", () => {
           }
         ]
       }),
-      "utf8"
-    );
-    await writeFile(
-      join(runsDir, "broken", "session.json"),
-      "{\"taskId\":42}",
       "utf8"
     );
 
@@ -82,18 +96,22 @@ describe("doctor", () => {
 
   it("passes after init-like setup with retained directories", async () => {
     const rootDir = await createWorkspace();
-    await mkdir(getCwWorkspaceRunsDir(rootDir), { recursive: true });
-    await mkdir(getCwWorkspaceAuditDir(rootDir), { recursive: true });
+    const now = new Date().toISOString();
+    await bootstrapSqliteWorkspaceStore(getCwWorkspaceDir(rootDir));
     await writeFile(
       getCwConfigPath(rootDir),
       JSON.stringify(
         {
-          version: 1,
+          version: 2,
           workers: [
             {
               workerId: "mock-local",
               provider: "mock",
-              model: "gpt-5.4-mini"
+              model: "gpt-5.4-mini",
+              enabled: true,
+              tags: [],
+              createdAt: now,
+              updatedAt: now
             }
           ]
         },
@@ -180,4 +198,3 @@ describe("doctor", () => {
     }
   });
 });
-

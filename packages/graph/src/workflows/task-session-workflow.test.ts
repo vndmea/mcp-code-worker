@@ -208,13 +208,13 @@ describe("task session workflow", () => {
     expect(result.patchInspection).toBeDefined();
     expect(result.fixResult?.rootCauseAnalysis).toContain("error log");
     expect(result.nextRecommendedActions[0]?.action).toBe("view_report");
-    expect(persisted?.artifacts["report.md"]).toContain("workspaces");
+    expect(persisted?.artifacts["report.md"]).toContain("data.db#task_sessions");
     expect(result.persistence.sessionPersisted).toBe(true);
     expect(result.persistence.artifactRegistryComplete).toBe(true);
-    expect(persisted?.artifacts["repository-context.json"]).toContain("workspaces");
-    expect(persisted?.artifacts["review-result.json"]).toContain("workspaces");
-    expect(persisted?.artifacts["validation-report.json"]).toContain("workspaces");
-    expect(persisted?.artifacts["fix-result.json"]).toContain("workspaces");
+    expect(persisted?.artifacts["repository-context.json"]).toContain("data.db#task_sessions");
+    expect(persisted?.artifacts["review-result.json"]).toContain("data.db#task_sessions");
+    expect(persisted?.artifacts["validation-report.json"]).toContain("data.db#task_sessions");
+    expect(persisted?.artifacts["fix-result.json"]).toContain("data.db#task_sessions");
     expect(repositoryContextArtifact.exists).toBe(true);
     expect(validationArtifact.exists).toBe(true);
     expect(fixArtifact.exists).toBe(true);

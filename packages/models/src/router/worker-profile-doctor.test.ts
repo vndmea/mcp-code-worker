@@ -7,8 +7,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createExecutionContextFromEnv } from "@mcp-code-worker/core";
 import {
   createWorkerProfileDoctorChecks,
-  getWorkerProfileStorePath,
-  getWorkerRegistryPath
+  getWorkerRegistryPath,
+  saveWorkerProfile,
+  saveWorkerRegistration
 } from "@mcp-code-worker/models";
 
 const createRootDir = async (): Promise<string> =>
@@ -25,13 +26,35 @@ const writeRegistry = async (rootDir: string, value: unknown): Promise<void> => 
 };
 
 const writeProfiles = async (rootDir: string, value: unknown): Promise<void> => {
-  const profilesPath = getWorkerProfileStorePath(rootDir);
-  await mkdir(dirname(profilesPath), { recursive: true });
-  await writeFile(
-    profilesPath,
-    typeof value === "string" ? value : JSON.stringify(value, null, 2),
-    "utf8"
-  );
+  const profiles = Array.isArray(value) ? value : [];
+  const context = createExecutionContextFromEnv(undefined, {
+    rootDir,
+    allowWrite: true,
+    dryRun: false
+  });
+
+  for (const profile of profiles) {
+    await saveWorkerProfile(context, profile as Parameters<typeof saveWorkerProfile>[1], true);
+  }
+};
+
+const writeRegistrations = async (
+  rootDir: string,
+  workers: Array<Record<string, unknown>>
+): Promise<void> => {
+  const context = createExecutionContextFromEnv(undefined, {
+    rootDir,
+    allowWrite: true,
+    dryRun: false
+  });
+
+  for (const worker of workers) {
+    await saveWorkerRegistration(
+      context,
+      worker as Parameters<typeof saveWorkerRegistration>[1],
+      true
+    );
+  }
 };
 
 const createRegistration = (overrides: Record<string, unknown> = {}) => {
@@ -68,10 +91,7 @@ describe("worker profile doctor checks", () => {
 
   it("reports registry count and missing registered profiles", async () => {
     const rootDir = await createRootDir();
-    await writeRegistry(rootDir, {
-      version: 1,
-      workers: [createRegistration()]
-    });
+    await writeRegistrations(rootDir, [createRegistration()]);
     const context = createExecutionContextFromEnv(undefined, { rootDir });
     const checks = await createWorkerProfileDoctorChecks(context);
 
@@ -96,7 +116,11 @@ describe("worker profile doctor checks", () => {
     const rootDir = await createRootDir();
     await writeRegistry(rootDir, {
       version: 2,
-      workers: []
+      workers: [
+        {
+          workerId: "broken-worker"
+        }
+      ]
     });
     const context = createExecutionContextFromEnv(undefined, { rootDir });
     const checks = await createWorkerProfileDoctorChecks(context);
@@ -110,10 +134,7 @@ describe("worker profile doctor checks", () => {
 
   it("flags provider-error style profiles for re-interview", async () => {
     const rootDir = await createRootDir();
-    await writeRegistry(rootDir, {
-      version: 1,
-      workers: [createRegistration()]
-    });
+    await writeRegistrations(rootDir, [createRegistration()]);
     await writeProfiles(rootDir, [
       {
         workerId: "mock:registered-worker",
@@ -186,16 +207,13 @@ describe("worker profile doctor checks", () => {
     );
     vi.stubEnv("XDG_CONFIG_HOME", configHome);
 
-    await writeRegistry(rootDir, {
-      version: 1,
-      workers: [
-        createRegistration({
-          workerId: "opencode-local",
-          provider: "opencode",
-          model: "sudocode/gpt-5.4"
-        })
-      ]
-    });
+    await writeRegistrations(rootDir, [
+      createRegistration({
+        workerId: "opencode-local",
+        provider: "opencode",
+        model: "sudocode/gpt-5.4"
+      })
+    ]);
     const context = createExecutionContextFromEnv(undefined, {
       rootDir,
       workerModel: {

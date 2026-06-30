@@ -7,9 +7,9 @@ import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 
 import {
-  createExecutionContextFromEnv,
-  getCwWorkspaceFilePath
+  createExecutionContextFromEnv
 } from "@mcp-code-worker/core";
+import { saveWorkerRegistration } from "@mcp-code-worker/models";
 import {
   formatReviewWorkflowOutput,
   runFixErrorWorkflow,
@@ -57,29 +57,22 @@ const createWorkspace = async (withGit = false): Promise<string> => {
 };
 
 const registerWorker = async (rootDir: string): Promise<void> => {
-  const registryPath = getCwWorkspaceFilePath(rootDir, "workers.json");
-  await mkdir(dirname(registryPath), { recursive: true });
-  await writeFile(
-    registryPath,
-    JSON.stringify(
-      {
-        version: 1,
-        workers: [
-          {
-            workerId,
-            provider: "mock",
-            model: "gpt-5.4-mini",
-            enabled: true,
-            tags: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        ]
-      },
-      null,
-      2
-    ),
-    "utf8"
+  await saveWorkerRegistration(
+    createExecutionContextFromEnv(undefined, {
+      rootDir,
+      allowWrite: true,
+      dryRun: false
+    }),
+    {
+      workerId,
+      provider: "mock",
+      model: "gpt-5.4-mini",
+      enabled: true,
+      tags: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    true
   );
 };
 

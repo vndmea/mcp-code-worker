@@ -8,12 +8,24 @@ import { describe, expect, it } from "vitest";
 
 import { buildCli } from "@mcp-code-worker/cli";
 import {
+  bootstrapSqliteWorkspaceStore,
+  createExecutionContextFromEnv,
   getCwConfigPath,
   getCwWorkspaceAuditDir,
   getCwWorkspaceFilePath,
   getCwWorkspaceRunsDir,
-  PatchProposalSchema
+  openSqliteWorkspaceStore,
+  PatchProposalSchema,
+  WorkerCapabilityProfileSchema
 } from "@mcp-code-worker/core";
+import {
+  clearInMemoryWorkerProfiles,
+  getWorkerSecret,
+  listWorkerProfiles,
+  listWorkerRegistrations,
+  saveWorkerProfile,
+  saveWorkerRegistration
+} from "@mcp-code-worker/models";
 import type { InitPrompter } from "./commands/init.js";
 
 const execFile = promisify(execFileCallback);
@@ -143,23 +155,49 @@ const parseLastJson = <T>(output: string[]): T =>
   JSON.parse(output.at(-1) ?? "{}") as T;
 
 const writeProfiles = async (rootDir: string, profiles: unknown[]): Promise<void> => {
-  const profilePath = getCwWorkspaceFilePath(rootDir, "worker-profiles.json");
-  await mkdir(dirname(profilePath), { recursive: true });
-  await writeFile(
-    profilePath,
-    JSON.stringify(profiles, null, 2),
-    "utf8"
-  );
+  const context = createExecutionContextFromEnv(undefined, {
+    rootDir,
+    allowWrite: true,
+    dryRun: false
+  });
+
+  if (profiles.length === 0) {
+    clearInMemoryWorkerProfiles();
+    await bootstrapSqliteWorkspaceStore(context.cwStorageDir);
+    const db = await openSqliteWorkspaceStore(context.cwStorageDir);
+
+    try {
+      db.prepare("DELETE FROM worker_profiles").run();
+    } finally {
+      db.close();
+    }
+
+    return;
+  }
+
+  for (const profile of profiles) {
+    await saveWorkerProfile(
+      context,
+      WorkerCapabilityProfileSchema.parse(profile),
+      true
+    );
+  }
 };
 
 const writeRegistry = async (rootDir: string, workers: unknown[]): Promise<void> => {
-  const registryPath = getCwWorkspaceFilePath(rootDir, "workers.json");
-  await mkdir(dirname(registryPath), { recursive: true });
-  await writeFile(
-    registryPath,
-    JSON.stringify({ version: 1, workers }, null, 2),
-    "utf8"
-  );
+  const context = createExecutionContextFromEnv(undefined, {
+    rootDir,
+    allowWrite: true,
+    dryRun: false
+  });
+
+  for (const worker of workers) {
+    await saveWorkerRegistration(
+      context,
+      worker as Parameters<typeof saveWorkerRegistration>[1],
+      true
+    );
+  }
 };
 
 const writeWorkspaceFixture = async (rootDir: string): Promise<void> => {
@@ -208,13 +246,38 @@ const writeWorkspaceFixture = async (rootDir: string): Promise<void> => {
 
 const writeCwConfig = async (rootDir: string, config: Record<string, unknown>): Promise<void> => {
   const configPath = getCwConfigPath(rootDir);
+  let existing: Record<string, unknown> = {};
+  const now = new Date().toISOString();
+
+  try {
+    existing = JSON.parse(await readFile(configPath, "utf8")) as Record<string, unknown>;
+  } catch {
+    existing = {};
+  }
+
   await mkdir(dirname(configPath), { recursive: true });
   await writeFile(
     configPath,
     JSON.stringify(
       {
-        version: 1,
-        ...config
+        ...existing,
+        version: 2,
+        ...config,
+        ...(Array.isArray(config.workers)
+          ? {
+              workers: config.workers.map((worker) => {
+                const typedWorker = worker as Record<string, unknown>;
+
+                return {
+                  enabled: true,
+                  tags: [],
+                  createdAt: now,
+                  updatedAt: now,
+                  ...typedWorker
+                };
+              })
+            }
+          : {})
       },
       null,
       2
@@ -322,80 +385,81 @@ const createRegistration = (overrides: Record<string, unknown> = {}) => {
   };
 };
 
-const createProfile = (overrides: Record<string, unknown> = {}) => ({
-  workerId: "mock:gpt-5.4-mini",
-  provider: "mock",
-  model: "gpt-5.4-mini",
-  status: "qualified",
-  supportedTaskTypes: [
-    "summarization",
-    "code-understanding",
-    "log-analysis",
-    "json-extraction",
-    "review-lite",
-    "risk-analysis",
-    "codegen",
-    "patch-generation",
-    "test-generation",
-    "validation-fix",
-    "doc-generation"
-  ],
-  unsupportedTaskTypes: [],
-  score: {
-    instructionFollowing: 0.9,
-    structuredOutput: 0.9,
-    reasoning: 0.9,
-    codeQuality: 0.9,
-    domainKnowledge: 0.8,
-    reliability: 0.9
-  },
-  risks: [],
-  warnings: [],
-  routingPolicy: {
-    maxTaskComplexity: "medium",
-    requiresHostReview: false,
-    allowCodegen: true,
-    allowPatchGeneration: true,
-    allowDomainTasks: true
-  },
-  evaluatedAt: new Date().toISOString(),
-  expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
-  suiteName: "default-worker-onboarding-suite",
-  suiteVersion: "6",
-  admission: {
-    passed: true,
-    blockingReasons: []
-  },
-  portrait: {
-    scopeDiscipline: 0.83,
-    repoGrounding: 0.81,
-    answerDirectness: 0.8,
-    codeUnderstanding: 0.79,
-    fixPlanning: 0.8,
-    implementationPlanning: 0.82,
-    consistency: 0.86
-  },
-  taskScores: {
-    summarization: 0.8,
-    codeUnderstanding: 0.79,
-    riskAnalysis: 0.8,
-    reviewLite: 0.8,
-    codegen: 0.82,
-    patchGeneration: 0.81,
-    testGeneration: 0.82,
-    validationFix: 0.82,
-    logAnalysis: 0.79,
-    jsonExtraction: 0.78,
-    docGeneration: 0.8
-  },
-  evidence: {
-    failedCases: [],
-    repoGroundedCases: ["structured-output", "scope-discipline", "summarization"],
-    fallbackPatternCases: [],
-    genericAnswerCases: []
-  },
-  ...overrides
-});
+const createProfile = (overrides: Record<string, unknown> = {}) =>
+  WorkerCapabilityProfileSchema.parse({
+    workerId: "mock:gpt-5.4-mini",
+    provider: "mock",
+    model: "gpt-5.4-mini",
+    status: "qualified",
+    supportedTaskTypes: [
+      "summarization",
+      "code-understanding",
+      "log-analysis",
+      "json-extraction",
+      "review-lite",
+      "risk-analysis",
+      "codegen",
+      "patch-generation",
+      "test-generation",
+      "validation-fix",
+      "doc-generation"
+    ],
+    unsupportedTaskTypes: [],
+    score: {
+      instructionFollowing: 0.9,
+      structuredOutput: 0.9,
+      reasoning: 0.9,
+      codeQuality: 0.9,
+      domainKnowledge: 0.8,
+      reliability: 0.9
+    },
+    risks: [],
+    warnings: [],
+    routingPolicy: {
+      maxTaskComplexity: "medium",
+      requiresHostReview: false,
+      allowCodegen: true,
+      allowPatchGeneration: true,
+      allowDomainTasks: true
+    },
+    evaluatedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+    suiteName: "default-worker-onboarding-suite",
+    suiteVersion: "6",
+    admission: {
+      passed: true,
+      blockingReasons: []
+    },
+    portrait: {
+      scopeDiscipline: 0.83,
+      repoGrounding: 0.81,
+      answerDirectness: 0.8,
+      codeUnderstanding: 0.79,
+      fixPlanning: 0.8,
+      implementationPlanning: 0.82,
+      consistency: 0.86
+    },
+    taskScores: {
+      summarization: 0.8,
+      codeUnderstanding: 0.79,
+      riskAnalysis: 0.8,
+      reviewLite: 0.8,
+      codegen: 0.82,
+      patchGeneration: 0.81,
+      testGeneration: 0.82,
+      validationFix: 0.82,
+      logAnalysis: 0.79,
+      jsonExtraction: 0.78,
+      docGeneration: 0.8
+    },
+    evidence: {
+      failedCases: [],
+      repoGroundedCases: ["structured-output", "scope-discipline", "summarization"],
+      fallbackPatternCases: [],
+      genericAnswerCases: []
+    },
+    ...overrides
+  });
 
 describe("cli parsing", () => {
   it("runs models list", async () => {
@@ -739,7 +803,6 @@ describe("cli parsing", () => {
         await readFile(getCwConfigPath(rootDir), "utf8")
       ) as {
         workers?: Array<{
-          apiKey?: string;
           clientCommand?: string;
           model?: string;
           provider?: string;
@@ -752,24 +815,19 @@ describe("cli parsing", () => {
           };
         };
       };
-      const savedRegistry = JSON.parse(
-        await readFile(getCwWorkspaceFilePath(rootDir, "workers.json"), "utf8")
-      ) as {
-        workers: Array<{ workerId: string }>;
-      };
-      const savedProfiles = JSON.parse(
-        await readFile(getCwWorkspaceFilePath(rootDir, "worker-profiles.json"), "utf8")
-      ) as Array<{ workerId: string }>;
+      const savedRegistry = await listWorkerRegistrations(rootDir);
+      const savedProfiles = await listWorkerProfiles(rootDir);
+      const savedSecret = await getWorkerSecret(rootDir, "primary-worker");
       const configuredWorker = savedConfig.workers?.find(
         (worker) => worker.workerId === "primary-worker"
       );
 
       expect(configuredWorker?.model).toBe("setup-worker");
-      expect(configuredWorker?.apiKey).toBe("setup-secret");
       expect(configuredWorker?.clientCommand).toBe("node");
+      expect(savedSecret).toBe("setup-secret");
       expect(savedConfig.validation?.scripts?.typecheck).toContain("check-types");
       expect(savedConfig.validation?.scripts?.lint).toContain("lint:ci");
-      expect(savedRegistry.workers.some((worker) => worker.workerId === "primary-worker")).toBe(
+      expect(savedRegistry.some((worker) => worker.workerId === "primary-worker")).toBe(
         true
       );
       expect(savedProfiles.some((profile) => profile.workerId === "primary-worker")).toBe(
@@ -1137,11 +1195,7 @@ describe("cli parsing", () => {
           provider?: string;
         }>;
       };
-      const savedRegistry = JSON.parse(
-        await readFile(getCwWorkspaceFilePath(rootDir, "workers.json"), "utf8")
-      ) as {
-        workers: Array<{ workerId: string }>;
-      };
+      const savedRegistry = await listWorkerRegistrations(rootDir);
 
       const configuredWorker = savedConfig.workers?.find(
         (worker) => worker.workerId === "primary-worker"
@@ -1152,7 +1206,7 @@ describe("cli parsing", () => {
       expect(result.worker.additionalWorkers[0]?.workerId).toBe("extra-worker");
       expect(configuredWorker?.provider).toBe("mock");
       expect(configuredWorker?.model).toBe("primary-worker-model");
-      expect(savedRegistry.workers.map((worker) => worker.workerId)).toEqual(
+      expect(savedRegistry.map((worker) => worker.workerId)).toEqual(
         expect.arrayContaining(["primary-worker", "extra-worker"])
       );
     });
@@ -1557,9 +1611,7 @@ describe("cli parsing", () => {
         "--save"
       ]);
 
-      let savedProfiles = JSON.parse(
-        await readFile(getCwWorkspaceFilePath(rootDir, "worker-profiles.json"), "utf8")
-      ) as Array<{
+      let savedProfiles = await listWorkerProfiles(rootDir) as Array<{
         routingPolicy?: { allowPatchGeneration?: boolean };
         supportedTaskTypes?: string[];
       }>;
@@ -1581,12 +1633,7 @@ describe("cli parsing", () => {
         "--update-profile-capabilities"
       ]);
 
-      savedProfiles = JSON.parse(
-        await readFile(getCwWorkspaceFilePath(rootDir, "worker-profiles.json"), "utf8")
-      ) as Array<{
-        routingPolicy?: { allowPatchGeneration?: boolean };
-        supportedTaskTypes?: string[];
-      }>;
+      savedProfiles = await listWorkerProfiles(rootDir);
       expect(output.at(-1)).toContain("\"capabilityUpdateApplied\": true");
       expect(savedProfiles[0]?.supportedTaskTypes).toContain("patch-generation");
       expect(savedProfiles[0]?.routingPolicy?.allowPatchGeneration).toBe(true);
@@ -1641,9 +1688,7 @@ describe("cli parsing", () => {
         "--save"
       ]);
 
-      const savedProfiles = JSON.parse(
-        await readFile(getCwWorkspaceFilePath(rootDir, "worker-profiles.json"), "utf8")
-      ) as Array<{
+      const savedProfiles = await listWorkerProfiles(rootDir) as Array<{
         evaluationSummary?: { suiteName?: string };
         routingPolicy?: { allowPatchGeneration?: boolean };
         supportedTaskTypes?: string[];
@@ -2238,8 +2283,8 @@ describe("cli parsing", () => {
         "utf8"
       );
       await writeFile(
-        getCwWorkspaceFilePath(rootDir, "workers.json"),
-        JSON.stringify({ version: 1, workers: [] }, null, 2),
+        getCwWorkspaceFilePath(rootDir, "config.json"),
+        JSON.stringify({ version: 2, workers: [] }, null, 2),
         "utf8"
       );
       await utimes(join(runsDir, "task-old"), oldTime, oldTime);

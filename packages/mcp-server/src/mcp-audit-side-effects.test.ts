@@ -35,7 +35,7 @@ describe("mcp audit side effects", () => {
         configPath,
         JSON.stringify(
           {
-            version: 1,
+            version: 2,
             safety: {
               dryRun: false,
               allowWrite: true,
@@ -81,7 +81,7 @@ describe("mcp audit side effects", () => {
         configPath,
         JSON.stringify(
           {
-            version: 1,
+            version: 2,
             safety: {
               dryRun: false,
               allowWrite: true,

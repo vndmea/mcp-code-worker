@@ -1,11 +1,15 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import { buildCli } from "@mcp-code-worker/cli";
-import { getCwWorkspaceAuditDir } from "@mcp-code-worker/core";
+import {
+  bootstrapSqliteWorkspaceStore,
+  getCwWorkspaceDir,
+  openSqliteWorkspaceStore
+} from "@mcp-code-worker/core";
 
 const createIo = () => {
   const output: string[] = [];
@@ -53,34 +57,78 @@ describe("audit cli", () => {
 
   it("lists audit events and respects limit", async () => {
     await withTempCwd(async (rootDir) => {
-      const auditDir = getCwWorkspaceAuditDir(rootDir);
-      await mkdir(auditDir, { recursive: true });
-      await writeFile(
-        join(auditDir, "2026-06-25.jsonl"),
-        [
-          JSON.stringify({
-            id: "1",
-            timestamp: "2026-06-25T10:00:00.000Z",
-            actor: "cli",
-            action: "older",
-            mode: "execute",
-            inputSummary: "older",
-            warnings: [],
-            errors: []
-          }),
-          JSON.stringify({
-            id: "2",
-            timestamp: "2026-06-25T11:00:00.000Z",
-            actor: "cli",
-            action: "newer",
-            mode: "execute",
-            inputSummary: "newer",
-            warnings: [],
-            errors: []
-          })
-        ].join("\n"),
-        "utf8"
-      );
+      const cwStorageDir = getCwWorkspaceDir(rootDir);
+      await bootstrapSqliteWorkspaceStore(cwStorageDir);
+      const db = await openSqliteWorkspaceStore(cwStorageDir);
+
+      try {
+        db.prepare(
+          `INSERT INTO audit_events(
+             id,
+             event_type,
+             actor,
+             action,
+             mode,
+             workflow,
+             tool,
+             input_summary,
+             output_summary,
+             warnings_json,
+             errors_json,
+             metadata_json,
+             created_at
+           )
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(
+          "1",
+          "cli:older",
+          "cli",
+          "older",
+          "execute",
+          null,
+          null,
+          "older",
+          null,
+          "[]",
+          "[]",
+          null,
+          "2026-06-25T10:00:00.000Z"
+        );
+        db.prepare(
+          `INSERT INTO audit_events(
+             id,
+             event_type,
+             actor,
+             action,
+             mode,
+             workflow,
+             tool,
+             input_summary,
+             output_summary,
+             warnings_json,
+             errors_json,
+             metadata_json,
+             created_at
+           )
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(
+          "2",
+          "cli:newer",
+          "cli",
+          "newer",
+          "execute",
+          null,
+          null,
+          "newer",
+          null,
+          "[]",
+          "[]",
+          null,
+          "2026-06-25T11:00:00.000Z"
+        );
+      } finally {
+        db.close();
+      }
       const { io, output } = createIo();
       const cli = buildCli(io);
 

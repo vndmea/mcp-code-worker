@@ -9,11 +9,16 @@ import { z } from "zod";
 
 import {
   AgentError,
+  createExecutionContextFromEnv,
   getCwConfigPath,
-  getCwWorkspaceFilePath,
   PatchProposalSchema,
+  WorkerCapabilityProfileSchema,
   type TaskSession
 } from "@mcp-code-worker/core";
+import {
+  saveWorkerProfile,
+  saveWorkerRegistration
+} from "@mcp-code-worker/models";
 import type {
   FixErrorWorkflowOutput,
   ReviewWorkflowOutput,
@@ -67,26 +72,38 @@ const withTempCwd = async (
 };
 
 const writeProfiles = async (rootDir: string, profiles: unknown[]): Promise<void> => {
-  const profilePath = getCwWorkspaceFilePath(rootDir, "worker-profiles.json");
-  await mkdir(dirname(profilePath), { recursive: true });
-  await writeFile(
-    profilePath,
-    JSON.stringify(profiles, null, 2),
-    "utf8"
-  );
+  const context = createExecutionContextFromEnv(undefined, {
+    rootDir,
+    allowWrite: true,
+    dryRun: false
+  });
+
+  for (const profile of profiles) {
+    await saveWorkerProfile(
+      context,
+      WorkerCapabilityProfileSchema.parse(profile),
+      true
+    );
+  }
 };
 
 const writeRegistry = async (
   rootDir: string,
   workers: Array<Record<string, unknown>>
 ): Promise<void> => {
-  const registryPath = getCwWorkspaceFilePath(rootDir, "workers.json");
-  await mkdir(dirname(registryPath), { recursive: true });
-  await writeFile(
-    registryPath,
-    JSON.stringify({ version: 1, workers }, null, 2),
-    "utf8"
-  );
+  const context = createExecutionContextFromEnv(undefined, {
+    rootDir,
+    allowWrite: true,
+    dryRun: false
+  });
+
+  for (const worker of workers) {
+    await saveWorkerRegistration(
+      context,
+      worker as Parameters<typeof saveWorkerRegistration>[1],
+      true
+    );
+  }
 };
 
 const createRegistration = (overrides: Record<string, unknown> = {}) => {
@@ -181,13 +198,38 @@ const writeWorkspaceFixture = async (rootDir: string): Promise<void> => {
 
 const writeCwConfig = async (rootDir: string, config: Record<string, unknown>): Promise<void> => {
   const configPath = getCwConfigPath(rootDir);
+  let existing: Record<string, unknown> = {};
+  const now = new Date().toISOString();
+
+  try {
+    existing = JSON.parse(await readFile(configPath, "utf8")) as Record<string, unknown>;
+  } catch {
+    existing = {};
+  }
+
   await mkdir(dirname(configPath), { recursive: true });
   await writeFile(
     configPath,
     JSON.stringify(
       {
-        version: 1,
-        ...config
+        ...existing,
+        version: 2,
+        ...config,
+        ...(Array.isArray(config.workers)
+          ? {
+              workers: config.workers.map((worker) => {
+                const typedWorker = worker as Record<string, unknown>;
+
+                return {
+                  enabled: true,
+                  tags: [],
+                  createdAt: now,
+                  updatedAt: now,
+                  ...typedWorker
+                };
+              })
+            }
+          : {})
       },
       null,
       2
@@ -211,79 +253,80 @@ const initGitRepo = async (rootDir: string): Promise<void> => {
   await execFile("git", ["commit", "-m", "update"], { cwd: rootDir });
 };
 
-const createProfile = () => ({
-  workerId: "default-worker",
-  provider: "mock",
-  model: "gpt-5.4-mini",
-  status: "qualified",
-  supportedTaskTypes: [
-    "summarization",
-    "code-understanding",
-    "log-analysis",
-    "json-extraction",
-    "review-lite",
-    "risk-analysis",
-    "codegen",
-    "patch-generation",
-    "test-generation",
-    "validation-fix",
-    "doc-generation"
-  ],
-  unsupportedTaskTypes: [],
-  score: {
-    instructionFollowing: 0.9,
-    structuredOutput: 0.9,
-    reasoning: 0.9,
-    codeQuality: 0.9,
-    domainKnowledge: 0.8,
-    reliability: 0.9
-  },
-  risks: [],
-  warnings: [],
-  routingPolicy: {
-    maxTaskComplexity: "medium",
-    requiresHostReview: false,
-    allowCodegen: true,
-    allowPatchGeneration: true,
-    allowDomainTasks: true
-  },
-  evaluatedAt: new Date().toISOString(),
-  expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
-  suiteName: "default-worker-onboarding-suite",
-  suiteVersion: "6",
-  admission: {
-    passed: true,
-    blockingReasons: []
-  },
-  portrait: {
-    scopeDiscipline: 0.83,
-    repoGrounding: 0.81,
-    answerDirectness: 0.8,
-    codeUnderstanding: 0.79,
-    fixPlanning: 0.8,
-    implementationPlanning: 0.82,
-    consistency: 0.86
-  },
-  taskScores: {
-    summarization: 0.8,
-    codeUnderstanding: 0.79,
-    riskAnalysis: 0.8,
-    reviewLite: 0.8,
-    codegen: 0.82,
-    patchGeneration: 0.81,
-    testGeneration: 0.82,
-    validationFix: 0.82,
-    logAnalysis: 0.79,
-    jsonExtraction: 0.78,
-    docGeneration: 0.8
-  },
-  evidence: {
-    failedCases: [],
-    repoGroundedCases: ["structured-output", "scope-discipline", "summarization"],
-    fallbackPatternCases: [],
-    genericAnswerCases: []
-  }
-});
+const createProfile = () =>
+  WorkerCapabilityProfileSchema.parse({
+    workerId: "default-worker",
+    provider: "mock",
+    model: "gpt-5.4-mini",
+    status: "qualified",
+    supportedTaskTypes: [
+      "summarization",
+      "code-understanding",
+      "log-analysis",
+      "json-extraction",
+      "review-lite",
+      "risk-analysis",
+      "codegen",
+      "patch-generation",
+      "test-generation",
+      "validation-fix",
+      "doc-generation"
+    ],
+    unsupportedTaskTypes: [],
+    score: {
+      instructionFollowing: 0.9,
+      structuredOutput: 0.9,
+      reasoning: 0.9,
+      codeQuality: 0.9,
+      domainKnowledge: 0.8,
+      reliability: 0.9
+    },
+    risks: [],
+    warnings: [],
+    routingPolicy: {
+      maxTaskComplexity: "medium",
+      requiresHostReview: false,
+      allowCodegen: true,
+      allowPatchGeneration: true,
+      allowDomainTasks: true
+    },
+    evaluatedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+    suiteName: "default-worker-onboarding-suite",
+    suiteVersion: "6",
+    admission: {
+      passed: true,
+      blockingReasons: []
+    },
+    portrait: {
+      scopeDiscipline: 0.83,
+      repoGrounding: 0.81,
+      answerDirectness: 0.8,
+      codeUnderstanding: 0.79,
+      fixPlanning: 0.8,
+      implementationPlanning: 0.82,
+      consistency: 0.86
+    },
+    taskScores: {
+      summarization: 0.8,
+      codeUnderstanding: 0.79,
+      riskAnalysis: 0.8,
+      reviewLite: 0.8,
+      codegen: 0.82,
+      patchGeneration: 0.81,
+      testGeneration: 0.82,
+      validationFix: 0.82,
+      logAnalysis: 0.79,
+      jsonExtraction: 0.78,
+      docGeneration: 0.8
+    },
+    evidence: {
+      failedCases: [],
+      repoGroundedCases: ["structured-output", "scope-discipline", "summarization"],
+      fallbackPatternCases: [],
+      genericAnswerCases: []
+    }
+  });
 
 const createLimitedProfile = () => ({
   ...createProfile(),
@@ -471,7 +514,7 @@ describe("mcp tool registration", () => {
       });
 
       expect(result.persistence?.mode).toBe("execute");
-      expect(result.persistence?.path).toContain("workspaces");
+      expect(result.persistence?.path).toContain("data.db");
       expect(result.patchGenerationQualified).toBe(true);
       expect(result.capabilityUpdateApplied).toBe(true);
       expect(result.profilePersistence?.mode).toBe("execute");
@@ -521,7 +564,7 @@ describe("mcp tool registration", () => {
       if (result.persistence?.mode !== "execute") {
         throw new Error("Expected persisted worker interview profile.");
       }
-      expect(result.persistence.path).toContain("worker-profiles.json");
+      expect(result.persistence.path).toContain("data.db#worker_profiles");
     });
   });
 

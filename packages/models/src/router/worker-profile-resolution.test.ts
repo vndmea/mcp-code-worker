@@ -1,90 +1,96 @@
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import {
   AgentError,
-  createExecutionContextFromEnv,
-  getCwWorkspaceFilePath
+  createExecutionContextFromEnv
 } from "@mcp-code-worker/core";
-import { resolveWorkerProfile } from "@mcp-code-worker/models";
+import { WorkerCapabilityProfileSchema } from "@mcp-code-worker/core";
+import {
+  resolveWorkerProfile,
+  saveWorkerProfile
+} from "@mcp-code-worker/models";
 
-const createProfile = (overrides: Record<string, unknown> = {}) => ({
-  workerId: "mock:worker-model",
-  provider: "mock",
-  model: "worker-model",
-  status: "qualified",
-  supportedTaskTypes: ["summarization", "doc-generation"],
-  unsupportedTaskTypes: ["codegen", "validation-fix"],
-  score: {
-    instructionFollowing: 0.9,
-    structuredOutput: 0.9,
-    reasoning: 0.9,
-    codeQuality: 0.2,
-    domainKnowledge: 0.7,
-    reliability: 0.9
-  },
-  risks: [],
-  warnings: [],
-  routingPolicy: {
-    maxTaskComplexity: "low",
-    requiresHostReview: false,
-    allowCodegen: false,
-    allowPatchGeneration: false,
-    allowDomainTasks: false
-  },
-  evaluatedAt: new Date().toISOString(),
-  expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
-  suiteName: "default-worker-onboarding-suite",
-  suiteVersion: "6",
-  admission: {
-    passed: true,
-    blockingReasons: []
-  },
-  portrait: {
-    scopeDiscipline: 0.82,
-    repoGrounding: 0.8,
-    answerDirectness: 0.8,
-    codeUnderstanding: 0.76,
-    fixPlanning: 0.75,
-    implementationPlanning: 0.62,
-    consistency: 0.84
-  },
-  taskScores: {
-    summarization: 0.79,
-    codeUnderstanding: 0.76,
-    riskAnalysis: 0.74,
-    reviewLite: 0.78,
-    codegen: 0.42,
-    patchGeneration: 0.39,
-    testGeneration: 0.44,
-    validationFix: 0.41,
-    logAnalysis: 0.78,
-    jsonExtraction: 0.77,
-    docGeneration: 0.79
-  },
-  evidence: {
-    failedCases: [],
-    repoGroundedCases: ["structured-output", "scope-discipline", "summarization"],
-    fallbackPatternCases: [],
-    genericAnswerCases: []
-  },
-  ...overrides
-});
+const createProfile = (overrides: Record<string, unknown> = {}) =>
+  WorkerCapabilityProfileSchema.parse({
+    workerId: "mock:worker-model",
+    provider: "mock",
+    model: "worker-model",
+    status: "qualified",
+    supportedTaskTypes: ["summarization", "doc-generation"],
+    unsupportedTaskTypes: ["codegen", "validation-fix"],
+    score: {
+      instructionFollowing: 0.9,
+      structuredOutput: 0.9,
+      reasoning: 0.9,
+      codeQuality: 0.2,
+      domainKnowledge: 0.7,
+      reliability: 0.9
+    },
+    risks: [],
+    warnings: [],
+    routingPolicy: {
+      maxTaskComplexity: "low",
+      requiresHostReview: false,
+      allowCodegen: false,
+      allowPatchGeneration: false,
+      allowDomainTasks: false
+    },
+    evaluatedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+    suiteName: "default-worker-onboarding-suite",
+    suiteVersion: "6",
+    admission: {
+      passed: true,
+      blockingReasons: []
+    },
+    portrait: {
+      scopeDiscipline: 0.82,
+      repoGrounding: 0.8,
+      answerDirectness: 0.8,
+      codeUnderstanding: 0.76,
+      fixPlanning: 0.75,
+      implementationPlanning: 0.62,
+      consistency: 0.84
+    },
+    taskScores: {
+      summarization: 0.79,
+      codeUnderstanding: 0.76,
+      riskAnalysis: 0.74,
+      reviewLite: 0.78,
+      codegen: 0.42,
+      patchGeneration: 0.39,
+      testGeneration: 0.44,
+      validationFix: 0.41,
+      logAnalysis: 0.78,
+      jsonExtraction: 0.77,
+      docGeneration: 0.79
+    },
+    evidence: {
+      failedCases: [],
+      repoGroundedCases: ["structured-output", "scope-discipline", "summarization"],
+      fallbackPatternCases: [],
+      genericAnswerCases: []
+    },
+    ...overrides
+  });
 
 const createRootDir = async (): Promise<string> =>
   mkdtemp(join(tmpdir(), "cw-worker-profile-"));
 
 const writeProfiles = async (rootDir: string, profiles: unknown[]): Promise<void> => {
-  const profilePath = getCwWorkspaceFilePath(rootDir, "worker-profiles.json");
-  await mkdir(dirname(profilePath), { recursive: true });
-  await writeFile(
-    profilePath,
-    JSON.stringify(profiles, null, 2),
-    "utf8"
-  );
+  const context = createExecutionContextFromEnv(undefined, {
+    rootDir,
+    allowWrite: true,
+    dryRun: false
+  });
+
+  for (const profile of profiles) {
+    await saveWorkerProfile(context, profile as ReturnType<typeof createProfile>, true);
+  }
 };
 
 describe("resolveWorkerProfile", () => {

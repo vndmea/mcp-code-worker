@@ -7,9 +7,9 @@ import { describe, expect, it } from "vitest";
 import {
   AgentError,
   createExecutionContextFromEnv,
-  getCwConfigPath,
-  getCwWorkspaceFilePath
+  getCwConfigPath
 } from "@mcp-code-worker/core";
+import { saveWorkerRegistration } from "@mcp-code-worker/models";
 
 import {
   requireConfiguredWorkerId,
@@ -23,13 +23,15 @@ const writeRegistry = async (
   rootDir: string,
   workers: Array<Record<string, unknown>>
 ): Promise<void> => {
-  const registryPath = getCwWorkspaceFilePath(rootDir, "workers.json");
-  await mkdir(dirname(registryPath), { recursive: true });
-  await writeFile(
-    registryPath,
-    JSON.stringify({ version: 1, workers }, null, 2),
-    "utf8"
-  );
+  const context = createExecutionContextFromEnv(undefined, {
+    rootDir,
+    allowWrite: true,
+    dryRun: false
+  });
+
+  for (const worker of workers) {
+    await saveWorkerRegistration(context, worker as ReturnType<typeof createRegistration>, true);
+  }
 };
 
 const writeConfig = async (
@@ -42,7 +44,7 @@ const writeConfig = async (
     configPath,
     JSON.stringify(
       {
-        version: 1,
+        version: 2,
         ...value
       },
       null,
@@ -133,6 +135,10 @@ describe("worker target resolution", () => {
           workerId: "opencode-local",
           provider: "opencode",
           model: "deepseek/deepseek-v4-flash",
+          enabled: true,
+          tags: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           clientCommand: "C:/tools/opencode.exe"
         }
       ]
