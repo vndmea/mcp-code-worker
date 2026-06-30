@@ -484,6 +484,40 @@ describe("cli parsing", () => {
     expect(output.join("\n")).toContain("[");
   });
 
+  it("persists a per-worker local client command during worker registration", async () => {
+    await withTempCwd(async (rootDir) => {
+      const { io } = createIo();
+      const cli = buildCli(io);
+
+      await cli.parseAsync([
+        "node",
+        "cw",
+        "worker",
+        "register",
+        "--worker",
+        "opencode-local",
+        "--provider",
+        "opencode",
+        "--model",
+        "deepseek/deepseek-v4-flash",
+        "--worker-client-command",
+        "C:/tools/opencode.exe",
+        "--allow-write"
+      ]);
+
+      const savedConfig = JSON.parse(
+        await readFile(getCwConfigPath(rootDir), "utf8")
+      ) as {
+        workers?: Array<{ clientCommand?: string; workerId: string }>;
+      };
+
+      expect(
+        savedConfig.workers?.find((worker) => worker.workerId === "opencode-local")
+          ?.clientCommand
+      ).toBe("C:\\tools\\opencode.exe");
+    });
+  });
+
   it("runs doctor and returns structured JSON", async () => {
     await withTempCwd(async (rootDir) => {
       await writeProfiles(rootDir, [createProfile()]);
@@ -565,16 +599,26 @@ describe("cli parsing", () => {
   it("reports local client compatibility warnings when the resolved command is not local-client-compatible", async () => {
     await withTempCwd(async (rootDir) => {
       await writeCwConfig(rootDir, {
-        workerClientCommand: "node",
-        workerModel: {
+        workers: [
+          {
+            workerId: "local-worker",
+            provider: "client",
+            model: "qwen3-coder",
+            clientCommand: "node"
+          }
+        ]
+      });
+      await writeRegistry(rootDir, [
+        createRegistration({
+          workerId: "local-worker",
           provider: "client",
           model: "qwen3-coder"
-        }
-      });
+        })
+      ]);
       const { io, output } = createIo();
       const cli = buildCli(io);
 
-      await cli.parseAsync(["node", "cw", "doctor"]);
+      await cli.parseAsync(["node", "cw", "doctor", "--worker", "local-worker"]);
 
       expect(output.at(-1)).toContain("\"local-client-compatibility\"");
       expect(output.at(-1)).toContain("missing expected flags");
@@ -586,16 +630,26 @@ describe("cli parsing", () => {
   it("renders resolved local client details in compact human mode", async () => {
     await withTempCwd(async (rootDir) => {
       await writeCwConfig(rootDir, {
-        workerClientCommand: "node",
-        workerModel: {
+        workers: [
+          {
+            workerId: "local-worker",
+            provider: "client",
+            model: "qwen3-coder",
+            clientCommand: "node"
+          }
+        ]
+      });
+      await writeRegistry(rootDir, [
+        createRegistration({
+          workerId: "local-worker",
           provider: "client",
           model: "qwen3-coder"
-        }
-      });
+        })
+      ]);
       const { io, output } = createIo("human");
       const cli = buildCli(io);
 
-      await cli.parseAsync(["node", "cw", "doctor"]);
+      await cli.parseAsync(["node", "cw", "doctor", "--worker", "local-worker"]);
 
       expect(output.at(-1)).toContain("local client:");
       expect(output.at(-1)).toContain("configured=node");
@@ -684,8 +738,13 @@ describe("cli parsing", () => {
       const savedConfig = JSON.parse(
         await readFile(getCwConfigPath(rootDir), "utf8")
       ) as {
-        workerClientCommand?: string;
-        workerModel?: { apiKey?: string; model?: string };
+        workers?: Array<{
+          apiKey?: string;
+          clientCommand?: string;
+          model?: string;
+          provider?: string;
+          workerId: string;
+        }>;
         validation?: {
           scripts?: {
             lint?: string[];
@@ -701,10 +760,13 @@ describe("cli parsing", () => {
       const savedProfiles = JSON.parse(
         await readFile(getCwWorkspaceFilePath(rootDir, "worker-profiles.json"), "utf8")
       ) as Array<{ workerId: string }>;
+      const configuredWorker = savedConfig.workers?.find(
+        (worker) => worker.workerId === "primary-worker"
+      );
 
-      expect(savedConfig.workerModel?.model).toBe("setup-worker");
-      expect(savedConfig.workerModel?.apiKey).toBe("setup-secret");
-      expect(savedConfig.workerClientCommand).toBe("node");
+      expect(configuredWorker?.model).toBe("setup-worker");
+      expect(configuredWorker?.apiKey).toBe("setup-secret");
+      expect(configuredWorker?.clientCommand).toBe("node");
       expect(savedConfig.validation?.scripts?.typecheck).toContain("check-types");
       expect(savedConfig.validation?.scripts?.lint).toContain("lint:ci");
       expect(savedRegistry.workers.some((worker) => worker.workerId === "primary-worker")).toBe(
@@ -1027,82 +1089,6 @@ describe("cli parsing", () => {
     });
   });
 
-  it("supports scripted init presets for common worker defaults", async () => {
-    await withTempCwd(async (rootDir) => {
-      const { io, output } = createIo();
-      const cli = buildCli(io);
-
-      await cli.parseAsync([
-        "node",
-        "cw",
-        "init",
-        "--preset=deepseek",
-        "--allow-write"
-      ]);
-
-      const result = parseLastJson<{
-        mode: string;
-        steps: Array<{ id: string; status: string }>;
-      }>(output);
-      const savedConfig = JSON.parse(
-        await readFile(getCwConfigPath(rootDir), "utf8")
-      ) as {
-        workerModel?: {
-          baseURL?: string;
-          model?: string;
-          provider?: string;
-        };
-      };
-
-      expect(result.mode).toBe("execute");
-      expect(
-        result.steps.some(
-          (step) => step.id === "configure-models" && step.status === "completed"
-        )
-      ).toBe(true);
-      expect(savedConfig.workerModel?.provider).toBe("openai-compatible");
-      expect(savedConfig.workerModel?.model).toBe("deepseek-v4-flash");
-      expect(savedConfig.workerModel?.baseURL).toBe("https://api.deepseek.com");
-    });
-  });
-
-  it("supports the scripted codex init preset for local Codex workers", async () => {
-    await withTempCwd(async (rootDir) => {
-      const { io, output } = createIo();
-      const cli = buildCli(io);
-
-      await cli.parseAsync([
-        "node",
-        "cw",
-        "init",
-        "--preset=codex",
-        "--allow-write"
-      ]);
-
-      const result = parseLastJson<{
-        mode: string;
-        steps: Array<{ id: string; status: string }>;
-      }>(output);
-      const savedConfig = JSON.parse(
-        await readFile(getCwConfigPath(rootDir), "utf8")
-      ) as {
-        workerModel?: {
-          model?: string;
-          provider?: string;
-        };
-      };
-
-      expect(result.mode).toBe("execute");
-      expect(
-        result.steps.some(
-          (step) => step.id === "configure-models" && step.status === "completed"
-        )
-      ).toBe(true);
-      expect(savedConfig.workerModel?.provider).toBe("codex");
-      expect(savedConfig.workerModel?.model).toBe("gpt-5.4");
-    });
-  });
-
   it("can apply init and register additional workers", async () => {
     await withTempCwd(async (rootDir) => {
       const { io, output } = createIo();
@@ -1145,10 +1131,11 @@ describe("cli parsing", () => {
       const savedConfig = JSON.parse(
         await readFile(getCwConfigPath(rootDir), "utf8")
       ) as {
-        workerModel?: {
+        workers?: Array<{
+          workerId: string;
           model?: string;
           provider?: string;
-        };
+        }>;
       };
       const savedRegistry = JSON.parse(
         await readFile(getCwWorkspaceFilePath(rootDir, "workers.json"), "utf8")
@@ -1156,11 +1143,15 @@ describe("cli parsing", () => {
         workers: Array<{ workerId: string }>;
       };
 
+      const configuredWorker = savedConfig.workers?.find(
+        (worker) => worker.workerId === "primary-worker"
+      );
+
       expect(result.applied).toBe(true);
       expect(result.worker.workerId).toBe("primary-worker");
       expect(result.worker.additionalWorkers[0]?.workerId).toBe("extra-worker");
-      expect(savedConfig.workerModel?.provider).toBe("mock");
-      expect(savedConfig.workerModel?.model).toBe("primary-worker-model");
+      expect(configuredWorker?.provider).toBe("mock");
+      expect(configuredWorker?.model).toBe("primary-worker-model");
       expect(savedRegistry.workers.map((worker) => worker.workerId)).toEqual(
         expect.arrayContaining(["primary-worker", "extra-worker"])
       );
@@ -1169,12 +1160,6 @@ describe("cli parsing", () => {
 
   it("runs doctor with a live mock worker connectivity probe", async () => {
     await withTempCwd(async (rootDir) => {
-      await writeCwConfig(rootDir, {
-        workerModel: {
-          provider: "mock",
-          model: "gpt-5.4-mini"
-        }
-      });
       const { io, output } = createIo();
       const cli = buildCli(io);
 
@@ -1255,12 +1240,6 @@ describe("cli parsing", () => {
 
   it("renders doctor probe details in compact human mode", async () => {
     await withTempCwd(async (rootDir) => {
-      await writeCwConfig(rootDir, {
-        workerModel: {
-          provider: "mock",
-          model: "gpt-5.4-mini"
-        }
-      });
       const { io, output } = createIo("human");
       const cli = buildCli(io);
 
@@ -1275,12 +1254,6 @@ describe("cli parsing", () => {
   it("recommends the shortest next command for a ready worker", async () => {
     await withTempCwd(async (rootDir) => {
       const workerId = "ready-worker";
-      await writeCwConfig(rootDir, {
-        workerModel: {
-          provider: "mock",
-          model: "gpt-5.4-mini"
-        }
-      });
       await writeRegistry(rootDir, [
         createRegistration({
           workerId,
@@ -1704,12 +1677,6 @@ describe("cli parsing", () => {
   it("reports unified worker readiness and can run an optional live probe", async () => {
     await withTempCwd(async (rootDir) => {
       const workerId = "readiness-worker";
-      await writeCwConfig(rootDir, {
-        workerModel: {
-          provider: "mock",
-          model: "gpt-5.4-mini"
-        }
-      });
       await writeRegistry(rootDir, [
         createRegistration({
           workerId,
@@ -1783,12 +1750,6 @@ describe("cli parsing", () => {
   it("distinguishes blocked reason types for not-qualified and missing prerequisites", async () => {
     await withTempCwd(async (rootDir) => {
       const workerId = "readiness-not-qualified-worker";
-      await writeCwConfig(rootDir, {
-        workerModel: {
-          provider: "mock",
-          model: "gpt-5.4-mini"
-        }
-      });
       await writeRegistry(rootDir, [
         createRegistration({
           workerId,

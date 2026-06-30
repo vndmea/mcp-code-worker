@@ -5,6 +5,7 @@ import {
   AgentError,
   type AvailabilityStatus,
   CwConfigSchema,
+  type CwWorkerModelConfig,
   createExecutionContextWithWorkerModel,
   getCwConfigPath,
   getCwWorkspaceAuditDirFromStorageDir,
@@ -158,46 +159,57 @@ const formatWorkflowPath = (rootDir: string, path: string): string => {
 const relativePath = (rootDir: string, path: string): string =>
   formatWorkflowPath(rootDir, path);
 
-const mergeModelConfig = (
-  existing: CwConfig["workerModel"],
-  updates: {
-    apiKey?: string;
-    baseURL?: string;
-    model?: string;
-    provider?: string;
-  }
-) => {
-  const hasUpdate =
-    Boolean(updates.apiKey) ||
-    Boolean(updates.provider) ||
-    Boolean(updates.model) ||
-    Boolean(updates.baseURL);
+const mergeWorkerConfigs = (
+  existing: CwConfig["workers"],
+  workerPlans: SetupWorkerPlan[]
+): CwWorkerModelConfig[] | undefined => {
+  const next = new Map<string, CwWorkerModelConfig>(
+    (existing ?? []).map((entry) => [entry.workerId, entry])
+  );
 
-  if (!existing && !hasUpdate) {
-    return undefined;
+  for (const plan of workerPlans) {
+    const current = next.get(plan.workerId);
+    next.set(plan.workerId, {
+      workerId: plan.workerId,
+      provider: plan.workerProvider,
+      model: plan.workerModel,
+      ...(plan.baseUrl
+        ? { baseURL: plan.baseUrl }
+        : current?.baseURL
+          ? { baseURL: current.baseURL }
+          : {}),
+      ...(plan.apiKey
+        ? { apiKey: plan.apiKey }
+        : current?.apiKey
+          ? { apiKey: current.apiKey }
+          : {}),
+      ...(plan.clientCommand
+        ? { clientCommand: plan.clientCommand }
+        : current?.clientCommand
+          ? { clientCommand: current.clientCommand }
+          : {}),
+      ...(current?.temperature !== undefined
+        ? { temperature: current.temperature }
+        : {}),
+      ...(current?.maxTokens !== undefined
+        ? { maxTokens: current.maxTokens }
+        : {})
+    });
   }
 
-  return {
-    ...(existing ?? {}),
-    ...(updates.apiKey ? { apiKey: updates.apiKey } : {}),
-    ...(updates.provider ? { provider: updates.provider } : {}),
-    ...(updates.model ? { model: updates.model } : {}),
-    ...(updates.baseURL ? { baseURL: updates.baseURL } : {})
-  };
+  const workers = Array.from(next.values());
+  return workers.length > 0 ? workers : undefined;
 };
 
 const buildDesiredConfig = (
   existing: CwConfig,
-  options: SetupOptions
+  options: SetupOptions,
+  workerPlans: SetupWorkerPlan[]
 ): CwConfig =>
   CwConfigSchema.parse({
     ...existing,
     version: 1,
-    ...(options.workerClientCommand
-      ? {
-          workerClientCommand: options.workerClientCommand
-        }
-      : {}),
+    workers: mergeWorkerConfigs(existing.workers, workerPlans),
     safety:
       options.repositoryWriteMode === "allow-write"
         ? {
@@ -212,12 +224,6 @@ const buildDesiredConfig = (
               allowWrite: false
             }
           : existing.safety,
-    workerModel: mergeModelConfig(existing.workerModel, {
-      apiKey: options.workerApiKey,
-      provider: options.workerProvider,
-      model: options.workerModel,
-      baseURL: options.workerBaseUrl
-    }),
     validation: {
       ...existing.validation,
       autoDiscover: options.disableValidationAutoDiscover
@@ -337,17 +343,18 @@ const ensureDirectory = async (
   };
 };
 
-const resolveSetupWorkerModel = (
+const resolvePrimaryWorkerModel = (
   context: ExecutionContext,
-  desiredConfig: CwConfig
+  options: SetupOptions
 ): ModelConfig => ({
   ...context.workerModel,
-  ...(desiredConfig.workerClientCommand
-    ? {
-        clientCommand: desiredConfig.workerClientCommand
-      }
-    : {}),
-  ...(desiredConfig.workerModel ?? {})
+  ...(options.workerProvider ? { provider: options.workerProvider } : {}),
+  ...(options.workerModel ? { model: options.workerModel } : {}),
+  ...(options.workerBaseUrl ? { baseURL: options.workerBaseUrl } : {}),
+  ...(options.workerApiKey ? { apiKey: options.workerApiKey } : {}),
+  ...(options.workerClientCommand
+    ? { clientCommand: options.workerClientCommand }
+    : {})
 });
 
 const resolveWorkerMode = (provider: string): "api" | "client" =>
@@ -357,7 +364,15 @@ const buildPrimaryWorkerPlan = (
   options: SetupOptions,
   modelConfig: ModelConfig
 ): SetupWorkerPlan | null => {
+  const hasWorkerConfiguration =
+    Boolean(options.workerId) ||
+    Boolean(options.workerProvider) ||
+    Boolean(options.workerModel) ||
+    Boolean(options.workerBaseUrl) ||
+    Boolean(options.workerApiKey) ||
+    Boolean(options.workerClientCommand);
   const requiresNamedWorkerWorkflow =
+    hasWorkerConfiguration ||
     options.registerWorker ||
     options.probeWorker ||
     options.interviewWorker ||
@@ -823,10 +838,13 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
   });
   const steps: SetupStepResult[] = [];
   const configResult = await loadCwConfig(context.rootDir);
-  const desiredConfig = buildDesiredConfig(configResult.config, normalizedOptions);
-  const primaryWorkerModel = resolveSetupWorkerModel(context, desiredConfig);
+  const primaryWorkerModel = resolvePrimaryWorkerModel(context, normalizedOptions);
   const workerPlans = buildSetupWorkerPlans(normalizedOptions, primaryWorkerModel);
-  const configToWrite = desiredConfig;
+  const configToWrite = buildDesiredConfig(
+    configResult.config,
+    normalizedOptions,
+    workerPlans
+  );
   const registryState = await readWorkerRegistry(
     context.rootDir,
     context.cwStorageDir
@@ -885,8 +903,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     details: {
       replacedInvalidConfig: Boolean(configResult.error),
       safety: configToWrite.safety,
-      workerClientCommand: configToWrite.workerClientCommand,
-      workerModel: configToWrite.workerModel
+      workers: configToWrite.workers
     }
   });
 
@@ -1095,13 +1112,18 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     summary: readinessSummary,
     steps,
     recommendedConfig: unique([
-      configToWrite.workerModel &&
-      !configToWrite.workerModel.apiKey &&
-      !["mock", "client", "opencode", "claudecode", "codex"].includes(
-        configToWrite.workerModel.provider
-      )
-        ? "Persist workerModel.apiKey in config.json before running the worker."
-        : undefined
+      ...(configToWrite.workers ?? [])
+        .filter(
+          (worker) =>
+            !worker.apiKey &&
+            !["mock", "client", "opencode", "claudecode", "codex"].includes(
+              worker.provider
+            )
+        )
+        .map(
+          (worker) =>
+            `Persist apiKey for worker '${worker.workerId}' in config.json workers[] before running it.`
+        )
     ]),
     minimalSuccessPath,
     recommendedEntrypoints,

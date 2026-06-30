@@ -58,7 +58,6 @@ export interface InitPrompter {
 
 interface InitOptions extends Omit<SetupOptions, "repositoryWriteMode"> {
   advanced: boolean;
-  preset?: string;
   repositoryWriteMode?: string;
   writeCodexMcpConfig: boolean;
 }
@@ -616,7 +615,6 @@ const hasScriptedSetupInputs = (options: InitOptions): boolean =>
   options.lintScript.length > 0 ||
   options.testScript.length > 0 ||
   options.repositoryWriteMode !== undefined ||
-  Boolean(options.preset) ||
   Boolean(options.workerApiKey) ||
   Boolean(options.workerBaseUrl) ||
   Boolean(options.workerClientCommand) ||
@@ -929,10 +927,6 @@ export const registerInitCommand = (
     .command("init")
     .description("Run the cw onboarding flow, either interactively or through scripted flags, and persist the chosen local setup.")
     .option("--advanced", "Ask for additional worker and validation setup details.", false)
-    .option(
-      "--preset <name>",
-      `Apply a worker preset: ${INIT_PRESETS.map((preset) => preset.id).join(", ")}.`
-    )
     .option("--root <path>", "Pre-fill the workspace root shown in the onboarding flow.")
     .option("--worker-provider <provider>", "Worker provider")
     .option("--worker-model <model>", "Worker model")
@@ -981,13 +975,6 @@ export const registerInitCommand = (
       const canPrompt =
         Boolean(injectedPrompter) || (process.stdin.isTTY && process.stdout.isTTY);
       const shouldRunScripted = !canPrompt || hasScriptedSetupInputs(options);
-      const preset = getInitPreset(options.preset);
-
-      if (options.preset && !preset) {
-        throw new Error(
-          `Unsupported preset '${options.preset}'. Expected one of: ${INIT_PRESETS.map((entry) => entry.id).join(", ")}.`
-        );
-      }
 
       if (options.writeCodexMcpConfig && !options.allowWrite) {
         throw new Error(
@@ -1021,11 +1008,11 @@ export const registerInitCommand = (
           testScript: options.testScript,
           typecheckScript: options.typecheckScript,
           workerApiKey: options.workerApiKey,
-          workerBaseUrl: options.workerBaseUrl ?? preset?.workerBaseUrl,
+          workerBaseUrl: options.workerBaseUrl,
           workerClientCommand: options.workerClientCommand,
           workerId: options.workerId,
-          workerModel: options.workerModel ?? preset?.workerModel,
-          workerProvider: options.workerProvider ?? preset?.workerProvider
+          workerModel: options.workerModel,
+          workerProvider: options.workerProvider
         });
         const paths = buildInitPaths(result.rootDir);
         const codexMcpConfig = await updateCodexMcpConfig(

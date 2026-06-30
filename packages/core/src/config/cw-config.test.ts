@@ -8,6 +8,7 @@ import {
   getCwConfigPath,
   loadCwConfig,
   normalizeFileSystemPath,
+  resolveConfiguredWorkerModel,
   resolveExecutionContext
 } from "@mcp-code-worker/core";
 
@@ -30,16 +31,19 @@ describe("cw config", () => {
     expect(result.config.safety.dryRun).toBe(true);
   });
 
-  it("loads valid config and resolves persisted model api keys", async () => {
+  it("loads valid config and resolves persisted per-worker model settings", async () => {
     const rootDir = await createWorkspace();
     await writeConfig(rootDir, {
       version: 1,
-      workerClientCommand: "custom-client",
-      workerModel: {
-        provider: "litellm",
-        model: "qwen3-coder-mini",
-        apiKey: "persisted-secret"
-      },
+      workers: [
+        {
+          workerId: "deepseek-flash",
+          provider: "litellm",
+          model: "qwen3-coder-mini",
+          apiKey: "persisted-secret",
+          clientCommand: "custom-client"
+        }
+      ],
       safety: {
         dryRun: false,
         allowWrite: true,
@@ -49,12 +53,14 @@ describe("cw config", () => {
 
     const result = await loadCwConfig(rootDir);
     const context = await resolveExecutionContext({ rootDir });
+    const worker = resolveConfiguredWorkerModel(result.config, "deepseek-flash");
 
     expect(result.exists).toBe(true);
     expect(result.error).toBeUndefined();
-    expect(context.workerModel.provider).toBe("litellm");
-    expect(context.workerModel.apiKey).toBe("persisted-secret");
-    expect(context.workerModel.clientCommand).toBe("custom-client");
+    expect(worker?.provider).toBe("litellm");
+    expect(worker?.apiKey).toBe("persisted-secret");
+    expect(worker?.clientCommand).toBe("custom-client");
+    expect(context.workerModel.provider).toBe("mock");
     expect(context.allowWrite).toBe(true);
     expect(context.dryRun).toBe(false);
     expect(context.contextBudget.strictFiles).toBe(false);
@@ -92,11 +98,14 @@ describe("cw config", () => {
     const rootDir = await createWorkspace();
     await writeConfig(rootDir, {
       version: 1,
-      workerModel: {
-        provider: "litellm",
-        model: "qwen3-coder",
-        baseURL: "not-a-url"
-      }
+      workers: [
+        {
+          workerId: "bad-worker",
+          provider: "litellm",
+          model: "qwen3-coder",
+          baseURL: "not-a-url"
+        }
+      ]
     });
 
     const result = await loadCwConfig(rootDir);
@@ -106,16 +115,19 @@ describe("cw config", () => {
     expect(result.config.safety.dryRun).toBe(true);
   });
 
-  it("applies precedence cli overrides > config > defaults for persisted runtime settings", async () => {
+  it("applies precedence cli overrides > defaults for active runtime settings", async () => {
     const rootDir = await createWorkspace();
     await writeConfig(rootDir, {
       version: 1,
-      workerModel: {
-        provider: "litellm",
-        model: "config-worker",
-        apiKey: "config-secret"
-      },
-      workerClientCommand: "config-client",
+      workers: [
+        {
+          workerId: "config-worker",
+          provider: "litellm",
+          model: "config-worker",
+          apiKey: "config-secret",
+          clientCommand: "config-client"
+        }
+      ],
       safety: {
         dryRun: false,
         allowWrite: false,
@@ -138,7 +150,7 @@ describe("cw config", () => {
     expect(context.workerModel.provider).toBe("cli-provider");
     expect(context.workerModel.model).toBe("cli-worker");
     expect(context.workerModel.apiKey).toBe("cli-secret");
-    expect(context.workerModel.clientCommand).toBe("config-client");
+    expect(context.workerModel.clientCommand).toBeUndefined();
     expect(context.dryRun).toBe(false);
     expect(context.allowWrite).toBe(true);
     expect(context.allowedCommands).toEqual(["git"]);
@@ -202,5 +214,25 @@ describe("cw config", () => {
 
     expect(context.contextBudget.ignoredPaths).toEqual(["generated", "tmp/cache"]);
     expect(context.contextBudget.strictFiles).toBe(true);
+  });
+
+  it("resolves per-worker client command mappings from config", async () => {
+    const rootDir = await createWorkspace();
+    await writeConfig(rootDir, {
+      version: 1,
+      workers: [
+        {
+          workerId: "opencode-local",
+          provider: "opencode",
+          model: "deepseek/deepseek-v4-flash",
+          clientCommand: "C:/tools/opencode.exe"
+        }
+      ]
+    });
+
+    const result = await loadCwConfig(rootDir);
+    const worker = resolveConfiguredWorkerModel(result.config, "opencode-local");
+
+    expect(worker?.clientCommand).toBe("C:\\tools\\opencode.exe");
   });
 });

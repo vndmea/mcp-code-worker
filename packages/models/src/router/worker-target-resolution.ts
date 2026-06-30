@@ -1,7 +1,9 @@
 import {
   AgentError,
   type ExecutionContext,
+  loadCwConfig,
   type ModelConfig,
+  resolveConfiguredWorkerModel,
   type WorkerRegistration
 } from "@mcp-code-worker/core";
 
@@ -27,15 +29,19 @@ const requiresApiKey = (config: ModelConfig): boolean =>
 
 const modelConfigFromRegistration = (
   registration: WorkerRegistration,
-  context: ExecutionContext
+  context: ExecutionContext,
+  configuredModel: Partial<ModelConfig> | undefined
 ): ModelConfig => ({
-  provider: registration.provider,
-  model: registration.model,
-  baseURL: registration.baseURL ?? context.workerModel.baseURL,
-  apiKey: context.workerModel.apiKey,
-  clientCommand: context.workerModel.clientCommand,
-  temperature: context.workerModel.temperature,
-  maxTokens: context.workerModel.maxTokens
+  provider: configuredModel?.provider ?? registration.provider,
+  model: configuredModel?.model ?? registration.model,
+  baseURL:
+    configuredModel?.baseURL ??
+    registration.baseURL ??
+    context.workerModel.baseURL,
+  apiKey: configuredModel?.apiKey,
+  clientCommand: configuredModel?.clientCommand,
+  temperature: configuredModel?.temperature ?? context.workerModel.temperature,
+  maxTokens: configuredModel?.maxTokens ?? context.workerModel.maxTokens
 });
 
 const mergeTargetModelConfig = (
@@ -55,7 +61,7 @@ const assertApiKeyIfNeeded = (
   if (requiresApiKey(modelConfig) && !modelConfig.apiKey) {
     throw new AgentError(
       "WORKER_API_KEY_MISSING",
-      `Worker ${workerId ?? "the selected worker"} requires workerModel.apiKey in config.json before it can run.`,
+      `Worker ${workerId ?? "the selected worker"} requires an apiKey entry in config.json workers[] before it can run.`,
       workerId ? { workerId } : undefined
     );
   }
@@ -108,8 +114,14 @@ export const resolveWorkerTarget = async (
     );
   }
 
+  const configResult = await loadCwConfig(input.context.rootDir);
+  const configuredModel = resolveConfiguredWorkerModel(
+    configResult.config,
+    chosenWorkerId
+  );
+
   const modelConfig = mergeTargetModelConfig(
-    modelConfigFromRegistration(registration, input.context),
+    modelConfigFromRegistration(registration, input.context, configuredModel),
     input
   );
   assertApiKeyIfNeeded(chosenWorkerId, modelConfig);

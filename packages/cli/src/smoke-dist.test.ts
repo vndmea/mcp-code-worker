@@ -325,16 +325,30 @@ describe("cli dist smoke", () => {
       await withTempHome(async (homeDir) => {
         const env = createCommandEnv(homeDir);
         await writeCwConfig(rootDir, homeDir, {
-          workerClientCommand: "node",
-          workerModel: {
-            provider: "client",
-            model: "qwen3-coder"
-          }
+          workers: [
+            {
+              workerId: "local-worker",
+              provider: "client",
+              model: "qwen3-coder",
+              clientCommand: "node"
+            }
+          ]
         });
+        await writeRegistry(
+          rootDir,
+          homeDir,
+          [
+            createRegistration({
+              workerId: "local-worker",
+              provider: "client",
+              model: "qwen3-coder"
+            })
+          ]
+        );
 
         const [sourceDoctor, distDoctor] = await Promise.all([
-          runSourceCli(["doctor"], rootDir, env),
-          runDistCli(["doctor"], rootDir, env)
+          runSourceCli(["doctor", "--worker", "local-worker"], rootDir, env),
+          runDistCli(["doctor", "--worker", "local-worker"], rootDir, env)
         ]);
 
         expect(normalizeDoctorReport(sourceDoctor.stdout)).toEqual(

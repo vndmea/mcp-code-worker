@@ -5,8 +5,13 @@ export const CwModelConfigSchema = z.object({
   model: z.string().min(1),
   baseURL: z.string().url().optional(),
   apiKey: z.string().min(1).optional(),
+  clientCommand: z.string().min(1).optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().positive().optional()
+});
+
+export const CwWorkerModelConfigSchema = CwModelConfigSchema.extend({
+  workerId: z.string().min(1)
 });
 
 export const CwSafetyConfigSchema = z.object({
@@ -52,8 +57,7 @@ export const CwValidationConfigSchema = z.object({
 
 export const CwConfigSchema = z.object({
   version: z.literal(1),
-  workerClientCommand: z.string().min(1).optional(),
-  workerModel: CwModelConfigSchema.optional(),
+  workers: z.array(CwWorkerModelConfigSchema).optional(),
   safety: CwSafetyConfigSchema.default({
     dryRun: true,
     allowWrite: false,
@@ -87,4 +91,5 @@ export const CwConfigSchema = z.object({
 });
 
 export type CwModelConfig = z.infer<typeof CwModelConfigSchema>;
+export type CwWorkerModelConfig = z.infer<typeof CwWorkerModelConfigSchema>;
 export type CwConfig = z.infer<typeof CwConfigSchema>;

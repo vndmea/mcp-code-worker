@@ -1,6 +1,11 @@
 import type { Command } from "commander";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
 import {
+  CwConfigSchema,
+  getCwConfigPath,
+  normalizeCommandInput,
   resolveExecutionContext,
   type WorkerCapabilityProfile
 } from "@mcp-code-worker/core";
@@ -68,6 +73,60 @@ const formatWorkerUnregisterResult = (result: {
     : "Dry-run: worker would be unregistered.",
   `registry: ${result.path}`
 ];
+
+const persistWorkerConfigEntry = async (
+  rootDir: string,
+  workerId: string,
+  entry: {
+    apiKey?: string;
+    baseURL?: string;
+    clientCommand?: string;
+    model: string;
+    provider: string;
+  }
+): Promise<void> => {
+  const configPath = getCwConfigPath(rootDir);
+  let existing: Record<string, unknown> = {
+    version: 1
+  };
+
+  try {
+    existing = JSON.parse(await readFile(configPath, "utf8")) as Record<
+      string,
+      unknown
+    >;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  const existingWorkers = Array.isArray(existing.workers)
+    ? existing.workers as Array<Record<string, unknown>>
+    : [];
+  const nextWorkers = existingWorkers.filter(
+    (candidate) => candidate.workerId !== workerId
+  );
+  const parsed = CwConfigSchema.parse({
+    ...existing,
+    workers: [
+      ...nextWorkers,
+      {
+        workerId,
+        provider: entry.provider,
+        model: entry.model,
+        ...(entry.baseURL ? { baseURL: entry.baseURL } : {}),
+        ...(entry.apiKey ? { apiKey: entry.apiKey } : {}),
+        ...(entry.clientCommand
+          ? { clientCommand: normalizeCommandInput(entry.clientCommand) }
+          : {})
+      }
+    ]
+  });
+
+  await mkdir(dirname(configPath), { recursive: true });
+  await writeFile(configPath, JSON.stringify(parsed, null, 2), "utf8");
+};
 
 const formatWorkerInterviewResult = (result: {
   localClientRuntime?: {
@@ -310,6 +369,11 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
     .requiredOption("--provider <provider>", "Worker provider")
     .requiredOption("--model <model>", "Worker model")
     .option("--base-url <url>", "Worker base URL")
+    .option("--worker-api-key <key>", "Persist a per-worker API key in config.json")
+    .option(
+      "--worker-client-command <command>",
+      "Persist a per-worker local client bridge command in config.json"
+    )
     .option("--tag <tag>", "Worker tag", (value, previous: string[]) => [
       ...previous,
       value
@@ -324,6 +388,8 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
         notes?: string;
         provider: string;
         tag: string[];
+        workerApiKey?: string;
+        workerClientCommand?: string;
         worker: string;
       }) => {
         const context = await resolveCommandContext({
@@ -352,6 +418,20 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
           },
           options.allowWrite
         );
+
+        if (options.allowWrite) {
+          await persistWorkerConfigEntry(
+            context.rootDir,
+            workerId,
+            {
+              apiKey: options.workerApiKey,
+              baseURL: options.baseUrl,
+              clientCommand: options.workerClientCommand,
+              model: options.model,
+              provider: options.provider
+            }
+          );
+        }
 
         writeOutput(
           io,

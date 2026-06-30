@@ -393,7 +393,7 @@ export const runDoctor = async (
       name: "worker-api-key",
       provider: context.workerModel.provider,
       hasKey: Boolean(context.workerModel.apiKey),
-      source: config.config.workerModel?.apiKey ? "config.json" : undefined
+      source: context.workerModel.apiKey ? "runtime config" : undefined
     }
   ];
 
@@ -417,7 +417,7 @@ export const runDoctor = async (
             ? `${entry.name} is using a local client provider and does not require an API key.`
           : entry.hasKey
             ? `${entry.name} resolved successfully from ${entry.source ?? "runtime config"}.`
-            : `${entry.name} is not set. Expected workerModel.apiKey in config.json for provider ${entry.provider}.`,
+            : `${entry.name} is not set. Expected an apiKey on the selected worker config in config.json for provider ${entry.provider}.`,
       metadata: {
         provider: entry.provider,
         source: entry.source

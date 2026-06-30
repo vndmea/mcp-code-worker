@@ -10,7 +10,12 @@ import {
   normalizeFileSystemPath
 } from "../runtime/path-input.js";
 import { getCwWorkspaceFilePath } from "../storage/cw-paths.js";
-import { CwConfigSchema, type CwConfig, type CwModelConfig } from "../schemas/config.schema.js";
+import {
+  CwConfigSchema,
+  type CwConfig,
+  type CwModelConfig,
+  type CwWorkerModelConfig
+} from "../schemas/config.schema.js";
 
 export interface LoadCwConfigResult {
   config: CwConfig;
@@ -44,7 +49,6 @@ const resolveRootDir = (options: ResolveExecutionContextOptions): string => {
 const mergeModelConfig = (
   base: ExecutionContext["workerModel"],
   configModel: CwModelConfig | undefined,
-  configWorkerClientCommand: string | undefined,
   cliOverride?: ExecutionContextOverrides["workerModel"]
 ) => {
   const provider =
@@ -61,8 +65,8 @@ const mergeModelConfig = (
     base.baseURL;
   const clientCommand =
     cliOverride?.clientCommand ??
-    (configWorkerClientCommand
-      ? normalizeCommandInput(configWorkerClientCommand)
+    (configModel?.clientCommand
+      ? normalizeCommandInput(configModel.clientCommand)
       : base.clientCommand);
   const apiKey =
     cliOverride?.apiKey ??
@@ -79,6 +83,37 @@ const mergeModelConfig = (
     apiKey,
     temperature,
     maxTokens
+  };
+};
+
+export const resolveWorkerClientCommand = (
+  config: CwConfig,
+  workerId?: string
+): string | undefined => {
+  const configuredCommand = workerId
+    ? config.workers?.find((entry) => entry.workerId === workerId)?.clientCommand
+    : undefined;
+
+  return configuredCommand
+    ? normalizeCommandInput(configuredCommand)
+    : undefined;
+};
+
+export const resolveConfiguredWorkerModel = (
+  config: CwConfig,
+  workerId: string
+): CwWorkerModelConfig | undefined => {
+  const matched = config.workers?.find((entry) => entry.workerId === workerId);
+
+  if (!matched) {
+    return undefined;
+  }
+
+  return {
+    ...matched,
+    ...(matched.clientCommand
+      ? { clientCommand: normalizeCommandInput(matched.clientCommand) }
+      : {})
   };
 };
 
@@ -156,12 +191,7 @@ export async function resolveExecutionContext(
         ? config.context.ignoredPaths
         : baseContext.contextBudget.ignoredPaths)
   };
-  const workerModel = mergeModelConfig(
-    baseContext.workerModel,
-    config.workerModel,
-    config.workerClientCommand,
-    cliOverrides.workerModel
-  );
+  const workerModel = mergeModelConfig(baseContext.workerModel, undefined, cliOverrides.workerModel);
 
   return createExecutionContextFromEnv(env, {
     ...cliOverrides,

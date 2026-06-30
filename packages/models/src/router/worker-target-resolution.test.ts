@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   AgentError,
   createExecutionContextFromEnv,
+  getCwConfigPath,
   getCwWorkspaceFilePath
 } from "@mcp-code-worker/core";
 
@@ -27,6 +28,26 @@ const writeRegistry = async (
   await writeFile(
     registryPath,
     JSON.stringify({ version: 1, workers }, null, 2),
+    "utf8"
+  );
+};
+
+const writeConfig = async (
+  rootDir: string,
+  value: Record<string, unknown>
+): Promise<void> => {
+  const configPath = getCwConfigPath(rootDir);
+  await mkdir(dirname(configPath), { recursive: true });
+  await writeFile(
+    configPath,
+    JSON.stringify(
+      {
+        version: 1,
+        ...value
+      },
+      null,
+      2
+    ),
     "utf8"
   );
 };
@@ -92,5 +113,43 @@ describe("worker target resolution", () => {
     expect(() =>
       requireConfiguredWorkerId(context, undefined, "worker profile lookup")
     ).toThrow("--worker <id>");
+  });
+
+  it("uses the per-worker client command persisted in config.json", async () => {
+    const rootDir = await createRootDir();
+    await writeRegistry(
+      rootDir,
+      [
+        createRegistration({
+          workerId: "opencode-local",
+          provider: "opencode",
+          model: "deepseek/deepseek-v4-flash"
+        })
+      ]
+    );
+    await writeConfig(rootDir, {
+      workers: [
+        {
+          workerId: "opencode-local",
+          provider: "opencode",
+          model: "deepseek/deepseek-v4-flash",
+          clientCommand: "C:/tools/opencode.exe"
+        }
+      ]
+    });
+    const context = createExecutionContextFromEnv(undefined, {
+      rootDir,
+      workerModel: {
+        provider: "mock",
+        model: "gpt-5.4-mini"
+      }
+    });
+
+    const result = await resolveWorkerTarget({
+      context,
+      workerId: "opencode-local"
+    });
+
+    expect(result.modelConfig.clientCommand).toBe("C:\\tools\\opencode.exe");
   });
 });
