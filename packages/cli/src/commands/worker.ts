@@ -16,6 +16,7 @@ import {
 import {
   getWorkerRegistration,
   getWorkerProfile,
+  saveWorkerSecret,
   listWorkerRegistrations,
   listWorkerProfiles,
   removeWorkerRegistration,
@@ -78,7 +79,6 @@ const persistWorkerConfigEntry = async (
   rootDir: string,
   workerId: string,
   entry: {
-    apiKey?: string;
     baseURL?: string;
     clientCommand?: string;
     model: string;
@@ -87,7 +87,7 @@ const persistWorkerConfigEntry = async (
 ): Promise<void> => {
   const configPath = getCwConfigPath(rootDir);
   let existing: Record<string, unknown> = {
-    version: 1
+    version: 2
   };
 
   try {
@@ -115,8 +115,17 @@ const persistWorkerConfigEntry = async (
         workerId,
         provider: entry.provider,
         model: entry.model,
+        enabled:
+          (existingWorkers.find((candidate) => candidate.workerId === workerId)
+            ?.enabled as boolean | undefined) ?? true,
+        tags:
+          (existingWorkers.find((candidate) => candidate.workerId === workerId)
+            ?.tags as string[] | undefined) ?? [],
+        createdAt:
+          (existingWorkers.find((candidate) => candidate.workerId === workerId)
+            ?.createdAt as string | undefined) ?? new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         ...(entry.baseURL ? { baseURL: entry.baseURL } : {}),
-        ...(entry.apiKey ? { apiKey: entry.apiKey } : {}),
         ...(entry.clientCommand
           ? { clientCommand: normalizeCommandInput(entry.clientCommand) }
           : {})
@@ -369,7 +378,7 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
     .requiredOption("--provider <provider>", "Worker provider")
     .requiredOption("--model <model>", "Worker model")
     .option("--base-url <url>", "Worker base URL")
-    .option("--worker-api-key <key>", "Persist a per-worker API key in config.json")
+    .option("--worker-api-key <key>", "Persist a per-worker API key in SQLite storage")
     .option(
       "--worker-client-command <command>",
       "Persist a per-worker local client bridge command in config.json"
@@ -424,13 +433,20 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
             context.rootDir,
             workerId,
             {
-              apiKey: options.workerApiKey,
               baseURL: options.baseUrl,
               clientCommand: options.workerClientCommand,
               model: options.model,
               provider: options.provider
             }
           );
+          if (options.workerApiKey) {
+            await saveWorkerSecret(
+              context,
+              workerId,
+              options.workerApiKey,
+              true
+            );
+          }
         }
 
         writeOutput(

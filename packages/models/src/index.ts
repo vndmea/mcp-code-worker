@@ -15,6 +15,7 @@ export * from "./providers/opencode-provider.js";
 export * from "./router/model-router.js";
 export * from "./router/doctor-report.js";
 export * from "./router/worker-availability.js";
+export * from "./router/worker-benchmark-store.js";
 export * from "./router/worker-doctor.js";
 export * from "./router/worker-profile-doctor.js";
 export * from "./router/worker-profile-store.js";

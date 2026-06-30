@@ -1,6 +1,3 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
-
 import { z } from "zod";
 
 import type {
@@ -14,14 +11,17 @@ import type {
 import {
   AgentError,
   CODING_V1_SUITE_NAME,
-  getWorkerBenchmarkArtifactPath,
   qualifiesPatchGenerationCapability,
   WorkerCapabilityProfileSchema,
   WorkerBenchmarkResultSchema,
   resolveExecutionContext,
   writeAuditEvent
 } from "@mcp-code-worker/core";
-import { ModelRouter, invokeStructured } from "@mcp-code-worker/models";
+import {
+  ModelRouter,
+  invokeStructured,
+  saveWorkerBenchmark
+} from "@mcp-code-worker/models";
 
 const CODING_V1_SUITE_VERSION = "2";
 
@@ -315,29 +315,11 @@ export const saveWorkerBenchmarkArtifact = async (
   result: WorkerBenchmarkResult,
   explicitAllowWrite = false
 ): Promise<{ mode: "execute" | "dry-run"; path: string }> => {
-  const artifactPath = getWorkerBenchmarkArtifactPath(
-    context.rootDir,
-    result.workerId,
-    result.suiteName,
-    context.cwStorageDir
+  const persistence = await saveWorkerBenchmark(
+    context,
+    result,
+    explicitAllowWrite
   );
-  const evaluation = context.writePolicy.evaluate(artifactPath, explicitAllowWrite);
-
-  const persistence =
-    evaluation.mode === "dry-run"
-      ? {
-          mode: "dry-run" as const,
-          path: evaluation.normalizedPath
-        }
-      : {
-          mode: "execute" as const,
-          path: evaluation.normalizedPath
-        };
-
-  if (evaluation.mode !== "dry-run") {
-    await mkdir(dirname(artifactPath), { recursive: true });
-    await writeFile(artifactPath, JSON.stringify(result, null, 2), "utf8");
-  }
 
   await writeAuditEvent(
     context,

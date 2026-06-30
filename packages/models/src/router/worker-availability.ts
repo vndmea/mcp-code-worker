@@ -1,12 +1,8 @@
-import { readFile } from "node:fs/promises";
-
 import {
   createExecutionContextWithWorkerModel,
-  getWorkerBenchmarkArtifactPath,
   loadCwConfig,
   qualifiesPatchGenerationCapability,
   WorkerAvailabilitySnapshotSchema,
-  WorkerBenchmarkResultSchema,
   type DoctorReport,
   type ExecutionContext,
   type WorkerAvailabilityCheck,
@@ -20,6 +16,7 @@ import {
   assessWorkerTaskEligibility,
   getPatchGenerationConsistencyIssue
 } from "./worker-routing.js";
+import { getLatestWorkerBenchmark } from "./worker-benchmark-store.js";
 import { createWorkerDoctorChecks } from "./worker-doctor.js";
 import { resolveWorkerProfile } from "./worker-profile-resolution.js";
 import { getWorkerRegistration } from "./worker-registry-store.js";
@@ -48,39 +45,37 @@ const readBenchmarkCheck = async (
   context: ExecutionContext,
   workerId: string
 ): Promise<WorkerAvailabilityCheck> => {
-  const artifactPath = getWorkerBenchmarkArtifactPath(
-    context.rootDir,
-    workerId,
-    "coding-v1",
-    context.cwStorageDir
-  );
-
   try {
-    const parsed = WorkerBenchmarkResultSchema.parse(
-      JSON.parse(await readFile(artifactPath, "utf8"))
-    );
+    const record = await getLatestWorkerBenchmark({
+      rootDir: context.rootDir,
+      workerId,
+      suiteName: "coding-v1",
+      cwStorageDir: context.cwStorageDir
+    });
 
-    return qualifiesPatchGenerationCapability(parsed)
+    if (!record) {
+      return defaultCheck(
+        "missing",
+        "No persisted coding-v1 benchmark artifact was found."
+      );
+    }
+
+    return qualifiesPatchGenerationCapability(record.benchmark)
       ? defaultCheck(
           "passed",
-          `Persisted coding-v1 benchmark qualifies patch-generation at ${artifactPath}.`
+          `Persisted coding-v1 benchmark qualifies patch-generation in ${record.updatedAt}.`
         )
       : defaultCheck(
           "not-qualified",
-          `Persisted coding-v1 benchmark exists at ${artifactPath}, but patch-generation did not qualify.`
+          `Persisted coding-v1 benchmark exists from ${record.updatedAt}, but patch-generation did not qualify.`
         );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 
-    return /ENOENT/u.test(message)
-      ? defaultCheck(
-          "missing",
-          "No persisted coding-v1 benchmark artifact was found."
-        )
-      : defaultCheck(
-          "invalid",
-          `Persisted benchmark artifact could not be read: ${message}`
-        );
+    return defaultCheck(
+      "invalid",
+      `Persisted benchmark artifact could not be read: ${message}`
+    );
   }
 };
 
