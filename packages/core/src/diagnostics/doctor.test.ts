@@ -48,11 +48,14 @@ describe("doctor", () => {
       getCwConfigPath(rootDir),
       JSON.stringify({
         version: 1,
-        workerModel: {
-          provider: "litellm",
-          model: "qwen3-coder",
-          baseURL: "not-a-url"
-        }
+        workers: [
+          {
+            workerId: "litellm-qwen",
+            provider: "litellm",
+            model: "qwen3-coder",
+            baseURL: "not-a-url"
+          }
+        ]
       }),
       "utf8"
     );
@@ -86,10 +89,13 @@ describe("doctor", () => {
       JSON.stringify(
         {
           version: 1,
-          workerModel: {
-            provider: "mock",
-            model: "gpt-5.4-mini"
-          }
+          workers: [
+            {
+              workerId: "mock-local",
+              provider: "mock",
+              model: "gpt-5.4-mini"
+            }
+          ]
         },
         null,
         2

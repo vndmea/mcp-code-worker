@@ -363,11 +363,14 @@ describe("core schemas", () => {
     expect(() =>
       CwConfigSchema.parse({
         version: 1,
-        workerModel: {
-          provider: "litellm",
-          model: "qwen3-coder",
-          baseURL: "not-a-url"
-        }
+        workers: [
+          {
+            workerId: "litellm-qwen",
+            provider: "litellm",
+            model: "qwen3-coder",
+            baseURL: "not-a-url"
+          }
+        ]
       })
     ).toThrow();
   });

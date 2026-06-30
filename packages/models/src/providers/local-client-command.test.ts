@@ -2,10 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const accessMock = vi.hoisted(() => vi.fn());
 
+const getAccessCandidates = (): string[] =>
+  accessMock.mock.calls.map((call) => {
+    const candidate: unknown = call[0];
+
+    if (typeof candidate !== "string") {
+      throw new TypeError("Expected access() to be called with a string path");
+    }
+
+    return candidate;
+  });
+
 vi.mock("node:fs/promises", async () => {
-  const actual = await vi.importActual<typeof import("node:fs/promises")>(
-    "node:fs/promises"
-  );
+  const actual = await vi.importActual("node:fs/promises");
 
   return {
     ...actual,
@@ -25,13 +34,11 @@ describe("resolveCommandOnPath", () => {
       platform: "win32"
     });
 
-    accessMock.mockImplementation(async (candidate: string) => {
-      if (candidate === "C:\\nvm4w\\nodejs\\opencode.CMD") {
-        return;
-      }
-
-      throw new Error(`missing: ${candidate}`);
-    });
+    accessMock.mockImplementation((candidate: string) =>
+      candidate === "C:\\nvm4w\\nodejs\\opencode.CMD"
+        ? Promise.resolve(undefined)
+        : Promise.reject(new Error(`missing: ${candidate}`))
+    );
 
     const { resolveCommandOnPath } = await import("./local-client-command.js");
     const resolved = await resolveCommandOnPath("opencode", {
@@ -40,7 +47,7 @@ describe("resolveCommandOnPath", () => {
     });
 
     expect(resolved).toBe("C:\\nvm4w\\nodejs\\opencode.CMD");
-    expect(accessMock.mock.calls.map(([candidate]) => candidate)).toEqual([
+    expect(getAccessCandidates()).toEqual([
       "C:\\nvm4w\\nodejs\\opencode.COM",
       "C:\\nvm4w\\nodejs\\opencode.EXE",
       "C:\\nvm4w\\nodejs\\opencode.BAT",
@@ -55,13 +62,11 @@ describe("resolveCommandOnPath", () => {
       platform: "win32"
     });
 
-    accessMock.mockImplementation(async (candidate: string) => {
-      if (candidate === "C:\\tools\\claude") {
-        return;
-      }
-
-      throw new Error(`missing: ${candidate}`);
-    });
+    accessMock.mockImplementation((candidate: string) =>
+      candidate === "C:\\tools\\claude"
+        ? Promise.resolve(undefined)
+        : Promise.reject(new Error(`missing: ${candidate}`))
+    );
 
     const { resolveCommandOnPath } = await import("./local-client-command.js");
     const resolved = await resolveCommandOnPath("C:\\tools\\claude", {
@@ -70,8 +75,6 @@ describe("resolveCommandOnPath", () => {
     });
 
     expect(resolved).toBe("C:\\tools\\claude");
-    expect(accessMock.mock.calls.map(([candidate]) => candidate)).toEqual([
-      "C:\\tools\\claude"
-    ]);
+    expect(getAccessCandidates()).toEqual(["C:\\tools\\claude"]);
   });
 });

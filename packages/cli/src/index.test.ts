@@ -1159,7 +1159,7 @@ describe("cli parsing", () => {
   });
 
   it("runs doctor with a live mock worker connectivity probe", async () => {
-    await withTempCwd(async (rootDir) => {
+    await withTempCwd(async () => {
       const { io, output } = createIo();
       const cli = buildCli(io);
 
@@ -1239,7 +1239,7 @@ describe("cli parsing", () => {
   });
 
   it("renders doctor probe details in compact human mode", async () => {
-    await withTempCwd(async (rootDir) => {
+    await withTempCwd(async () => {
       const { io, output } = createIo("human");
       const cli = buildCli(io);
 
