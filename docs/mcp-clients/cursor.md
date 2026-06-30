@@ -7,7 +7,7 @@ Use this guide when configuring `mcp-code-worker` inside Cursor.
 Generate the snippet with:
 
 ```bash
-cw mcp config --host cursor
+cw mcp config --host=cursor
 ```
 
 ```json

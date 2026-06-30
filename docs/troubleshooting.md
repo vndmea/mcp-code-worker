@@ -9,7 +9,7 @@ Start every investigation with:
 ```bash
 cw doctor
 cw doctor --probe
-cw doctor --mcp --host codex
+cw doctor --mcp --host=codex
 cw mcp list-tools
 ```
 
@@ -59,7 +59,7 @@ Different absolute repository roots produce different workspace ids, so a root m
 
 ### Symptoms
 
-- `cw worker interview --worker <workerId> --save` returns provider invocation failures
+- `cw worker interview --worker=<workerId> --save` returns provider invocation failures
 - the worker remains unavailable at readiness time for provider/configuration reasons
 
 ### Checks
@@ -81,7 +81,7 @@ Do not treat a provider-failure interview as a completed onboarding result.
 ### Checks
 
 - If you use the local client provider, remember that `opencode` is the default compatible command
-- Prefer persisting `workerClientCommand` in `config.json` or via `cw init --worker-client-command <command> --allow-write`
+- Prefer persisting `workerClientCommand` in `config.json` or via `cw init --worker-client-command=<command> --allow-write`
 - Persist `workerClientCommand` in `config.json` when the local client executable differs from `opencode`
 - Re-run `cw doctor`
 - Use `cw doctor --probe` when you also want a live connectivity probe
@@ -99,7 +99,7 @@ Do not treat a provider-failure interview as a completed onboarding result.
 - Treat `cw mcp list-tools` and `cw mcp config` as local-only checks; they do not prove that the host loaded the MCP snippet
 - Start the client against the correct workspace root
 - Compare the client snippet with the output of `cw mcp config`
-- Use `cw doctor --mcp --host codex` when Codex is the host and you want an end-to-end check of config presence, snippet validity, launchability, connectivity, and tool-list parity
+- Use `cw doctor --mcp --host=codex` when Codex is the host and you want an end-to-end check of config presence, snippet validity, launchability, connectivity, and tool-list parity
 - Confirm the client process starts from the intended workspace root and is using the expected CW `config.json`
 - Read `root-dir`, `runtime-bootstrap`, and `worker-connectivity` from `cw doctor --probe` to verify the active root, config path, and worker wiring
 - Do not use a bare `cw mcp serve` run as the primary health check; as a stdio server it can exit once stdio closes or no client remains attached

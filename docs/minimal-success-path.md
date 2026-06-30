@@ -12,9 +12,9 @@ cw doctor
 If you already know the worker shape you want, the shortest scripted paths are:
 
 ```bash
-cw init --preset mock --allow-write
-cw init --preset deepseek --allow-write
-cw init --preset opencode --allow-write
+cw init --preset=mock --allow-write
+cw init --preset=deepseek --allow-write
+cw init --preset=opencode --allow-write
 ```
 
 2. Verify model access and credentials.
@@ -26,7 +26,7 @@ cw init --preset opencode --allow-write
 3. Start a dry-run task first.
 
 ```bash
-cw task start --goal "Review this repository" --worker <workerId>
+cw task start --goal="Review this repository" --worker=<workerId>
 ```
 
 4. Read the report before taking the next step.

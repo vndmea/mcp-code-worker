@@ -7,7 +7,7 @@ Use this guide when connecting `mcp-code-worker` to a VS Code MCP-capable extens
 Generate the snippet with:
 
 ```bash
-cw mcp config --host vscode
+cw mcp config --host=vscode
 ```
 
 ```json

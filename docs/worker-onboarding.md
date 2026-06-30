@@ -41,30 +41,30 @@ Use this explicit advanced sequence for a new worker after `cw init`:
 
 ```bash
 cw worker register \
-  --worker <workerId> \
-  --provider <provider> \
-  --model <model> \
-  --base-url <base-url-if-needed> \
+  --worker=<workerId> \
+  --provider=<provider> \
+  --model=<model> \
+  --base-url=<base-url-if-needed> \
   --allow-write
 
 cw doctor --probe
-cw worker interview --worker <workerId> --save
-cw worker readiness --worker <workerId>
+cw worker interview --worker=<workerId> --save
+cw worker readiness --worker=<workerId>
 cw worker profile <workerId>
 ```
 
 If the worker will be used for coding qualification or patch generation review, continue with:
 
 ```bash
-cw worker benchmark --suite coding-v1 --worker <workerId> --save
-cw worker readiness --worker <workerId> --probe
+cw worker benchmark --suite=coding-v1 --worker=<workerId> --save
+cw worker readiness --worker=<workerId> --probe
 ```
 
 Only after reviewing the benchmark result should you consider:
 
 ```bash
-cw worker benchmark --suite coding-v1 --worker <workerId> --save --update-profile-capabilities
-cw worker readiness --worker <workerId>
+cw worker benchmark --suite=coding-v1 --worker=<workerId> --save --update-profile-capabilities
+cw worker readiness --worker=<workerId>
 ```
 
 ## What The Interview Evaluates
@@ -89,7 +89,7 @@ Interview output produces a `WorkerCapabilityProfile` that affects routing.
 - `not-qualified`: the worker completed evaluation but should stay out of qualified task types
 
 The profile status is not just descriptive. It changes how routing and policy checks behave.
-Run `cw worker readiness --worker <workerId>` for the separate runtime answer about whether that named worker is currently ready or unavailable for formal tasks.
+Run `cw worker readiness --worker=<workerId>` for the separate runtime answer about whether that named worker is currently ready or unavailable for formal tasks.
 
 ## Persisted Artifacts
 
@@ -122,14 +122,14 @@ This is the safer option for:
 
 ```bash
 cw worker register \
-  --worker deepseek-flash \
-  --provider openai-compatible \
-  --model deepseek-v4-flash \
-  --base-url https://api.deepseek.com \
+  --worker=deepseek-flash \
+  --provider=openai-compatible \
+  --model=deepseek-v4-flash \
+  --base-url=https://api.deepseek.com \
   --allow-write
 
-cw worker interview --worker deepseek-flash --save
-cw worker benchmark --suite coding-v1 --worker deepseek-flash --save
+cw worker interview --worker=deepseek-flash --save
+cw worker benchmark --suite=coding-v1 --worker=deepseek-flash --save
 ```
 
 See [docs/provider-contracts/deepseek.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/deepseek.md) for provider-specific health checks and retry guidance.
@@ -138,13 +138,13 @@ See [docs/provider-contracts/deepseek.md](https://github.com/vndmea/mcp-code-wor
 
 ```bash
 cw worker register \
-  --worker qwen-local \
-  --provider litellm \
-  --model qwen3-coder \
-  --base-url http://localhost:4000/v1 \
+  --worker=qwen-local \
+  --provider=litellm \
+  --model=qwen3-coder \
+  --base-url=http://localhost:4000/v1 \
   --allow-write
 
-cw worker interview --worker qwen-local --save
+cw worker interview --worker=qwen-local --save
 ```
 
 ## Failure And Retry Guidance
@@ -156,6 +156,6 @@ Stop and fix the environment before retrying when:
 - the base URL or model name is wrong
 - a local client provider points to the wrong executable
 
-Use `cw worker readiness --worker <workerId> --probe` before a retry when you want a live connectivity probe for the exact named worker you plan to run.
+Use `cw worker readiness --worker=<workerId> --probe` before a retry when you want a live connectivity probe for the exact named worker you plan to run.
 
 Do not treat a provider-failure interview result as a completed qualification result.

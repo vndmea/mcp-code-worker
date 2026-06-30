@@ -104,17 +104,17 @@ Recommended registration:
 
 ```bash
 cw worker register \
-  --worker deepseek-flash \
-  --provider openai-compatible \
-  --model deepseek-v4-flash \
-  --base-url https://api.deepseek.com \
+  --worker=deepseek-flash \
+  --provider=openai-compatible \
+  --model=deepseek-v4-flash \
+  --base-url=https://api.deepseek.com \
   --allow-write
 ```
 
 Qualification sequence:
 
-1. Run `cw worker interview --worker deepseek-flash --save`.
-2. Run `cw worker benchmark --suite coding-v1 --worker deepseek-flash --save` when coding qualification matters.
+1. Run `cw worker interview --worker=deepseek-flash --save`.
+2. Run `cw worker benchmark --suite=coding-v1 --worker=deepseek-flash --save` when coding qualification matters.
 3. Only use `--update-profile-capabilities` after the benchmark result is explicitly reviewed.
 
 ## Common Failure Signatures

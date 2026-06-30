@@ -37,7 +37,7 @@ All categories below must be complete before tagging and publishing:
 | Node.js version     | Validation was performed with Node.js `22`                       | `node --version` -> `v22.22.0` |
 | pnpm version        | Validation was performed with `pnpm >=10`                        | `pnpm --version` -> `11.9.0` |
 | Public install path | `npm i -g mcp-code-worker` works from a clean environment        | Verified by `pnpm smoke:pack` on 2026-06-28 |
-| Distribution path   | The published package was prepared from `packages/cli/.publish/` | Verified by `pnpm --dir packages/cli run pack:publish` on 2026-06-28 |
+| Distribution path   | The published package was prepared from `packages/cli/.publish/` | Verified by `pnpm --dir=packages/cli run pack:publish` on 2026-06-28 |
 
 ### Windows / macOS Promotion Evidence
 
@@ -91,7 +91,7 @@ The following evidence was recorded on 2026-06-28 against candidate release comm
   - verified `cw mcp config`
   - verified `cw mcp list-tools`
   - verified that user-scoped `config.json` was created under the configured CW home root
-- `pnpm --dir packages/cli run pack:publish`: passed
+- `pnpm --dir=packages/cli run pack:publish`: passed
   - staged publish directory: `packages/cli/.publish/`
   - tarball filename: `mcp-code-worker-0.1.0.tgz`
   - staged files confirmed:
@@ -106,8 +106,8 @@ The following evidence was recorded on 2026-06-28 against candidate release comm
 
 Validate the artifact that is actually going to npm:
 
-- Run `pnpm --dir packages/cli run prepack`.
-- Run `npm pack .publish --json` from `packages/cli` or use `pnpm --dir packages/cli run pack:publish`.
+- Run `pnpm --dir=packages/cli run prepack`.
+- Run `npm pack .publish --json` from `packages/cli` or use `pnpm --dir=packages/cli run pack:publish`.
 - Confirm the publish staging directory is `packages/cli/.publish/`.
 - Confirm the published manifest name is `mcp-code-worker`.
 - Confirm the published package exposes the `cw` command.
@@ -120,7 +120,7 @@ Validate the artifact that is actually going to npm:
 
 Recorded result for candidate release commit `c734da37a1cd47132cdf9d9ac9eaa7110187c64f`:
 
-- `pnpm --dir packages/cli run pack:publish`: passed on 2026-06-28
+- `pnpm --dir=packages/cli run pack:publish`: passed on 2026-06-28
 - `npm pack .publish --json`: returned `mcp-code-worker-0.1.0.tgz`
 - clean-environment install validation: passed through `pnpm smoke:pack`
 - additional public-install checks validated during `pnpm smoke:pack`:
@@ -222,7 +222,7 @@ If a known limitation is accepted for the release, it must be listed explicitly 
 | Role               | Name        | Date        | Notes |
 | ------------------ | ----------- | ----------- | ----- |
 | Maintainer         | `vndmea` | `2026-06-28` | Signed off against candidate release commit `c734da37a1cd47132cdf9d9ac9eaa7110187c64f`. |
-| Packaging reviewer | `vndmea` | `2026-06-28` | `pnpm smoke:pack` and `pnpm --dir packages/cli run pack:publish` passed for the candidate release commit. |
+| Packaging reviewer | `vndmea` | `2026-06-28` | `pnpm smoke:pack` and `pnpm --dir=packages/cli run pack:publish` passed for the candidate release commit. |
 | Docs reviewer      | `vndmea` | `2026-06-28` | Public install, MCP config, and support-matrix docs reviewed against the candidate release commit. |
 | MCP reviewer       | `vndmea` | `2026-06-28` | MCP launch snippet and stdio packaging checks reviewed against the candidate release commit. |
 

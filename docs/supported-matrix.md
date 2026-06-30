@@ -51,11 +51,11 @@ The MCP runtime contract is stdio-based. A host must be able to:
 | Host / surface | Level | Notes |
 | -------------- | ----- | ----- |
 | Generic stdio MCP host that can launch `cw` and pass env | supported | This is the core MCP contract |
-| Codex | supported | First-class host-driven use case, documented setup path, and first-party snippet preset via `cw mcp config --host codex` |
-| VS Code MCP-capable integrations | documented best-effort | Docs exist and `cw mcp config --host vscode` provides a first-party snippet, but no host-specific automation yet |
-| Cursor | documented best-effort | Docs exist and `cw mcp config --host cursor` provides a first-party snippet, but no host-specific automation yet |
-| Claude Desktop | documented best-effort | Docs exist and `cw mcp config --host claude-desktop` provides a first-party snippet, but no host-specific automation yet |
-| OpenCode | documented best-effort | Docs exist and `cw mcp config --host opencode` provides a first-party snippet, but no host-specific automation yet |
+| Codex | supported | First-class host-driven use case, documented setup path, and first-party snippet preset via `cw mcp config --host=codex` |
+| VS Code MCP-capable integrations | documented best-effort | Docs exist and `cw mcp config --host=vscode` provides a first-party snippet, but no host-specific automation yet |
+| Cursor | documented best-effort | Docs exist and `cw mcp config --host=cursor` provides a first-party snippet, but no host-specific automation yet |
+| Claude Desktop | documented best-effort | Docs exist and `cw mcp config --host=claude-desktop` provides a first-party snippet, but no host-specific automation yet |
+| OpenCode | documented best-effort | Docs exist and `cw mcp config --host=opencode` provides a first-party snippet, but no host-specific automation yet |
 
 ## Worker Provider Configuration
 

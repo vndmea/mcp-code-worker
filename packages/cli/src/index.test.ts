@@ -442,7 +442,7 @@ describe("cli parsing", () => {
     const { io, output } = createIo();
     const cli = buildCli(io);
 
-    await cli.parseAsync(["node", "cw", "mcp", "config", "--host", "codex"]);
+    await cli.parseAsync(["node", "cw", "mcp", "config", "--host=codex"]);
 
     expect(output.join("\n")).toContain('[mcp_servers."mcp-code-worker"]');
     expect(output.join("\n")).toContain('args = ["mcp", "serve"]');
@@ -1035,8 +1035,7 @@ describe("cli parsing", () => {
         "node",
         "cw",
         "init",
-        "--preset",
-        "deepseek",
+        "--preset=deepseek",
         "--allow-write"
       ]);
 

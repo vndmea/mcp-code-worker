@@ -26,9 +26,9 @@ Use the named worker you just configured during `cw init`, or register one first
 
 ```bash
 cw task start \
-  --goal "Review packages/core and propose safe improvements" \
-  --scope packages/core \
-  --worker <workerId> \
+  --goal="Review packages/core and propose safe improvements" \
+  --scope=packages/core \
+  --worker=<workerId> \
   --typecheck \
   --propose-patch \
   --inspect-patch \
@@ -85,17 +85,17 @@ Even if a patch proposal is generated, repository writes remain gated. Patch app
 If the first task looks good and you want a real worker in the loop next, qualify one first:
 
 ```bash
-cw worker register --worker qwen-local --provider litellm --model qwen3-coder --base-url http://localhost:4000/v1 --allow-write
-cw worker interview --worker qwen-local --save
+cw worker register --worker=qwen-local --provider=litellm --model=qwen3-coder --base-url=http://localhost:4000/v1 --allow-write
+cw worker interview --worker=qwen-local --save
 ```
 
 Then rerun a task with:
 
 ```bash
 cw task start \
-  --goal "Review packages/core and propose safe improvements" \
-  --scope packages/core \
-  --worker qwen-local \
+  --goal="Review packages/core and propose safe improvements" \
+  --scope=packages/core \
+  --worker=qwen-local \
   --require-profile \
   --typecheck \
   --propose-patch \

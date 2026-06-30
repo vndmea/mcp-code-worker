@@ -69,8 +69,8 @@ Interview and benchmark serve different purposes:
 
 `patch-generation` should only be enabled after:
 
-1. `cw worker interview --worker <workerId> --save`
-2. `cw worker benchmark --suite coding-v1 --worker <workerId> --save`
+1. `cw worker interview --worker=<workerId> --save`
+2. `cw worker benchmark --suite=coding-v1 --worker=<workerId> --save`
 3. explicit `--update-profile-capabilities`
 
 ## Example: DeepSeek / OpenAI-Compatible Worker
@@ -96,19 +96,19 @@ Compatibility path worth testing in some SDKs:
 
 ```powershell
 cw worker register `
-  --worker deepseek-flash `
-  --provider openai-compatible `
-  --model deepseek-v4-flash `
-  --base-url https://api.deepseek.com `
+  --worker=deepseek-flash `
+  --provider=openai-compatible `
+  --model=deepseek-v4-flash `
+  --base-url=https://api.deepseek.com `
   --allow-write
 
 cw worker interview `
-  --worker deepseek-flash `
+  --worker=deepseek-flash `
   --save
 
 cw worker benchmark `
-  --suite coding-v1 `
-  --worker deepseek-flash `
+  --suite=coding-v1 `
+  --worker=deepseek-flash `
   --save `
   --update-profile-capabilities
 ```
@@ -134,29 +134,29 @@ curl https://api.deepseek.com/chat/completions \
 
 If you get `Not Found`, test both base URLs, verify the model name, and confirm that `workerModel.apiKey` is persisted in `config.json`.
 
-If interview output reports provider invocation failures, do not treat the resulting unavailable status as a completed onboarding result. `cw worker interview --worker <workerId> --save` now skips persistence in that case and returns recovery actions instead.
+If interview output reports provider invocation failures, do not treat the resulting unavailable status as a completed onboarding result. `cw worker interview --worker=<workerId> --save` now skips persistence in that case and returns recovery actions instead.
 
 ## Example: LiteLLM / Local Worker
 
 ```bash
 cw worker register \
-  --worker qwen-local \
-  --provider litellm \
-  --model qwen3-coder \
-  --base-url http://localhost:4000/v1 \
+  --worker=qwen-local \
+  --provider=litellm \
+  --model=qwen3-coder \
+  --base-url=http://localhost:4000/v1 \
   --allow-write
 
-cw worker interview --worker qwen-local --save
-cw worker benchmark --suite coding-v1 --worker qwen-local --save --update-profile-capabilities
+cw worker interview --worker=qwen-local --save
+cw worker benchmark --suite=coding-v1 --worker=qwen-local --save --update-profile-capabilities
 ```
 
 ## End-To-End Task Session
 
 ```bash
 cw task start \
-  --goal "Review packages/core and propose safe improvements" \
-  --scope packages/core \
-  --worker deepseek-flash \
+  --goal="Review packages/core and propose safe improvements" \
+  --scope=packages/core \
+  --worker=deepseek-flash \
   --require-profile \
   --typecheck \
   --propose-patch \

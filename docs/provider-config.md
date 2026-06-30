@@ -38,7 +38,7 @@ Use this when you want to verify local CLI and MCP wiring first.
 
 ```bash
 npm i -g mcp-code-worker
-cw init --preset mock --allow-write
+cw init --preset=mock --allow-write
 ```
 
 2. Confirm the stored config points at `mock`:
@@ -71,7 +71,7 @@ Use this when you want a real hosted model quickly.
 
 ```bash
 npm i -g mcp-code-worker
-cw init --preset deepseek --allow-write
+cw init --preset=deepseek --allow-write
 ```
 
 2. Persist the runtime defaults in `config.json`:
@@ -116,7 +116,7 @@ Use this when you want a Claude-native hosted model.
 
 ```bash
 npm i -g mcp-code-worker
-cw init --preset opencode --allow-write
+cw init --preset=opencode --allow-write
 ```
 
 2. Persist the runtime defaults in `config.json`:
@@ -303,14 +303,14 @@ cw worker list
 If you are qualifying a real worker through the explicit advanced flow, continue with:
 
 ```bash
-cw worker register --worker <workerId> --provider <provider> --model <model> --allow-write
-cw worker interview --worker <workerId> --save
+cw worker register --worker=<workerId> --provider=<provider> --model=<model> --allow-write
+cw worker interview --worker=<workerId> --save
 ```
 
 If coding qualification matters, then run:
 
 ```bash
-cw worker benchmark --suite coding-v1 --worker <workerId> --save
+cw worker benchmark --suite=coding-v1 --worker=<workerId> --save
 ```
 
 Only use `--update-profile-capabilities` after reviewing the benchmark result explicitly.
@@ -321,7 +321,7 @@ Use these signals to narrow provider issues quickly:
 
 - `cw doctor` reports missing or inconsistent worker model settings.
 - `cw doctor --probe` shows whether the resolved worker can answer with the current runtime wiring.
-- `cw worker interview --worker <workerId> --save` returns provider invocation failures.
+- `cw worker interview --worker=<workerId> --save` returns provider invocation failures.
 - `cw mcp serve` works but worker-routed tasks fail because the persisted worker config does not match the repo's active CW workspace.
 - A local client provider fails because `workerClientCommand` points to the wrong executable.
 

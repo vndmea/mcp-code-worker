@@ -74,14 +74,14 @@ If probe fails, read:
 ## Recommended Qualification Flow
 
 ```bash
-cw worker register --worker claude-sonnet --provider claude-compatible --model claude-3-5-sonnet-latest --allow-write
-cw worker interview --worker claude-sonnet --save
+cw worker register --worker=claude-sonnet --provider=claude-compatible --model=claude-3-5-sonnet-latest --allow-write
+cw worker interview --worker=claude-sonnet --save
 ```
 
 If coding qualification matters:
 
 ```bash
-cw worker benchmark --suite coding-v1 --worker claude-compatible:claude-3-5-sonnet-latest --save
+cw worker benchmark --suite=coding-v1 --worker=claude-compatible:claude-3-5-sonnet-latest --save
 ```
 
 ## Common Failure Signatures

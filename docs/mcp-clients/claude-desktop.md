@@ -7,7 +7,7 @@ Use this guide when connecting `mcp-code-worker` to Claude Desktop through the c
 Generate the snippet with:
 
 ```bash
-cw mcp config --host claude-desktop
+cw mcp config --host=claude-desktop
 ```
 
 ```json

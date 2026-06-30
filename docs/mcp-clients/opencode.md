@@ -7,7 +7,7 @@ Use this guide when `mcp-code-worker` is launched as an MCP server from OpenCode
 Generate the snippet with:
 
 ```bash
-cw mcp config --host opencode
+cw mcp config --host=opencode
 ```
 
 ```json

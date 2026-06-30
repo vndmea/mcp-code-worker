@@ -40,9 +40,9 @@ Regular CLI commands can still take their own `--root` flags where supported, bu
 
 Treat that MCP snippet as launch-only. Worker/provider/base URL/local client defaults should be persisted in `config.json` so both CLI commands and MCP tools resolve the same runtime settings.
 
-Use `cw mcp list-tools` to confirm the local runtime-visible tool catalog, and use `cw doctor --mcp --host <name>` to validate host wiring. Those are different checks: `list-tools` does not inspect the host config, and a bare `cw mcp serve` run can exit when stdio closes because it is waiting for a host-managed session.
+Use `cw mcp list-tools` to confirm the local runtime-visible tool catalog, and use `cw doctor --mcp --host=<name>` to validate host wiring. Those are different checks: `list-tools` does not inspect the host config, and a bare `cw mcp serve` run can exit when stdio closes because it is waiting for a host-managed session.
 
-If the resolved worker model uses the local client provider, `opencode` is the default command. Persist a different compatible local CLI with `workerClientCommand` in `config.json` or `cw init --worker-client-command <command> --allow-write`.
+If the resolved worker model uses the local client provider, `opencode` is the default command. Persist a different compatible local CLI with `workerClientCommand` in `config.json` or `cw init --worker-client-command=<command> --allow-write`.
 
 Example:
 

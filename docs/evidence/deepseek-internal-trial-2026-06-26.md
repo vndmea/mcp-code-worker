@@ -37,7 +37,7 @@ The following commands completed successfully on the commit above:
 
 ### Interview
 
-- Command: `node packages/cli/dist/main.js worker interview --worker openai-compatible:deepseek-v4-flash --save`
+- Command: `node packages/cli/dist/main.js worker interview --worker=openai-compatible:deepseek-v4-flash --save`
 - Result: passed
 - `providerInvocationFailures`: `0`
 - Profile status: `qualified`
@@ -46,7 +46,7 @@ The following commands completed successfully on the commit above:
 
 ### Benchmark
 
-- Command: `node packages/cli/dist/main.js worker benchmark --suite coding-v1 --worker openai-compatible:deepseek-v4-flash --save --update-profile-capabilities`
+- Command: `node packages/cli/dist/main.js worker benchmark --suite=coding-v1 --worker=openai-compatible:deepseek-v4-flash --save --update-profile-capabilities`
 - Result: passed
 - Passed samples: `4/4`
 - Confidence band: `high`
@@ -76,7 +76,7 @@ The following commands completed successfully on the commit above:
 
 ### Interview
 
-- Command: `node packages/cli/dist/main.js worker interview --worker openai-compatible:deepseek-v4-pro --save`
+- Command: `node packages/cli/dist/main.js worker interview --worker=openai-compatible:deepseek-v4-pro --save`
 - Result: passed
 - `providerInvocationFailures`: `0`
 - Profile status: `qualified`
@@ -85,7 +85,7 @@ The following commands completed successfully on the commit above:
 
 ### Benchmark
 
-- Command: `node packages/cli/dist/main.js worker benchmark --suite coding-v1 --worker openai-compatible:deepseek-v4-pro --save --update-profile-capabilities`
+- Command: `node packages/cli/dist/main.js worker benchmark --suite=coding-v1 --worker=openai-compatible:deepseek-v4-pro --save --update-profile-capabilities`
 - Result: passed
 - Passed samples: `4/4`
 - Confidence band: `high`
@@ -95,7 +95,7 @@ The following commands completed successfully on the commit above:
 
 ### Persisted Task Session Check
 
-- Command: `node packages/cli/dist/main.js task start --goal "Review packages/core and propose safe improvements" --scope packages/core --worker openai-compatible:deepseek-v4-pro --require-profile --typecheck --propose-patch --inspect-patch --allow-write-session`
+- Command: `node packages/cli/dist/main.js task start --goal="Review packages/core and propose safe improvements" --scope=packages/core --worker=openai-compatible:deepseek-v4-pro --require-profile --typecheck --propose-patch --inspect-patch --allow-write-session`
 - Task id: `task-2026-06-26T15-10-13-113Z-2881390f`
 - Session persisted: `yes`
 - Artifact registry complete: `yes`

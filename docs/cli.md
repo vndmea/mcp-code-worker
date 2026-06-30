@@ -9,26 +9,26 @@ For write gates and local artifact boundaries, see `docs/permissions.md`.
 
 ```bash
 cw init
-cw init --preset mock --allow-write
-cw init --preset deepseek --allow-write
-cw init --preset opencode --allow-write
-cw review repo --worker qwen-local --scope packages/graph
-cw review diff --worker qwen-local --base main --head HEAD
-cw review files --worker qwen-local --file packages/graph/src/index.ts
+cw init --preset=mock --allow-write
+cw init --preset=deepseek --allow-write
+cw init --preset=opencode --allow-write
+cw review repo --worker=qwen-local --scope=packages/graph
+cw review diff --worker=qwen-local --base=main --head=HEAD
+cw review files --worker=qwen-local --file=packages/graph/src/index.ts
 cw validate --all
 cw validate --all --stop-on-failure --execute
-cw fix error --worker qwen-local --error-log-file ./tmp/tsc-error.log --scope packages/schema-codegen
-cw task start --goal "Fix failing typecheck" --scope packages/core --worker qwen-local --typecheck --error-log-file ./tmp/tsc-error.log --run-fix --allow-write-session
+cw fix error --worker=qwen-local --error-log-file=./tmp/tsc-error.log --scope=packages/schema-codegen
+cw task start --goal="Fix failing typecheck" --scope=packages/core --worker=qwen-local --typecheck --error-log-file=./tmp/tsc-error.log --run-fix --allow-write-session
 cw task report <taskId>
-cw patch propose --goal "Fix failing typecheck" --scope packages/core --worker qwen-local
+cw patch propose --goal="Fix failing typecheck" --scope=packages/core --worker=qwen-local
 cw patch inspect ./tmp/candidate.patch
 cw patch apply ./tmp/candidate.patch --dry-run
 cw models list
-cw worker register --worker qwen-local --provider litellm --model qwen3-coder --base-url http://localhost:4000/v1 --allow-write
-cw worker interview --worker qwen-local --save
-cw worker readiness --worker qwen-local
-cw worker benchmark --suite coding-v1 --worker qwen-local --save
-cw worker benchmark --suite coding-v1 --worker qwen-local --save --update-profile-capabilities
+cw worker register --worker=qwen-local --provider=litellm --model=qwen3-coder --base-url=http://localhost:4000/v1 --allow-write
+cw worker interview --worker=qwen-local --save
+cw worker readiness --worker=qwen-local
+cw worker benchmark --suite=coding-v1 --worker=qwen-local --save
+cw worker benchmark --suite=coding-v1 --worker=qwen-local --save --update-profile-capabilities
 cw worker list
 cw worker profile qwen-local
 cw audit list
@@ -37,7 +37,7 @@ cw cleanup audit
 cw doctor
 cw doctor --probe
 cw doctor --mcp
-cw doctor --mcp --host codex
+cw doctor --mcp --host=codex
 cw mcp config
 cw mcp serve
 cw mcp list-tools
@@ -55,7 +55,7 @@ Treat `cw mcp serve` as a stdio endpoint for a connected host session, not as a 
 
 Treat `config.json` as the primary runtime config surface for worker, validation, safety, and local client defaults. Treat the MCP host snippet as launch-only: command and args only.
 
-For local client providers, `opencode` is the default command. Start with `cw init --preset opencode --allow-write`, then persist a different compatible CLI name or path in `config.json` through `cw init --worker-client-command <command> --allow-write` or a manual edit when needed.
+For local client providers, `opencode` is the default command. Start with `cw init --preset=opencode --allow-write`, then persist a different compatible CLI name or path in `config.json` through `cw init --worker-client-command=<command> --allow-write` or a manual edit when needed.
 
 `cw init` prints the resolved CW storage paths, including the user-scoped config file at `~/.cw/workspaces/<workspace-id>/config.json`, and can open that directory for you at the end of onboarding.
 
@@ -65,15 +65,15 @@ For instruction scoping, put repository-specific guidance in `./AGENTS.md` and g
 
 ## Review Commands
 
-- `cw review repo` builds repository context for a scope and can run deterministic validation. It now requires `--worker <workerId>`.
-- `cw review diff` adds git diff context from `--base` and `--head` and also requires `--worker <workerId>`.
-- `cw review files` constrains review to an explicit file list, still honors optional `--scope`, and requires `--worker <workerId>`.
+- `cw review repo` builds repository context for a scope and can run deterministic validation. It now requires `--worker=<workerId>`.
+- `cw review diff` adds git diff context from `--base` and `--head` and also requires `--worker=<workerId>`.
+- `cw review files` constrains review to an explicit file list, still honors optional `--scope`, and requires `--worker=<workerId>`.
 
 ## Fix And Patch Commands
 
-- `cw fix error` analyzes an inline error log or `--error-log-file`, returns a structured fix plan, and requires `--worker <workerId>`.
+- `cw fix error` analyzes an inline error log or `--error-log-file`, returns a structured fix plan, and requires `--worker=<workerId>`.
 - `cw patch propose` generates a reviewable patch proposal without applying changes and now requires an explicit `--worker`.
-- `cw patch propose --summary --max-bytes 4000` prints a smaller proposal summary while `--full` preserves the entire workflow payload.
+- `cw patch propose --summary --max-bytes=4000` prints a smaller proposal summary while `--full` preserves the entire workflow payload.
 - `cw patch inspect` is the safety gate for a stored proposal or raw diff import.
 - `cw patch apply` requires both `--allow-write` and `--confirm-apply` before repository writes are permitted.
 
@@ -83,9 +83,9 @@ Task sessions keep local state under `~/.cw/workspaces/<workspace-id>/runs/<task
 
 ```bash
 cw task start \
-  --goal "Fix failing typecheck in packages/core" \
-  --scope packages/core \
-  --worker qwen-local \
+  --goal="Fix failing typecheck in packages/core" \
+  --scope=packages/core \
+  --worker=qwen-local \
   --require-profile \
   --typecheck \
   --lint \
@@ -95,14 +95,14 @@ cw task start \
 
 cw task status <taskId>
 cw task report <taskId>
-cw task report <taskId> --summary --max-bytes 2000
+cw task report <taskId> --summary --max-bytes=2000
 cw task resume <taskId> --apply-patch
 cw task resume <taskId> --apply-patch --allow-write --confirm-apply
 ```
 
 - `cw task report` is the primary human-readable artifact.
 - `cw task resume` should follow the `nextRecommendedActions` returned by task start/resume.
-- `cw task start` requires an explicit named worker via `--worker <workerId>`.
+- `cw task start` requires an explicit named worker via `--worker=<workerId>`.
 - `cw init` and `cw doctor` verify setup, while `cw worker readiness` gives the single task-readiness answer for one worker.
 - `cw doctor --mcp` adds host-level MCP checks for config presence, snippet validity, launchability, live stdio connectivity, and tool-list matching.
 - `cw mcp list-tools` and `cw mcp config` are local runtime checks only. They do not prove that a host already loaded the snippet or is launching the intended server command.
@@ -111,12 +111,12 @@ cw task resume <taskId> --apply-patch --allow-write --confirm-apply
 
 ## Worker Evaluation
 
-- `cw init` is the default onboarding path; `cw worker register` and `cw worker interview --worker <workerId> --save` remain the explicit advanced flow.
-- `cw worker readiness --worker <workerId>` is the single answer for "can this worker run formal tasks right now?"
-- `cw worker benchmark --suite coding-v1 --worker <workerId> --save` measures coding-oriented behavior separately from onboarding.
+- `cw init` is the default onboarding path; `cw worker register` and `cw worker interview --worker=<workerId> --save` remain the explicit advanced flow.
+- `cw worker readiness --worker=<workerId>` is the single answer for "can this worker run formal tasks right now?"
+- `cw worker benchmark --suite=coding-v1 --worker=<workerId> --save` measures coding-oriented behavior separately from onboarding.
 - `--update-profile-capabilities` is the explicit capability reconciliation switch. It updates persisted `supportedTaskTypes` and `routingPolicy.allowPatchGeneration` only when the benchmark qualifies the worker for `patch-generation`.
-- Run `cw worker interview --worker <workerId> --save` before trying to update profile capabilities from benchmark results.
-- Run `cw worker readiness --worker <workerId> --probe` when you want the readiness answer to include a live connectivity check instead of only persisted evidence.
+- Run `cw worker interview --worker=<workerId> --save` before trying to update profile capabilities from benchmark results.
+- Run `cw worker readiness --worker=<workerId> --probe` when you want the readiness answer to include a live connectivity check instead of only persisted evidence.
 - Benchmark results alone do not bypass patch inspection, dry-run apply, `allowWrite`, or `confirmApply`.
 - If interview output contains provider invocation failures, `--save` is skipped on purpose and the command returns re-interview guidance instead of persisting a misleading non-qualification result.
 

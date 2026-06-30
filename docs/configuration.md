@@ -84,8 +84,8 @@ cw mcp list-tools
 If the configuration affects worker routing, continue with the explicit advanced flow:
 
 ```bash
-cw worker register --worker <workerId> --provider <provider> --model <model> --allow-write
-cw worker interview --worker <workerId> --save
+cw worker register --worker=<workerId> --provider=<provider> --model=<model> --allow-write
+cw worker interview --worker=<workerId> --save
 ```
 
 ## Related Documents

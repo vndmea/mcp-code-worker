@@ -252,7 +252,7 @@ describe("cli dist smoke", () => {
 
       const codexConfig = await execFile(
         "node",
-        [distCliPath, "mcp", "config", "--host", "codex"],
+        [distCliPath, "mcp", "config", "--host=codex"],
         {
           cwd: rootDir
         }

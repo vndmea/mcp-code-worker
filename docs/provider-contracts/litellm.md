@@ -76,8 +76,8 @@ If probe fails, read:
 ## Recommended Qualification Flow
 
 ```bash
-cw worker register --worker <workerId> --provider litellm --model <gateway-model-name> --allow-write
-cw worker interview --worker <workerId> --save
+cw worker register --worker=<workerId> --provider=litellm --model=<gateway-model-name> --allow-write
+cw worker interview --worker=<workerId> --save
 ```
 
 Benchmark only after interview succeeds.

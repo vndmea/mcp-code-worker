@@ -79,14 +79,14 @@ If probe fails, read:
 Use the generic flow:
 
 ```bash
-cw worker register --worker <workerId> --provider openai-compatible --model <model-name> --allow-write
-cw worker interview --worker <workerId> --save
+cw worker register --worker=<workerId> --provider=openai-compatible --model=<model-name> --allow-write
+cw worker interview --worker=<workerId> --save
 ```
 
 If coding qualification matters:
 
 ```bash
-cw worker benchmark --suite coding-v1 --worker openai-compatible:<model-name> --save
+cw worker benchmark --suite=coding-v1 --worker=openai-compatible:<model-name> --save
 ```
 
 ## Common Failure Signatures

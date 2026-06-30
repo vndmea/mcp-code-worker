@@ -29,11 +29,11 @@ Use `cw mcp config` as the copy source for this snippet. The host snippet should
 When a host has a first-party preset, prefer the host-specific form:
 
 ```bash
-cw mcp config --host codex
-cw mcp config --host cursor
-cw mcp config --host vscode
-cw mcp config --host claude-desktop
-cw mcp config --host opencode
+cw mcp config --host=codex
+cw mcp config --host=cursor
+cw mcp config --host=vscode
+cw mcp config --host=claude-desktop
+cw mcp config --host=opencode
 ```
 
 Current built-in host presets:
@@ -47,7 +47,7 @@ Current built-in host presets:
 | `claude-desktop` | Minimal stdio snippet |
 | `opencode` | Minimal stdio snippet |
 
-For Codex specifically, paste the output of `cw mcp config --host codex` into
+For Codex specifically, paste the output of `cw mcp config --host=codex` into
 `~/.codex/config.toml`. Example:
 
 ```toml
@@ -67,12 +67,12 @@ Before connecting any client, verify the runtime locally:
 ```bash
 cw doctor
 cw doctor --probe
-cw doctor --mcp --host codex
+cw doctor --mcp --host=codex
 cw mcp list-tools
 cw mcp config
 ```
 
-Use `cw doctor --mcp --host codex` when you want cw to inspect the Codex host config, compare it with the recommended snippet, launch the configured server command, and confirm that the host-visible tool list matches `cw mcp list-tools`.
+Use `cw doctor --mcp --host=codex` when you want cw to inspect the Codex host config, compare it with the recommended snippet, launch the configured server command, and confirm that the host-visible tool list matches `cw mcp list-tools`.
 
 Treat `cw mcp list-tools` and `cw mcp config` as local checks only. They confirm the local runtime and the recommended snippet shape, but they do not prove that the host already loaded that snippet or is launching the right command.
 
@@ -88,7 +88,7 @@ A bare `cw mcp serve` run is also not the best health check. It is a stdio serve
 
 ## Local Client Provider Note
 
-If the worker model uses the local client provider, `opencode` is the default compatible client bridge command. Persist a different command through `cw init --worker-client-command <command> --allow-write` or by editing `config.json`.
+If the worker model uses the local client provider, `opencode` is the default compatible client bridge command. Persist a different command through `cw init --worker-client-command=<command> --allow-write` or by editing `config.json`.
 
 Example:
 
@@ -133,4 +133,4 @@ Use the guide that matches your host or editor:
 - [Cursor](https://github.com/vndmea/mcp-code-worker/blob/master/docs/mcp-clients/cursor.md)
 - [VS Code](https://github.com/vndmea/mcp-code-worker/blob/master/docs/mcp-clients/vscode.md)
 
-Each guide uses the same `cw mcp serve` runtime and explains the minimum configuration and verification loop. Prefer `cw mcp config --host <name>` as the snippet source so the docs and CLI stay aligned.
+Each guide uses the same `cw mcp serve` runtime and explains the minimum configuration and verification loop. Prefer `cw mcp config --host=<name>` as the snippet source so the docs and CLI stay aligned.
