@@ -1554,6 +1554,7 @@ describe("cli parsing", () => {
         supportedTaskTypes?: string[];
       }>;
       expect(output.at(-1)).toContain("\"capabilityUpdateApplied\": false");
+      expect(output.at(-1)).toContain("\"patchGenerationQualified\": true");
       expect(savedProfiles[0]?.supportedTaskTypes).not.toContain("patch-generation");
       expect(savedProfiles[0]?.routingPolicy?.allowPatchGeneration).toBe(false);
 

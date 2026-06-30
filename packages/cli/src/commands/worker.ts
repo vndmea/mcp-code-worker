@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 
 import {
+  qualifiesPatchGenerationCapability,
   resolveExecutionContext,
   type WorkerCapabilityProfile
 } from "@mcp-code-worker/core";
@@ -506,7 +507,8 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
               benchmarkUpdate.profileUpdate?.capabilityUpdateApplied ?? false,
             localClientRuntime: benchmarkUpdate.localClientRuntime,
             patchGenerationQualified:
-              benchmarkUpdate.profileUpdate?.patchGenerationQualified ?? false,
+              benchmarkUpdate.profileUpdate?.patchGenerationQualified ??
+              qualifiesPatchGenerationCapability(benchmarkUpdate.benchmarkResult),
             persistence: benchmarkUpdate.persistence,
             profilePersistence: benchmarkUpdate.profilePersistence
           },
@@ -516,7 +518,8 @@ export const registerWorkerCommand = (program: Command, io: CliIo): void => {
               benchmarkUpdate.profileUpdate?.capabilityUpdateApplied ?? false,
             localClientRuntime: benchmarkUpdate.localClientRuntime,
             patchGenerationQualified:
-              benchmarkUpdate.profileUpdate?.patchGenerationQualified ?? false,
+              benchmarkUpdate.profileUpdate?.patchGenerationQualified ??
+              qualifiesPatchGenerationCapability(benchmarkUpdate.benchmarkResult),
             persistence: benchmarkUpdate.persistence,
             profilePersistence: benchmarkUpdate.profilePersistence
           })

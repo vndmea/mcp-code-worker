@@ -115,6 +115,17 @@ describe("assessWorkerTaskEligibility", () => {
     expect(result.reason).toContain("not qualified for patch-generation tasks");
   });
 
+  it("allows patch-generation when benchmark-derived patch capability exists even if overall status remains not-qualified", () => {
+    const result = assessWorkerTaskEligibility(
+      createProfile({
+        status: "not-qualified"
+      }),
+      "patch-generation"
+    );
+
+    expect(result.allowed).toBe(true);
+  });
+
   it("allows repo-grounded review when the portrait is strong enough", () => {
     const result = assessWorkerTaskEligibility(createProfile(), "review-lite");
 

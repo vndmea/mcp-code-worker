@@ -357,6 +357,42 @@ describe("patch proposal workflow", () => {
     expect(result.warnings.join("\n")).toContain("inconsistent for patch-generation");
     expect(result.warnings.join("\n")).toContain("--update-profile-capabilities");
   });
+
+  it("allows patch generation when benchmark-derived patch capability is present even if overall profile status is not-qualified", async () => {
+    const rootDir = await createWorkspace();
+    await saveWorkerRegistration(
+      createWriteContext(rootDir),
+      {
+        workerId,
+        provider: "mock",
+        model: "gpt-5.4-mini",
+        enabled: true,
+        tags: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      true
+    );
+    await saveWorkerProfile(
+      createWriteContext(rootDir),
+      createProfile({
+        status: "not-qualified",
+        warnings: ["review-grounding warning"],
+        unsupportedTaskTypes: []
+      }),
+      true
+    );
+
+    const result = await runPatchProposalWorkflow({
+      context: createContext(rootDir),
+      goal: "Fix the failing typecheck",
+      scope: "packages/core",
+      workerId,
+      requireProfile: true
+    });
+
+    expect(result.proposal.title).not.toContain("[PLACEHOLDER]");
+  });
 });
 
 describe("fix workflow patch integration", () => {

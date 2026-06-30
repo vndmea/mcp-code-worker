@@ -161,15 +161,6 @@ export const assessWorkerTaskEligibility = (
   }
 
   if (taskType === "patch-generation") {
-    if (profile.status !== "qualified") {
-      return {
-        allowed: false,
-        reason:
-          `Worker ${profile.workerId} is ${profile.status} and is not qualified for patch-generation tasks.`,
-        requiresHostReview: true
-      };
-    }
-
     if (!profile.routingPolicy.allowPatchGeneration) {
       return {
         allowed: false,

@@ -140,16 +140,6 @@ export const runPatchProposalWorkflow = async (
       });
     }
 
-    if (workerProfile.status !== "qualified") {
-      return buildDeniedPatchProposalOutput({
-        context,
-        fallbackProposal,
-        reason:
-          `Worker ${workerProfile.workerId} is ${workerProfile.status} and is not qualified for patch-generation tasks.`,
-        scope: effectiveScope
-      });
-    }
-
     if (input.requireProfile && patchEligibility && !patchEligibility.allowed) {
       return buildDeniedPatchProposalOutput({
         context,

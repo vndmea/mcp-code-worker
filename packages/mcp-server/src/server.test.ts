@@ -477,6 +477,28 @@ describe("mcp tool registration", () => {
     });
   });
 
+  it("reports benchmark patch qualification through MCP before profile capability updates are applied", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeCwConfig(rootDir, {
+        workerModel: {
+          provider: "mock",
+          model: "gpt-5.4-mini"
+        }
+      });
+      await writeRegistry(rootDir, [createRegistration()]);
+      await writeProfiles(rootDir, [createLimitedProfile()]);
+
+      const result = await cwBenchmarkWorkerTool.execute({
+        persistArtifact: true,
+        workerId: "default-worker",
+        updateProfileCapabilities: false
+      });
+
+      expect(result.patchGenerationQualified).toBe(true);
+      expect(result.capabilityUpdateApplied).toBe(false);
+    });
+  });
+
   it("runs a fresh worker interview and can persist the generated profile through MCP", async () => {
     await withTempCwd(async (rootDir) => {
       await writeRegistry(rootDir, [
