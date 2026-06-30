@@ -1,4 +1,5 @@
 import { mkdtemp } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -6,11 +7,13 @@ import { describe, expect, it } from "vitest";
 
 import { bootstrapSqliteWorkspaceStore } from "./sqlite.js";
 
+const require = createRequire(import.meta.url);
+
 describe("bootstrapSqliteWorkspaceStore", () => {
-  it.skip("creates the sqlite workspace store and schema metadata", async () => {
+  it("creates the sqlite workspace store and schema metadata", async () => {
     const cwStorageDir = await mkdtemp(join(tmpdir(), "cw-sqlite-"));
     const result = await bootstrapSqliteWorkspaceStore(cwStorageDir);
-    const { DatabaseSync } = await import("node:sqlite");
+    const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
 
     expect(result.path).toContain("data.db");
 

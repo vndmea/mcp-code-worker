@@ -72,7 +72,7 @@ const createCommandEnv = (homeDir: string): NodeJS.ProcessEnv => ({
 });
 
 const getWorkspaceStorageDir = (rootDir: string, homeDir: string): string =>
-  join(homeDir, ".code-worker", "workspaces", getCwWorkspaceId(rootDir));
+  join(homeDir, ".code-worker", getCwWorkspaceId(rootDir));
 
 const listToolNames = (stdout: string): string[] => {
   const parsed = JSON.parse(stdout) as
@@ -100,7 +100,7 @@ const writeCwConfig = async (
     configPath,
     JSON.stringify(
       {
-        version: 1,
+        version: 2,
         ...config
       },
       null,
@@ -110,22 +110,7 @@ const writeCwConfig = async (
   );
 };
 
-const writeRegistry = async (
-  rootDir: string,
-  homeDir: string,
-  workers: unknown[]
-): Promise<void> => {
-  const configDir = getWorkspaceStorageDir(rootDir, homeDir);
-  const registryPath = join(configDir, "workers.json");
-  await mkdir(configDir, { recursive: true });
-  await writeFile(
-    registryPath,
-    JSON.stringify({ version: 1, workers }, null, 2),
-    "utf8"
-  );
-};
-
-const createRegistration = (overrides: Record<string, unknown> = {}) => {
+const createWorkerConfig = (overrides: Record<string, unknown> = {}) => {
   const now = new Date().toISOString();
 
   return {
@@ -334,18 +319,6 @@ describe("cli dist smoke", () => {
             }
           ]
         });
-        await writeRegistry(
-          rootDir,
-          homeDir,
-          [
-            createRegistration({
-              workerId: "local-worker",
-              provider: "client",
-              model: "qwen3-coder"
-            })
-          ]
-        );
-
         const [sourceDoctor, distDoctor] = await Promise.all([
           runSourceCli(["doctor", "--worker", "local-worker"], rootDir, env),
           runDistCli(["doctor", "--worker", "local-worker"], rootDir, env)
@@ -363,17 +336,15 @@ describe("cli dist smoke", () => {
       await withTempHome(async (homeDir) => {
         const workerId = "parity-worker";
         const env = createCommandEnv(homeDir);
-        await writeRegistry(
-          rootDir,
-          homeDir,
-          [
-            createRegistration({
+        await writeCwConfig(rootDir, homeDir, {
+          workers: [
+            createWorkerConfig({
               workerId,
               provider: "mock",
               model: "gpt-5.4-mini"
             })
           ]
-        );
+        });
 
         const [sourceInterview, distInterview] = await Promise.all([
           runSourceCli(["worker", "interview", "--worker", workerId], rootDir, env),
@@ -387,4 +358,3 @@ describe("cli dist smoke", () => {
     });
   }, 20_000);
 });
-

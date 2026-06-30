@@ -1,10 +1,11 @@
 import { execFile as execFileCallback } from "node:child_process";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
 import { afterEach, describe, expect, it } from "vitest";
+import { getCwWorkspaceId } from "@mcp-code-worker/core";
 
 const execFile = promisify(execFileCallback);
 const repoRoot = process.cwd();
@@ -155,24 +156,17 @@ describe("cli packed tarball smoke", () => {
       );
       expect(listToolNames(tools.stdout)).toContain("cw_start_task");
 
-      const workspaceDirs = await readdir(join(cwHomeDir, "workspaces"), {
-        withFileTypes: true
-      });
-      const workspaceDir = workspaceDirs.find((entry) => entry.isDirectory());
-      expect(workspaceDir?.name).toBeTruthy();
+      const workspaceStorageDir = join(cwHomeDir, getCwWorkspaceId(workspaceRoot));
+      await access(join(workspaceStorageDir, "data.db"));
 
       const storedConfig = JSON.parse(
-        await readFile(
-          join(cwHomeDir, "workspaces", workspaceDir!.name, "config.json"),
-          "utf8"
-        )
+        await readFile(join(workspaceStorageDir, "config.json"), "utf8")
       ) as {
         version?: number;
       };
-      expect(storedConfig.version).toBe(1);
+      expect(storedConfig.version).toBe(2);
     } finally {
       await rm(tarballPath, { force: true });
     }
   }, 180_000);
 });
-
