@@ -7,7 +7,7 @@ This document explains how runtime configuration is resolved in `mcp-code-worker
 Runtime configuration resolves in this order:
 
 1. CLI flags
-2. `~/.code-worker/workspaces/<workspace-id>/config.json`
+2. `~/.code-worker/<workspace-id>/config.json`
 3. built-in defaults
 
 This means a CLI override wins over persisted user-scoped CW config, and persisted CW config wins over built-in defaults for runtime settings.
@@ -26,17 +26,16 @@ See [docs/examples/cw-config.example.json](https://github.com/vndmea/mcp-code-wo
 
 By default, the resolved config file lives at:
 
-- macOS / Linux: `~/.code-worker/workspaces/<workspace-id>/config.json`
-- Windows: `%USERPROFILE%/.code-worker/workspaces/<workspace-id>/config.json`
+- macOS / Linux: `~/.code-worker/<workspace-id>/config.json`
+- Windows: `%USERPROFILE%/.code-worker/<workspace-id>/config.json`
 
 The persisted config is intended for workspace-local runtime defaults such as:
 
 - per-worker provider, model, and base URL entries in `config.json.workers[]`
-- optional per-worker API keys in `config.json.workers[]`
 - per-worker local client bridge commands in `config.json.workers[][*].clientCommand`
 - validation script preferences
 - default ignored paths
-- session retention settings
+- SQLite retention settings under `storage.runs` and `storage.audit`
 - worker and MCP-adjacent runtime defaults that should stay consistent across CLI and MCP entrypoints
 
 Provider families currently split into two broad groups:
@@ -53,7 +52,7 @@ Default local command assumptions:
 
 Persisted config no longer chooses an implicit execution worker for task, patch, or host-worker flows. Those commands now require an explicit named `workerId` at runtime.
 
-If you choose to persist an API key in the user-scoped config, keep it local to the machine, never commit it into repository files, and avoid pasting it into logs or shared transcripts.
+Worker API keys are persisted in the user-scoped SQLite store, not in `config.json`. Keep them local to the machine, never commit them into repository files, and avoid pasting them into logs or shared transcripts.
 
 Path-like inputs such as `config.json.workers[][*].clientCommand` are normalized before use so mixed slash styles like `C:/Users/me//tool.exe` and `.\bin\client` do not crash the runtime on the current platform.
 
@@ -105,4 +104,3 @@ cw worker interview --worker=<workerId> --save
 - [docs/provider-config.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-config.md)
 - [docs/mcp-client-setup.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/mcp-client-setup.md)
 - [docs/permissions.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/permissions.md)
-

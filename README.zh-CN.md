@@ -112,13 +112,14 @@ cw mcp config
 
 当前版本不会读取仓库内旧 `.cw/` 目录；旧路径不受支持，也不会被兼容处理。
 
-`cw init` 默认会在 `~/.cw/workspaces/<workspace-id>/` 下创建用户级 CW 工作区存储：
+`cw init` 默认会在 `~/.code-worker/<workspace-id>/` 下创建用户级 CW 工作区存储：
 
 - `config.json`
-- `workers.json`
-- `worker-profiles.json`
-- `audit/`
-- `runs/`
+- `data.db`
+
+其中 `config.json` 保存可编辑的 worker 定义和运行时默认值，`data.db`
+则作为 SQLite 存储，承载 worker secret、worker profile、benchmark 历史、
+task session、task artifact 和 audit event。
 
 ## CLI 用法
 
@@ -209,10 +210,10 @@ Recommended action:
 cw worker interview --worker qwen-local --save
 ```
 
-保存后的 profile 会写到：
+保存后的 profile 会写入 SQLite 工作区存储：
 
 ```text
-~/.cw/workspaces/<workspace-id>/worker-profiles.json
+~/.code-worker/<workspace-id>/data.db#worker_profiles
 ```
 
 你可以通过下面的命令查看这些已保存的 profile：
@@ -297,7 +298,7 @@ cw patch apply ./tmp/candidate.patch \
 
 ## Task session 流程
 
-task session 默认会把本地可审查产物和可恢复状态写入 `~/.cw/workspaces/<workspace-id>/runs`：
+task session 默认会把本地可审查产物和可恢复状态写入 `~/.code-worker/<workspace-id>/data.db` 里的 SQLite 会话存储：
 
 ```bash
 cw task start \
@@ -359,10 +360,10 @@ cw mcp list-tools
 运行时配置按以下顺序解析：
 
 1. CLI flags
-2. `~/.cw/workspaces/<workspace-id>/config.json`
+2. `~/.code-worker/<workspace-id>/config.json`
 3. 内置默认值
 
-`config.json` 应作为 worker、validation、安全策略和 MCP 相关运行时默认值的主配置面，包括 provider API key 和本地 client command。请从目标仓库根目录启动 `cw`，不要再依赖环境变量覆盖 root/storage；worker model 密钥也不应通过环境变量提供，且真实密钥不应提交或写入日志。
+`config.json` 应作为 worker、validation、安全策略和 MCP 相关运行时默认值的主配置面。provider API key 会持久化到用户级 SQLite 存储，本地 client command 则保留在 `config.json.workers[]`。请从目标仓库根目录启动 `cw`，不要再依赖环境变量覆盖 root/storage；真实密钥不应提交或写入日志。
 
 用户级 CW `config.json` 里的 repository context 配置用于控制 review、fix、patch 和 task workflow 的默认 `ignoredPaths` 与 `strictFiles` 行为。
 
@@ -404,17 +405,23 @@ cw mcp list-tools
 
 ## 如何配置 LiteLLM
 
-将 LiteLLM worker 配置持久化到 `config.json`，例如：
+将 LiteLLM 的非密钥 worker 配置持久化到 `config.json`，例如：
 
 ```json
 {
-  "version": 1,
-  "workerModel": {
-    "provider": "litellm",
-    "model": "<model>",
-    "baseURL": "https://litellm.example.com",
-    "apiKey": "<secret>"
-  }
+  "version": 2,
+  "workers": [
+    {
+      "workerId": "litellm-main",
+      "provider": "litellm",
+      "model": "<model>",
+      "baseURL": "https://litellm.example.com",
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
+    }
+  ]
 }
 ```
 
@@ -435,7 +442,7 @@ cw mcp list-tools
 - 宿主驱动场景里，worker 输出在宿主接受前都不能视为最终结果。
 - Worker 在进入生产任务前应先通过 onboarding evaluation。
 - structured output 或可靠性不达标的 worker 会进入 `not-qualified` 状态；如果是环境或配置问题，则该 worker 在修复前应视为不可用。
-- 密钥应通过环境变量提供，且绝不能写入日志。
+- 密钥应持久化在用户级 SQLite 存储中，且绝不能写入日志。
 
 ## Dist smoke
 

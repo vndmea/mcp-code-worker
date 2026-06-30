@@ -71,7 +71,7 @@ Example:
 By default, the MCP server stores CW-managed state under:
 
 ```text
-~/.code-worker/workspaces/<workspace-id>/
+~/.code-worker/<workspace-id>/
 ```
 
 - `rootDir` determines `<workspace-id>`.
@@ -138,7 +138,7 @@ For worker qualification over MCP, use:
 
 ## Artifact-Oriented Usage
 
-Task-oriented tools are expected to persist reviewable artifacts under `cwStorageDir/runs/<taskId>` when `allowWriteSession=true`.
+Task-oriented tools are expected to persist reviewable artifacts in `cwStorageDir/data.db` when `allowWriteSession=true`.
 
 Typical artifacts include:
 
@@ -157,11 +157,10 @@ Task-oriented MCP tools, including `cw_propose_patch`, default to summary-orient
 - `includeArtifactRefs`: include or suppress persisted artifact refs
 - `maxBytes`: cap preview-style text fields such as report excerpts or validation diagnostics
 
-MCP clients should surface report paths, `cw_get_task_report`, and/or `cw_read_task_artifact` output to operators before any write action.
+MCP clients should surface report artifacts, `cw_get_task_report`, and/or `cw_read_task_artifact` output to operators before any write action.
 
 ## Keeping This Document In Sync
 
 - `packages/mcp-server/src/tools/mcp-tool-catalog.ts` is the single source for the published tool list.
 - `cw mcp list-tools` prints the current runtime-visible tool names.
 - Tests should fail if the tool list in this document drifts from the catalog.
-

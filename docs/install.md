@@ -8,7 +8,7 @@ cw doctor
 cw mcp list-tools
 ```
 
-`cw` stores user-scoped local state under `~/.code-worker/workspaces/<workspace-id>/` by default.
+`cw` stores user-scoped local state under `~/.code-worker/<workspace-id>/` by default.
 
 See [docs/supported-matrix.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/supported-matrix.md) before claiming support for a specific OS, Node.js version, or MCP host.
 
@@ -26,7 +26,7 @@ Notes:
 
 - The published npm package installs the `cw` command.
 - Use `cw init` as the default onboarding path. Run it interactively by default, or use presets such as `--preset=mock`, `--preset=deepseek`, `--preset=client`, `--preset=opencode`, `--preset=claudecode`, or `--preset=codex` with `--allow-write` when you need the lower-level scripted setup flow.
-- Persist worker, validation, safety, local client defaults, and optional provider API keys in `config.json`.
+- Persist worker, validation, safety, and local client defaults in `config.json`. Provider API keys are stored in the workspace SQLite database.
 - If Codex is your MCP host, paste `cw mcp config --host=codex` into `~/.codex/config.toml`.
 - `cw init --allow-write --write-codex-mcp-config` only updates that file when it already exists. If it is missing, cw leaves a manual reminder instead of creating a new host config silently.
 - `cw mcp serve` resolves the workspace from the current directory by default.
@@ -94,4 +94,3 @@ pnpm exec cw mcp serve
 - For the dedicated Claude Code adapter, use `provider=claudecode` and let `claude` remain the default command unless you need a custom path.
 - For the dedicated Codex adapter, use `provider=codex` and let `codex` remain the default command unless you need a custom path.
 - See `docs/distribution.md` for the current publish and development distribution shapes.
-

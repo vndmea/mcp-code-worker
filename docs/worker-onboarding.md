@@ -96,15 +96,15 @@ Run `cw worker readiness --worker=<workerId>` for the separate runtime answer ab
 By default, onboarding-related state is stored under:
 
 ```text
-~/.code-worker/workspaces/<workspace-id>/
+~/.code-worker/<workspace-id>/
 ```
 
 Typical files include:
 
 - `config.json`
-- `workers.json`
-- `worker-profiles.json`
-- `worker-benchmarks/<sanitized-worker-id>/coding-v1.json`
+- `config.json`
+- `data.db#worker_profiles`
+- `data.db#worker_benchmarks`
 
 `<sanitized-worker-id>` is the filesystem-safe form of the worker id.
 
@@ -185,4 +185,3 @@ Stop and fix the environment before retrying when:
 Use `cw worker readiness --worker=<workerId> --probe` before a retry when you want a live connectivity probe for the exact named worker you plan to run.
 
 Do not treat a provider-failure interview result as a completed qualification result.
-

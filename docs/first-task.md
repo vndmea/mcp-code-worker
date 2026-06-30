@@ -70,13 +70,13 @@ cw audit list
 
 ## Where Artifacts Go
 
-By default, task-session artifacts live under:
+By default, task-session artifacts live in SQLite under:
 
 ```text
-~/.code-worker/workspaces/<workspace-id>/runs/<taskId>/
+~/.code-worker/<workspace-id>/data.db#task_sessions
 ```
 
-Typical artifacts include:
+Typical persisted artifact names include:
 
 - `report.md`
 - `validation-report.json`
@@ -111,4 +111,3 @@ cw task start \
   --inspect-patch \
   --allow-write-session
 ```
-

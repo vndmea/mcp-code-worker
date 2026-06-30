@@ -21,14 +21,10 @@ Before changing versions:
 
 1. Run `cw doctor`.
 2. Run `cw mcp list-tools`.
-3. If you rely on saved state, note the current workspace directory under `~/.code-worker/workspaces/<workspace-id>/`.
+3. If you rely on saved state, note the current workspace directory under `~/.code-worker/<workspace-id>/`.
 4. Back up any user-scoped CW state you cannot easily recreate, especially:
    - `config.json`
-   - `workers.json`
-   - `worker-profiles.json`
-   - `worker-benchmarks/`
-   - `runs/`
-   - `audit/`
+   - `data.db`
 
 ## Upgrade: Public npm Install Path
 
@@ -153,4 +149,3 @@ Stop and restore your saved CW state before continuing when:
 - task artifacts needed for audit or review can no longer be read
 
 If rollback does not restore expected behavior, capture the failing command, the active version, and the relevant CW storage path before investigating further.
-

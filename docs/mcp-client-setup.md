@@ -80,7 +80,7 @@ If you are using a repository checkout instead of the public install path, read 
 
 ## Root And Storage Notes
 
-- By default, CW-managed state is stored under `~/.code-worker/workspaces/<workspace-id>/`.
+- By default, CW-managed state is stored under `~/.code-worker/<workspace-id>/`.
 
 For workspace-scoped editor use, launch `cw mcp serve` from the intended workspace root. If that is not possible, rewire the client launch path instead of injecting workspace overrides through environment variables.
 
@@ -134,7 +134,7 @@ The MCP client snippet stays unchanged:
 
 When Codex is the host, the user-level MCP file is `~/.codex/config.toml`.
 
-`cw init` prints the resolved CW storage paths so you can find and manually edit `~/.code-worker/workspaces/<workspace-id>/config.json` later if needed.
+`cw init` prints the resolved CW storage paths so you can find and manually edit `~/.code-worker/<workspace-id>/config.json` later if needed.
 
 ## Client-specific Guides
 
@@ -147,4 +147,3 @@ Use the guide that matches your host or editor:
 - [VS Code](https://github.com/vndmea/mcp-code-worker/blob/master/docs/mcp-clients/vscode.md)
 
 Each guide uses the same `cw mcp serve` runtime and explains the minimum configuration and verification loop. Prefer `cw mcp config --host=<name>` as the snippet source so the docs and CLI stay aligned.
-

@@ -1,11 +1,17 @@
 {
-  "version": 1,
-  "workerModel": {
-    "provider": "openai-compatible",
-    "model": "deepseek-v4-flash",
-    "baseURL": "https://api.deepseek.com",
-    "apiKey": "<api-key>"
-  },
+  "version": 2,
+  "workers": [
+    {
+      "workerId": "deepseek-flash",
+      "provider": "openai-compatible",
+      "model": "deepseek-v4-flash",
+      "baseURL": "https://api.deepseek.com",
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
+    }
+  ],
   "safety": {
     "dryRun": true,
     "allowWrite": false,
@@ -26,8 +32,13 @@
       ".next"
     ]
   },
-  "sessions": {
-    "retentionDays": 30,
-    "maxStoredSessions": 100
+  "storage": {
+    "engine": "sqlite",
+    "runs": {
+      "maxPerKind": 5
+    },
+    "audit": {
+      "maxPerType": 5
+    }
   }
 }

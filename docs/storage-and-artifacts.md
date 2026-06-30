@@ -5,28 +5,28 @@
 The default base path is:
 
 ```text
-~/.code-worker/workspaces/<workspace-id>/
+~/.code-worker/<workspace-id>/
 ```
 
 The default `~/.code-worker` root is always used for user-scoped CW state. `--root` on supported CLI commands changes which repository path maps to `<workspace-id>`.
 
 ## Common Files And Directories
 
-Typical CW-managed files include:
+Typical CW-managed workspace files include:
 
 - `config.json`
-- `workers.json`
-- `worker-profiles.json`
-- `worker-benchmarks/`
-- `runs/`
-- `audit/`
+- `data.db`
+
+`config.json` remains human-editable and stores worker definitions plus runtime
+defaults. `data.db` is the SQLite store for worker secrets, worker profiles,
+benchmark records, task sessions, task artifacts, and audit events.
 
 ## Task Session Artifacts
 
-Task sessions are stored under:
+Task sessions are stored in SQLite under:
 
 ```text
-~/.code-worker/workspaces/<workspace-id>/runs/<taskId>/
+~/.code-worker/<workspace-id>/data.db#task_sessions
 ```
 
 Common artifacts include:
@@ -37,32 +37,34 @@ Common artifacts include:
 - `patch-inspection.json`
 - `patch-apply-result.json`
 
-These files are review artifacts, not repository source files.
+These logical artifacts are review artifacts, not repository source files. Use
+`cw task report`, `cw read-task-artifact`, or the returned artifact refs to read
+them back instead of expecting stable filesystem paths.
 
 ## Worker Qualification Artifacts
 
 Worker qualification state is stored in user-scoped CW storage:
 
-- registrations: `workers.json`
-- profiles: `worker-profiles.json`
-- benchmarks: `worker-benchmarks/<sanitized-worker-id>/coding-v1.json`
+- registrations and non-secret worker defaults: `config.json.workers[]`
+- profiles: `data.db#worker_profiles`
+- benchmarks: `data.db#worker_benchmarks`
 
 `<sanitized-worker-id>` is a filesystem-safe form of the worker id.
 
 ## Audit Artifacts
 
-Audit events are local CW artifacts under:
+Audit events are local CW artifacts in:
 
 ```text
-~/.code-worker/workspaces/<workspace-id>/audit/
+~/.code-worker/<workspace-id>/data.db#audit_events
 ```
 
-Dry-run does not create audit files by default for ordinary evaluation paths, but explicit audit-writing paths still remain local to CW storage.
+Dry-run does not create persisted audit rows by default for ordinary evaluation paths, but explicit audit-writing paths still remain local to CW storage.
 
 ## Cleanup Scope
 
-- `cw cleanup runs` removes aged task-session artifacts under `runs/`
-- `cw cleanup audit` removes aged local audit artifacts under `audit/`
+- `cw cleanup runs` prunes persisted task-session rows from SQLite
+- `cw cleanup audit` prunes persisted audit rows from SQLite
 
 Neither cleanup command modifies repository source files.
 
@@ -76,4 +78,3 @@ When something looks “missing,” verify:
 - whether the state was created by `cw init`, task sessions, or audit-producing actions
 
 The most common source of confusion is not data loss but a different effective root or CW home path.
-

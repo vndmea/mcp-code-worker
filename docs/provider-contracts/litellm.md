@@ -29,18 +29,21 @@ Persist the non-secret defaults in `config.json`:
 
 Then provide the gateway URL:
 
-Persist the LiteLLM gateway settings in `config.json`:
+Persist the LiteLLM gateway settings in `config.json`, and persist any gateway secret in the workspace SQLite store:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "workers": [
     {
       "workerId": "<workerId>",
       "provider": "litellm",
       "model": "<gateway-model-name>",
       "baseURL": "https://litellm.example.com",
-      "apiKey": "<secret>"
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
@@ -49,7 +52,7 @@ Persist the LiteLLM gateway settings in `config.json`:
 ## Required Config Fields
 
 - `baseURL` on the selected `config.json.workers[]` entry
-- any gateway-side secret mirrored into that worker entry's `apiKey`
+- any gateway-side secret persisted for that worker in the workspace SQLite store
 
 ## Minimal Health Checks
 

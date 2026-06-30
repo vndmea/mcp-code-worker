@@ -27,28 +27,29 @@ Persist the non-secret defaults in `config.json`:
 }
 ```
 
-## Required Environment Variables
+## Required Secret Configuration
 
-Set the secret in the same runtime that launches `cw`:
-
-Persist the provider key in `config.json`:
+Persist the provider key in the workspace SQLite store. The worker definition in `config.json` stays non-secret:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "workers": [
     {
       "workerId": "claude-sonnet",
       "provider": "claude-compatible",
       "model": "claude-3-5-sonnet-latest",
       "baseURL": "https://api.anthropic.com",
-      "apiKey": "sk-ant-..."
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
 ```
 
-`cw` stores the Anthropic-compatible key on the selected `config.json.workers[]` entry as `apiKey` even though upstream tooling may document `ANTHROPIC_API_KEY`.
+`cw` stores the Anthropic-compatible key in SQLite even though upstream tooling may document `ANTHROPIC_API_KEY`.
 
 ## Minimal Health Checks
 

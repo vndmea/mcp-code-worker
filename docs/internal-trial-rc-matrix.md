@@ -2,7 +2,7 @@
 
 Use this matrix before upgrading from individual internal trial to team trial.
 
-Do not mark a gate complete without committed or attached evidence. For storage-aware gates, use user-scoped CW paths such as `~/.code-worker/workspaces/<workspace-id>/runs/<taskId>/report.md`.
+Do not mark a gate complete without committed or attached evidence. For storage-aware gates, use user-scoped CW references such as `~/.code-worker/<workspace-id>/data.db#task_sessions` plus the persisted `report.md` artifact.
 
 ## Release Candidate Checklist
 
@@ -25,4 +25,3 @@ Do not mark a gate complete without committed or attached evidence. For storage-
 - Evaluator: local operator (Codex-assisted)
 - Decision: promote
 - Notes: Real DeepSeek `flash` and `pro` qualification completed on 2026-06-26. Before any shared team trial, clear the operator-level `NODE_TLS_REJECT_UNAUTHORIZED=0` override and enable the documented branch protections.
-

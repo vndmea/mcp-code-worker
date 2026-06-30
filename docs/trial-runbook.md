@@ -15,7 +15,7 @@ Supporting templates:
 - Node.js `22`
 - pnpm `>=11`
 - Git available on `PATH`
-- Optional real worker credentials persisted in the user-scoped `config.json`
+- Optional real worker credentials persisted in the user-scoped SQLite store
 
 CI currently validates Node 22. Other Node.js `>=22` versions are best-effort until they are added to the CI matrix.
 
@@ -41,19 +41,19 @@ pnpm exec cw doctor
 
 Recommended next checks:
 
-- Confirm `~/.code-worker/workspaces/<workspace-id>/config.json` exists.
-- Confirm `worker-profiles.json` and `workers.json` were created in user-scoped CW storage, not in the repository checkout.
-- If an API key was written into the user-scoped `config.json`, confirm it remains local-only and is not copied into commits, logs, or shared notes.
+- Confirm `~/.code-worker/<workspace-id>/config.json` exists.
+- Confirm `~/.code-worker/<workspace-id>/data.db` was created in user-scoped CW storage, not in the repository checkout.
+- If an API key was written through CW, confirm it remains local-only in SQLite and is not copied into commits, logs, or shared notes.
 - Confirm no workflow depends on a repository-local legacy `.cw/` directory. Current builds do not read it.
 
 ## Write Modes And Safety Gates
 
 - Dry-run: default for commands that could affect repository state or local managed artifacts.
-- `--allow-write-session`: allows `cwStorageDir/runs/<taskId>` artifact persistence only.
+- `--allow-write-session`: allows task-session persistence in `cwStorageDir/data.db` only.
 - `--allow-write`: allows repository writes when the command supports them.
 - `--confirm-apply`: the second explicit gate for patch application. `--allow-write` alone is not enough.
 
-Dry-run does not create audit files by default for ordinary evaluation paths. Audit artifacts are local `cwStorageDir/audit` writes.
+Dry-run does not create persisted audit rows by default for ordinary evaluation paths. Audit artifacts remain local SQLite writes in `cwStorageDir/data.db`.
 
 Patch apply remains two-step:
 
@@ -94,7 +94,10 @@ Compatibility path worth testing in some SDKs:
       "provider": "openai-compatible",
       "model": "deepseek-v4-flash",
       "baseURL": "https://api.deepseek.com",
-      "apiKey": "<secret>"
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
@@ -138,7 +141,7 @@ curl https://api.deepseek.com/chat/completions \
   }'
 ```
 
-If you get `Not Found`, test both base URLs, verify the model name, and confirm that the selected `config.json.workers[]` entry includes `apiKey`.
+If you get `Not Found`, test both base URLs, verify the model name, and confirm that the selected worker secret was persisted into SQLite.
 
 If interview output reports provider invocation failures, do not treat the resulting unavailable status as a completed onboarding result. `cw worker interview --worker=<workerId> --save` now skips persistence in that case and returns recovery actions instead.
 
@@ -195,11 +198,11 @@ For each internal trial run, keep:
 - commit SHA
 - `cw` package version
 - worker id, provider, model, base URL
-- interview/profile artifact path
-- benchmark artifact path
+- interview/profile persistence ref
+- benchmark persistence ref
 - task session id
-- `cwStorageDir/runs/<taskId>/report.md`
-- patch proposal / inspection artifact paths
+- `report.md` artifact ref
+- patch proposal / inspection artifact refs
 - sanitized failure reason if the run failed
 - any returned re-interview guidance when provider invocation failed
 
@@ -216,4 +219,3 @@ Do not keep:
 - Audit artifacts can be removed with `cw cleanup audit`.
 - Repository changes are never auto-committed.
 - Patch apply validation failures should be handled through the recorded recovery guidance in the task report.
-

@@ -113,13 +113,14 @@ Unless noted otherwise, read every `cw ...` example below as the public npm-inst
 
 Legacy repository-local `.cw/` directories are unsupported and ignored by current builds.
 
-`cw init` writes user-scoped CW workspace storage under `~/.cw/workspaces/<workspace-id>/` by default:
+`cw init` writes user-scoped CW workspace storage under `~/.code-worker/<workspace-id>/` by default:
 
 - `config.json`
-- `workers.json`
-- `worker-profiles.json`
-- `audit/`
-- `runs/`
+- `data.db`
+
+`config.json` keeps editable worker definitions and runtime defaults. `data.db`
+is the SQLite store for worker secrets, worker profiles, benchmark history,
+task sessions, task artifacts, and audit events.
 
 ## CLI usage
 
@@ -210,10 +211,10 @@ Use `--save` if you want to persist the interview result:
 cw worker interview --worker qwen-local --save
 ```
 
-Saved profiles are written to:
+Saved profiles are written to the SQLite workspace store at:
 
 ```text
-~/.cw/workspaces/<workspace-id>/worker-profiles.json
+~/.code-worker/<workspace-id>/data.db#worker_profiles
 ```
 
 You can inspect persisted profiles with:
@@ -298,7 +299,7 @@ Safety constraints for patch lifecycle:
 
 ## Task sessions
 
-Task sessions keep local review artifacts and resumable state under `~/.cw/workspaces/<workspace-id>/runs` by default:
+Task sessions keep local review artifacts and resumable state in SQLite under `~/.code-worker/<workspace-id>/data.db` by default:
 
 ```bash
 cw task start \
@@ -325,7 +326,7 @@ cw task resume <taskId> \
   --confirm-apply
 ```
 
-Session persistence is separate from repository writes. `--allow-write-session` only permits CW session artifacts under `runs/`. It does not enable patch apply.
+Session persistence is separate from repository writes. `--allow-write-session` only permits CW-managed session persistence in `data.db`. It does not enable patch apply.
 
 See [docs/permissions.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/permissions.md) for the full write-gate model.
 
@@ -364,10 +365,10 @@ Supported environment variables are limited to process identity diagnostics:
 Runtime configuration resolves in this order:
 
 1. CLI flags
-2. `~/.cw/workspaces/<workspace-id>/config.json`
+2. `~/.code-worker/<workspace-id>/config.json`
 3. built-in defaults
 
-Use `config.json` as the primary home for persisted worker, validation, safety, and MCP-adjacent runtime defaults, including provider API keys and local client commands. Launch `cw` from the intended workspace root, and never commit real keys or include them in logs.
+Use `config.json` as the primary home for persisted worker, validation, safety, and MCP-adjacent runtime defaults. Worker API keys are persisted in the workspace SQLite store, while local client commands remain on `config.json.workers[]`. Launch `cw` from the intended workspace root, and never commit real keys or include them in logs.
 
 Repository context settings in the user-scoped CW `config.json` control default `ignoredPaths` and `strictFiles` behavior for review, fix, patch, and task workflows.
 
@@ -409,17 +410,23 @@ Run `pnpm exec tsx examples/host-worker-basic/src/index.ts` to inspect the host-
 
 ## How to configure LiteLLM
 
-Persist the worker settings in `config.json`, for example:
+Persist the non-secret worker settings in `config.json`, for example:
 
 ```json
 {
-  "version": 1,
-  "workerModel": {
-    "provider": "litellm",
-    "model": "<model>",
-    "baseURL": "https://litellm.example.com",
-    "apiKey": "<secret>"
-  }
+  "version": 2,
+  "workers": [
+    {
+      "workerId": "litellm-main",
+      "provider": "litellm",
+      "model": "<model>",
+      "baseURL": "https://litellm.example.com",
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
+    }
+  ]
 }
 ```
 
@@ -440,7 +447,7 @@ Persist the worker settings in `config.json`, for example:
 - In host-driven flows, worker outputs are not final until the host accepts them.
 - Workers must pass onboarding evaluation before they should receive production tasks.
 - Workers that fail structured output or reliability checks become `not-qualified`. Environment or configuration failures keep the worker unavailable for formal tasks until the runtime issue is fixed.
-- Worker secrets should be persisted in the user-scoped CW `config.json` and should never be logged.
+- Worker secrets should be persisted in the user-scoped CW SQLite store and should never be logged.
 
 See [docs/permissions.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/permissions.md) for the concrete permission layers and write-gate examples.
 

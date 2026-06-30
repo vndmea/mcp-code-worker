@@ -8,7 +8,7 @@ Recommended call order:
 
 1. Call `cw_start_task` with `goal`, optional `scope`, and deterministic validation flags.
 2. Read `nextRecommendedActions` from the result instead of guessing the next step.
-3. Review `cwStorageDir/runs/<taskId>/report.md` or call `cw_get_task_report` before any patch apply attempt.
+3. Review the persisted `report.md` artifact through `cw_get_task_report` or `cw_read_task_artifact` before any patch apply attempt.
 4. Prefer `proposePatch=true` and `inspectPatch=true` first.
 5. Use patch apply only after manual review. Keep the first apply in dry-run mode unless a human explicitly wants writes.
 
@@ -36,13 +36,13 @@ When to propose but not apply:
 
 How to read task artifacts:
 
-- `cwStorageDir/runs/<taskId>/report.md` is the fastest human-readable summary.
+- `report.md` is the fastest human-readable summary artifact.
 - `patch-proposal.json`, `patch-inspection.json`, and `patch-apply-result.json` contain the structured patch lifecycle.
 - `validation-report.json` and `fix-result.json` explain deterministic failures and recovery guidance.
 
 Worker evaluation layers:
 
 - `cw worker interview --worker=<workerId> --save` establishes onboarding trust and baseline routing limits.
-- `cw worker benchmark --suite=coding-v1 --worker=<workerId> --save` records coding benchmark results under `cwStorageDir/worker-benchmarks/<sanitized-worker-id>/coding-v1.json`.
+- `cw worker benchmark --suite=coding-v1 --worker=<workerId> --save` records coding benchmark results in the workspace SQLite store.
 - `cw worker benchmark --suite=coding-v1 --worker=<workerId> --save --update-profile-capabilities` is the explicit step that can enable `patch-generation` on an existing persisted profile when the benchmark passes the required fixtures.
 - Benchmark results alone do not bypass patch inspection, dry-run apply, `allowWrite`, or `confirmApply`.

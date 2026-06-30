@@ -32,16 +32,15 @@ Notes:
 
 - `opencode` is the default command
 - use `clientCommand` on the selected `config.json.workers[]` entry as the persisted override
-- the persisted `workers.json` registry entry is still authoritative for the worker model id
+- the persisted `config.json.workers[]` entry is authoritative for the worker model id
 - if your local OpenCode default model changes, refresh or re-register the matching `opencode-local` entry so it does not keep pointing at an older model such as `sudocode/gpt-5.4`
 
 ## Model Resolution Priority
 
 When `cw` resolves an `opencode` worker, the effective model comes from this order:
 
-1. the named worker entry in `~/.code-worker/workspaces/<workspace-id>/workers.json`
-2. the matching worker entry in `config.json`
-3. only then the local OpenCode default model from `opencode.json`
+1. the named worker entry in `config.json.workers[]`
+2. only then the local OpenCode default model from `opencode.json`
 
 That means changing OpenCode's own default model does not automatically rewrite an existing `cw` worker registration.
 
@@ -54,7 +53,7 @@ If these disagree, current `cw doctor` now emits a warning that includes:
 Fix by either:
 
 - re-registering the worker with the new model
-- or updating the existing `workers.json` registration intentionally
+- or updating the existing `config.json.workers[]` registration intentionally
 
 ## Required Environment Variables
 
@@ -114,4 +113,3 @@ Benchmark only after compatibility and interview both succeed.
   - the executable exists but does not expose the expected `opencode run` surface
 - probe fails after compatibility passes
   - OpenCode launches but cannot complete the actual model call
-

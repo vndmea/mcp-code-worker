@@ -31,7 +31,7 @@ Persist:
 
 None.
 
-`mock` does not require `apiKey` on its `config.json.workers[]` entry.
+`mock` does not require a persisted worker secret.
 
 ## Minimal Health Checks
 

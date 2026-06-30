@@ -39,18 +39,21 @@ Supported shape:
 
 ## Required Secret Configuration
 
-Persist the provider key in `config.json`:
+Persist the provider key in the workspace SQLite store. The worker definition in `config.json` stays non-secret:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "workers": [
     {
       "workerId": "deepseek-flash",
       "provider": "openai-compatible",
       "model": "deepseek-v4-flash",
       "baseURL": "https://api.deepseek.com",
-      "apiKey": "sk-..."
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
@@ -132,7 +135,7 @@ Qualification sequence:
   - test both documented base URLs
   - confirm the exact model name
 - auth failures
-  - verify the selected `config.json.workers[]` entry persists `apiKey`
+  - verify the selected worker secret was persisted into SQLite
 - provider invocation failures during interview
   - do not treat the unavailable result as a completed qualification
   - fix connectivity or auth first, then rerun
@@ -142,17 +145,14 @@ Qualification sequence:
 By default, saved DeepSeek-related CW artifacts live under:
 
 ```text
-~/.code-worker/workspaces/<workspace-id>/
+~/.code-worker/<workspace-id>/
 ```
 
-Expected files:
+Expected persistence surfaces:
 
-- `workers.json`
-- `worker-profiles.json`
-- `worker-benchmarks/<sanitized-worker-id>/coding-v1.json`
+- `config.json`
+- `data.db#worker_secrets`
+- `data.db#worker_profiles`
+- `data.db#worker_benchmarks`
 
-Example:
-
-- worker id: `deepseek-flash`
-- persisted path segment: `openai-compatible_deepseek-v4-flash`
-
+The workspace SQLite store also holds task-session and audit artifacts when those flows are exercised.

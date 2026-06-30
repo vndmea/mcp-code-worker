@@ -47,12 +47,12 @@ Different absolute repository roots produce different workspace ids, so a root m
 
 ### Symptoms
 
-- `workers.json`, `worker-profiles.json`, or `runs/` are not under the path you expected
+- `config.json` or `data.db` are not under the path you expected
 - one checkout cannot see state created by another
 
 ### Checks
 
-- Remember that default state lives under `~/.code-worker/workspaces/<workspace-id>/`
+- Remember that default state lives under `~/.code-worker/<workspace-id>/`
 - Read the `runtime-bootstrap` check from `cw doctor` for the resolved `config.json`, `cwStorageDir`, `cwHomeDir`, and `workspaceId`
 
 ## Worker Interview Is Blocked By Provider Failures
@@ -64,7 +64,8 @@ Different absolute repository roots produce different workspace ids, so a root m
 
 ### Checks
 
-- Confirm the selected worker entry in `config.json.workers[]` includes `apiKey`
+- Confirm the selected worker definition exists in `config.json.workers[]`
+- Confirm the worker secret was persisted into the workspace SQLite store
 - Confirm the provider name, model name, and base URL are correct
 - For DeepSeek-compatible workers, test both documented base URLs if needed
 - Re-run the health checks in [docs/provider-contracts/deepseek.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/deepseek.md)
@@ -128,7 +129,7 @@ Patch proposal, inspection, and apply are intentionally separate steps.
 ### Checks
 
 - Remember that dry-run is the default
-- `--allow-write-session` only permits task-session artifacts under `runs/`
+- `--allow-write-session` only permits task-session persistence in SQLite
 - It does **not** enable repository writes
 - Repository writes remain gated behind explicit write-enabled commands
 
@@ -153,4 +154,3 @@ When escalating an issue, collect:
 - sanitized error output
 
 Never include raw API keys, bearer tokens, or secret-bearing config files in a bug report.
-

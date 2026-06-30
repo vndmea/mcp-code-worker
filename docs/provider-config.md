@@ -1,16 +1,15 @@
 # Provider Configuration
 
-`mcp-code-worker` keeps provider configuration explicit in persisted `config.json`. This document explains how to configure workers safely and how to validate the result.
+`mcp-code-worker` keeps provider configuration explicit in persisted workspace state. This document explains how to configure workers safely and how to validate the result.
 
 ## Configuration Surfaces
 
-The main worker settings live in `config.json` under `workers[]`:
+The main non-secret worker settings live in `config.json` under `workers[]`:
 
 - `workerId`
 - `provider`
 - `model`
 - `baseURL`
-- `apiKey`
 - `clientCommand`
 
 Additional related settings include:
@@ -22,10 +21,10 @@ Additional related settings include:
 Runtime configuration resolves in this order:
 
 1. CLI flags
-2. `~/.code-worker/workspaces/<workspace-id>/config.json`
+2. `~/.code-worker/<workspace-id>/config.json`
 3. Built-in defaults
 
-Treat `config.json` as the primary source for persisted worker settings used by both CLI and MCP flows. Persist API keys and local client commands in `config.json.workers[]`, and never commit real keys into repository files or logs.
+Treat `config.json` as the primary source for persisted non-secret worker settings used by both CLI and MCP flows. Persist local client commands in `config.json.workers[]`, persist provider API keys in the workspace SQLite store, and never commit real keys into repository files or logs.
 
 ## 3-Minute Quickstarts
 
@@ -89,7 +88,10 @@ cw init --preset=deepseek --allow-write
       "provider": "openai-compatible",
       "model": "deepseek-v4-flash",
       "baseURL": "https://api.deepseek.com",
-      "apiKey": "sk-..."
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
@@ -126,7 +128,10 @@ cw init --allow-write
       "provider": "claude-compatible",
       "model": "claude-3-5-sonnet-latest",
       "baseURL": "https://api.anthropic.com",
-      "apiKey": "sk-ant-..."
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
@@ -162,7 +167,11 @@ cw init
       "workerId": "sparkcode-local",
       "provider": "client",
       "model": "qwen3-coder",
-      "clientCommand": "/path/to/compatible-client"
+      "clientCommand": "/path/to/compatible-client",
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
@@ -198,7 +207,11 @@ cw init --preset=claudecode --allow-write
       "workerId": "claudecode-local",
       "provider": "claudecode",
       "model": "sonnet",
-      "clientCommand": "/path/to/claude"
+      "clientCommand": "/path/to/claude",
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
@@ -234,7 +247,11 @@ cw init --preset=codex --allow-write
       "workerId": "codex-local",
       "provider": "codex",
       "model": "gpt-5.4",
-      "clientCommand": "/path/to/codex"
+      "clientCommand": "/path/to/codex",
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
@@ -275,7 +292,10 @@ Typical settings:
       "provider": "openai-compatible",
       "model": "<model>",
       "baseURL": "<base-url>",
-      "apiKey": "<secret>"
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
@@ -303,7 +323,10 @@ Typical settings:
       "provider": "claude-compatible",
       "model": "<model>",
       "baseURL": "https://api.anthropic.com",
-      "apiKey": "<secret>"
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
@@ -321,14 +344,17 @@ Typical settings:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "workers": [
     {
       "workerId": "<workerId>",
       "provider": "litellm",
       "model": "<model>",
       "baseURL": "<gateway-base-url>",
-      "apiKey": "<secret>"
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
@@ -382,7 +408,11 @@ Example:
       "workerId": "<workerId>",
       "provider": "opencode",
       "model": "deepseek/deepseek-v4-flash",
-      "clientCommand": "/path/to/opencode"
+      "clientCommand": "/path/to/opencode",
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
@@ -494,4 +524,3 @@ For provider-specific health checks and failure signatures, use the matching con
 - [Claude Code adapter](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/claudecode.md)
 - [Codex adapter](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/codex.md)
 - [OpenCode adapter](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/opencode.md)
-

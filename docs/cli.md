@@ -50,7 +50,7 @@ Read every `cw ...` example in this document as the public npm-installed CLI unl
 
 Writes remain in dry-run mode unless a command explicitly enables repository writes with `--allow-write`.
 
-`--allow-write-session` is narrower than `--allow-write`: it only permits local task artifacts under `cwStorageDir/runs`, not project file writes.
+`--allow-write-session` is narrower than `--allow-write`: it only permits local task persistence in `cwStorageDir/data.db`, not project file writes.
 
 For MCP clients, `cw mcp serve` does not take `--root`. Launch it from the intended repository root so the active workspace binding is unambiguous.
 
@@ -66,7 +66,7 @@ For the dedicated `claudecode` adapter, use `cw init --preset=claudecode --allow
 
 For the dedicated `codex` adapter, use `cw init --preset=codex --allow-write`. That preset keeps `provider=codex` and defaults the command to `codex`.
 
-`cw init` prints the resolved CW storage paths, including the user-scoped config file at `~/.code-worker/workspaces/<workspace-id>/config.json`, and can open that directory for you at the end of onboarding.
+`cw init` prints the resolved CW storage paths, including the user-scoped config file at `~/.code-worker/<workspace-id>/config.json`, and can open that directory for you at the end of onboarding.
 
 If Codex is your MCP host, `cw init` detects the user-level Codex MCP file at `~/.codex/config.toml` on macOS/Linux or the same home-relative path on Windows. It only offers opt-in writing when that file already exists; otherwise it falls back to a manual reminder.
 
@@ -88,7 +88,7 @@ For instruction scoping, put repository-specific guidance in `./AGENTS.md` and g
 
 ## Task Sessions
 
-Task sessions keep local state under `~/.code-worker/workspaces/<workspace-id>/runs/<taskId>` by default:
+Task sessions keep local state in SQLite under `~/.code-worker/<workspace-id>/data.db` by default:
 
 ```bash
 cw task start \
@@ -129,18 +129,17 @@ cw task resume <taskId> --apply-patch --allow-write --confirm-apply
 - Benchmark results alone do not bypass patch inspection, dry-run apply, `allowWrite`, or `confirmApply`.
 - If interview output contains provider invocation failures, `--save` is skipped on purpose and the command returns re-interview guidance instead of persisting a misleading non-qualification result.
 
-Benchmark artifacts are persisted under:
+Benchmark artifacts are persisted in SQLite under:
 
 ```text
-~/.code-worker/workspaces/<workspace-id>/worker-benchmarks/<sanitized-worker-id>/coding-v1.json
+~/.code-worker/<workspace-id>/data.db#worker_benchmarks
 ```
 
-The persisted directory name uses a filesystem-safe worker id. Example:
-`deepseek/flash-prod` becomes `deepseek_flash-prod`.
+Use `cw worker benchmark`, `cw worker profile`, or the returned persistence refs to inspect benchmark results.
 
 ## DeepSeek / OpenAI-Compatible Notes
 
-Persist worker API keys in the user-scoped CW `config.json`. Never commit real keys into repository files or include them in logs.
+Persist worker API keys in the user-scoped CW SQLite store. Never commit real keys into repository files or include them in logs.
 
 For DeepSeek-compatible workers:
 
@@ -158,7 +157,10 @@ Suggested troubleshooting flow:
       "provider": "openai-compatible",
       "model": "deepseek-v4-flash",
       "baseURL": "https://api.deepseek.com",
-      "apiKey": "<secret>"
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
@@ -181,5 +183,4 @@ curl https://api.deepseek.com/chat/completions \
   }'
 ```
 
-If `Not Found` occurs, test both `https://api.deepseek.com` and `https://api.deepseek.com/v1` and confirm the model name, network access, and the selected `config.json.workers[]` entry's `apiKey`.
-
+If `Not Found` occurs, test both `https://api.deepseek.com` and `https://api.deepseek.com/v1` and confirm the model name, network access, and that the selected worker's API key was persisted into SQLite.

@@ -36,18 +36,21 @@ Expected shape:
 
 ## Required Config Fields
 
-Persist the provider key in `config.json`:
+Persist the provider key in the workspace SQLite store. The worker definition in `config.json` stays non-secret:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "workers": [
     {
       "workerId": "<workerId>",
       "provider": "openai-compatible",
       "model": "<model-name>",
       "baseURL": "https://provider.example.com",
-      "apiKey": "sk-..."
+      "enabled": true,
+      "tags": [],
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-01T00:00:00.000Z"
     }
   ]
 }
@@ -101,7 +104,7 @@ cw worker benchmark --suite=coding-v1 --worker=openai-compatible:<model-name> --
 ## Common Failure Signatures
 
 - `401` / `403`
-  - invalid or missing `apiKey` on the selected `config.json.workers[]` entry
+  - invalid or missing worker secret in the workspace SQLite store
 - `404` / `Not Found`
   - wrong base URL or wrong model name
 - probe fails but direct shell API call works

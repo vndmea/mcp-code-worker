@@ -5,10 +5,10 @@
 ## Permission Layers
 
 - `read-only`: repository reads, diff inspection, task/status/report reads, and validation planning.
-- `session-write`: local task artifacts under `cwStorageDir/runs/<taskId>`.
+- `session-write`: local task-session persistence in `cwStorageDir/data.db`.
 - `project-write`: repository file writes when a command explicitly supports them.
 - `patch-apply`: the second gate for mutating source files through patch application.
-- `audit-write`: local audit events under `cwStorageDir/audit`.
+- `audit-write`: local audit events in `cwStorageDir/data.db`.
 
 ## Default Behavior
 
@@ -19,7 +19,7 @@
 
 ## Gates
 
-- `--allow-write-session` allows `cwStorageDir/runs` persistence only.
+- `--allow-write-session` allows task-session persistence in `cwStorageDir/data.db` only.
 - `--allow-write` allows commands with write support to modify local managed files or repository files, depending on the command.
 - `--confirm-apply` is required in addition to `--allow-write` before `patch apply` can touch project files.
 
@@ -33,7 +33,7 @@ Patch apply stays explicitly two-step:
 By default, local CW state is stored under:
 
 ```text
-~/.code-worker/workspaces/<workspace-id>/
+~/.code-worker/<workspace-id>/
 ```
 
 The default `~/.code-worker` root stores user-scoped state. Explicit `--root` flags on supported CLI commands affect which repository path maps to `<workspace-id>`.
@@ -43,13 +43,9 @@ The default `~/.code-worker` root stores user-scoped state. Explicit `--root` fl
 Local-managed artifacts include:
 
 - `config.json`
-- `workers.json`
-- `worker-profiles.json`
-- `worker-benchmarks/`
-- `runs/`
-- `audit/`
+- `data.db`
 
-`benchmark` artifacts are local CW artifacts, not project source files.
+`benchmark` artifacts are local CW artifacts stored in SQLite, not project source files.
 
 ## What Can Modify Project Files
 
@@ -60,7 +56,6 @@ Local-managed artifacts include:
 
 ## Cleanup Scope
 
-- `cw cleanup runs` only removes local task-session artifacts under `cwStorageDir/runs`.
-- `cw cleanup audit` only removes local audit artifacts under `cwStorageDir/audit`.
+- `cw cleanup runs` only removes local task-session records from `cwStorageDir/data.db`.
+- `cw cleanup audit` only removes local audit records from `cwStorageDir/data.db`.
 - Cleanup commands do not touch project source files.
-
