@@ -8,8 +8,6 @@ import {
   resolveWorkerProfile,
   saveWorkerProfile
 } from "@mcp-code-worker/models";
-import { CODING_V1_SUITE_NAME } from "@mcp-code-worker/core";
-
 import {
   applyBenchmarkCapabilityUpdate,
   runWorkerBenchmarkWorkflow,
@@ -70,11 +68,6 @@ const buildProfileWarnings = (
 const buildExecutionProfileRefreshAction = (workerId: string): string =>
   `Run 'cw worker interview --worker ${workerId} --save' to refresh the persisted profile before routing new tasks.`;
 
-const hasBenchmarkDerivedPatchCapability = (
-  profile: WorkerCapabilityProfile | null
-): profile is WorkerCapabilityProfile =>
-  profile?.evaluationSummary?.suiteName === CODING_V1_SUITE_NAME;
-
 const preserveBenchmarkDerivedPatchCapability = (input: {
   existingProfile: WorkerCapabilityProfile | null;
   nextProfile: WorkerCapabilityProfile;
@@ -83,7 +76,9 @@ const preserveBenchmarkDerivedPatchCapability = (input: {
 
   if (
     !existingProfile ||
-    !hasBenchmarkDerivedPatchCapability(existingProfile) ||
+    !existingProfile.routingPolicy.allowPatchGeneration ||
+    !existingProfile.supportedTaskTypes.includes("patch-generation") ||
+    existingProfile.unsupportedTaskTypes.includes("patch-generation") ||
     existingProfile.workerId !== nextProfile.workerId ||
     existingProfile.provider !== nextProfile.provider ||
     existingProfile.model !== nextProfile.model
@@ -120,9 +115,7 @@ const preserveBenchmarkDerivedPatchCapability = (input: {
       routingPolicy: {
         ...nextProfile.routingPolicy,
         allowPatchGeneration: existingAllowsPatchGeneration
-      },
-      evaluationSummary:
-        existingProfile.evaluationSummary ?? nextProfile.evaluationSummary
+      }
     },
     ...(patchCapabilityChanged
       ? {

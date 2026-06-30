@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { qualifiesPatchGenerationCapability } from "@mcp-code-worker/core";
 import {
   runWorkerBenchmarkOnboarding
 } from "@mcp-code-worker/graph";
@@ -53,9 +52,7 @@ export const cwBenchmarkWorkerTool: CwToolDefinition<
     return {
       ...result.benchmarkResult,
       capabilityUpdateApplied: result.profileUpdate?.capabilityUpdateApplied ?? false,
-      patchGenerationQualified:
-        result.profileUpdate?.patchGenerationQualified ??
-        qualifiesPatchGenerationCapability(result.benchmarkResult),
+      patchGenerationQualified: result.profileUpdate?.patchGenerationQualified ?? false,
       ...(result.persistence ? { persistence: result.persistence } : {}),
       ...(result.profilePersistence
         ? { profilePersistence: result.profilePersistence }

@@ -140,7 +140,7 @@ export const runPatchProposalWorkflow = async (
       });
     }
 
-    if (input.requireProfile && patchEligibility && !patchEligibility.allowed) {
+    if (patchEligibility && !patchEligibility.allowed) {
       return buildDeniedPatchProposalOutput({
         context,
         fallbackProposal,

@@ -1631,14 +1631,7 @@ const buildCapabilityProfile = (
     supported.add("test-generation");
   }
 
-  const allowPatchGeneration =
-    supported.has("codegen") &&
-    codeQuality >= 0.82 &&
-    score.reliability >= 0.8;
-
-  if (allowPatchGeneration) {
-    supported.add("patch-generation");
-  }
+  const allowPatchGeneration = false;
 
   const interviewQualifiedTaskTypes: WorkerTaskType[] = [
     "summarization",

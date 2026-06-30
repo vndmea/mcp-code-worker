@@ -102,10 +102,19 @@ vi.mock("./worker-interview-workflow.js", () => ({
         maxTaskComplexity: "medium",
         requiresHostReview: false,
         allowCodegen: true,
-        allowPatchGeneration: true,
+        allowPatchGeneration: false,
         allowDomainTasks: true
       },
-      evaluatedAt: new Date().toISOString()
+      evaluatedAt: new Date().toISOString(),
+      evaluationSummary: {
+        suiteName: "default-worker-onboarding-suite",
+        suiteVersion: "6",
+        sampleCount: 9,
+        passedCount: 9,
+        failedCount: 0,
+        confidenceBand: "high",
+        knownFailureModes: []
+      }
     },
     status: "qualified",
     taskResults: [],
@@ -216,8 +225,8 @@ describe("worker onboarding workflow", () => {
       provider: "client",
       model: "worker-model",
       status: "qualified",
-      supportedTaskTypes: ["summarization"],
-      unsupportedTaskTypes: ["patch-generation"],
+      supportedTaskTypes: ["summarization", "patch-generation"],
+      unsupportedTaskTypes: [],
       score: {
         instructionFollowing: 1,
         structuredOutput: 1,
@@ -232,18 +241,18 @@ describe("worker onboarding workflow", () => {
         maxTaskComplexity: "medium",
         requiresHostReview: false,
         allowCodegen: true,
-        allowPatchGeneration: false,
+        allowPatchGeneration: true,
         allowDomainTasks: true
       },
       evaluatedAt: new Date().toISOString(),
       evaluationSummary: {
-        suiteName: "coding-v1",
-        suiteVersion: "2",
-        sampleCount: 4,
-        passedCount: 3,
-        failedCount: 1,
-        confidenceBand: "medium",
-        knownFailureModes: ["lint was omitted"]
+        suiteName: "default-worker-onboarding-suite",
+        suiteVersion: "6",
+        sampleCount: 9,
+        passedCount: 9,
+        failedCount: 0,
+        confidenceBand: "high",
+        knownFailureModes: []
       }
     });
 
@@ -256,17 +265,19 @@ describe("worker onboarding workflow", () => {
       workerId: "mock:worker"
     });
 
-    expect(result.profile.routingPolicy.allowPatchGeneration).toBe(false);
-    expect(result.profile.supportedTaskTypes).not.toContain("patch-generation");
-    expect(result.profile.unsupportedTaskTypes).toContain("patch-generation");
-    expect(result.profile.evaluationSummary?.suiteName).toBe("coding-v1");
+    expect(result.profile.routingPolicy.allowPatchGeneration).toBe(true);
+    expect(result.profile.supportedTaskTypes).toContain("patch-generation");
+    expect(result.profile.unsupportedTaskTypes).not.toContain("patch-generation");
+    expect(result.profile.evaluationSummary?.suiteName).toBe(
+      "default-worker-onboarding-suite"
+    );
     expect(result.warnings.join("\n")).toContain(
       "Preserved benchmark-derived patch-generation capability"
     );
     expect(vi.mocked(saveWorkerProfile).mock.calls.at(-1)?.[1]).toMatchObject({
       workerId: "mock:worker",
       routingPolicy: {
-        allowPatchGeneration: false
+        allowPatchGeneration: true
       }
     });
   });

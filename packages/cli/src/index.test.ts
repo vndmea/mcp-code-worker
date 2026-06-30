@@ -1554,7 +1554,7 @@ describe("cli parsing", () => {
         supportedTaskTypes?: string[];
       }>;
       expect(output.at(-1)).toContain("\"capabilityUpdateApplied\": false");
-      expect(output.at(-1)).toContain("\"patchGenerationQualified\": true");
+      expect(output.at(-1)).toContain("\"patchGenerationQualified\": false");
       expect(savedProfiles[0]?.supportedTaskTypes).not.toContain("patch-generation");
       expect(savedProfiles[0]?.routingPolicy?.allowPatchGeneration).toBe(false);
 
@@ -1653,10 +1653,12 @@ describe("cli parsing", () => {
       expect(savedProfile?.routingPolicy?.allowPatchGeneration).toBe(false);
       expect(savedProfile?.supportedTaskTypes).not.toContain("patch-generation");
       expect(savedProfile?.unsupportedTaskTypes).toContain("patch-generation");
-      expect(savedProfile?.evaluationSummary?.suiteName).toBe("coding-v1");
+      expect(savedProfile?.evaluationSummary?.suiteName).toBe(
+        "default-worker-onboarding-suite"
+      );
       expect(result.profile.routingPolicy?.allowPatchGeneration).toBe(false);
       expect(result.profile.supportedTaskTypes).not.toContain("patch-generation");
-      expect(result.warnings.join("\n")).toContain(
+      expect(result.warnings.join("\n")).not.toContain(
         "Preserved benchmark-derived patch-generation capability"
       );
     });

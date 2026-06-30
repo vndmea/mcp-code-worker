@@ -494,7 +494,7 @@ describe("mcp tool registration", () => {
         updateProfileCapabilities: false
       });
 
-      expect(result.patchGenerationQualified).toBe(true);
+      expect(result.patchGenerationQualified).toBe(false);
       expect(result.capabilityUpdateApplied).toBe(false);
     });
   });

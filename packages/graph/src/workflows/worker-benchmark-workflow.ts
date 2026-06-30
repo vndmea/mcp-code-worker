@@ -267,7 +267,9 @@ export const applyBenchmarkCapabilityUpdate = (
   profile: WorkerCapabilityProfile;
 } => {
   const updateProfileCapabilities = options.updateProfileCapabilities ?? false;
-  const patchGenerationQualified = qualifiesPatchGenerationCapability(benchmarkResult);
+  const patchGenerationQualified =
+    profile.status === "qualified" &&
+    qualifiesPatchGenerationCapability(benchmarkResult);
   const nextSupportedTaskTypes = new Set(profile.supportedTaskTypes);
   const nextUnsupportedTaskTypes = new Set(profile.unsupportedTaskTypes);
   let nextRoutingPolicy = profile.routingPolicy;
@@ -291,8 +293,7 @@ export const applyBenchmarkCapabilityUpdate = (
     ...profile,
     supportedTaskTypes: Array.from(nextSupportedTaskTypes),
     unsupportedTaskTypes: Array.from(nextUnsupportedTaskTypes),
-    routingPolicy: nextRoutingPolicy,
-    evaluationSummary: benchmarkResult.evaluationSummary
+    routingPolicy: nextRoutingPolicy
   });
 
   const capabilityUpdateApplied =

@@ -115,7 +115,7 @@ describe("assessWorkerTaskEligibility", () => {
     expect(result.reason).toContain("not qualified for patch-generation tasks");
   });
 
-  it("allows patch-generation when benchmark-derived patch capability exists even if overall status remains not-qualified", () => {
+  it("blocks patch-generation when the overall worker status remains not-qualified even if patch flags were set", () => {
     const result = assessWorkerTaskEligibility(
       createProfile({
         status: "not-qualified"
@@ -123,7 +123,8 @@ describe("assessWorkerTaskEligibility", () => {
       "patch-generation"
     );
 
-    expect(result.allowed).toBe(true);
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain("not-qualified");
   });
 
   it("allows repo-grounded review when the portrait is strong enough", () => {

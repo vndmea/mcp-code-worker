@@ -358,7 +358,7 @@ describe("patch proposal workflow", () => {
     expect(result.warnings.join("\n")).toContain("--update-profile-capabilities");
   });
 
-  it("allows patch generation when benchmark-derived patch capability is present even if overall profile status is not-qualified", async () => {
+  it("blocks patch generation when overall profile status is not-qualified even if patch flags are present", async () => {
     const rootDir = await createWorkspace();
     await saveWorkerRegistration(
       createWriteContext(rootDir),
@@ -391,7 +391,8 @@ describe("patch proposal workflow", () => {
       requireProfile: true
     });
 
-    expect(result.proposal.title).not.toContain("[PLACEHOLDER]");
+    expect(result.proposal.title).toContain("[PLACEHOLDER]");
+    expect(result.warnings.join("\n")).toContain("not-qualified");
   });
 });
 

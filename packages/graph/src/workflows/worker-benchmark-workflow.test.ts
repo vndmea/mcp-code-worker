@@ -139,6 +139,7 @@ describe("worker benchmark workflow", () => {
     expect(withoutUpdate.patchGenerationQualified).toBe(true);
     expect(withoutUpdate.profile.supportedTaskTypes).not.toContain("patch-generation");
     expect(withUpdate.capabilityUpdateApplied).toBe(true);
+    expect(withUpdate.patchGenerationQualified).toBe(true);
     expect(withUpdate.profile.supportedTaskTypes).toContain("patch-generation");
     expect(withUpdate.profile.routingPolicy.allowPatchGeneration).toBe(true);
   });
