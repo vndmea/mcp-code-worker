@@ -48,6 +48,8 @@ If the resolved worker model uses the dedicated OpenCode adapter, keep `provider
 
 If the resolved worker model uses the dedicated Claude Code adapter, keep `provider=claudecode` and use `workerClientCommand` only when the `claude` executable name or path needs to be overridden.
 
+If the resolved worker model uses the dedicated Codex adapter, keep `provider=codex` and use `workerClientCommand` only when the `codex` executable name or path needs to be overridden.
+
 Example:
 
 ```json

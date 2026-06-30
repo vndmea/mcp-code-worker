@@ -82,7 +82,7 @@ Do not treat a provider-failure interview as a completed onboarding result.
 
 - If you use the generic local client provider, remember that `sparkcode` is the default compatible command
 - Prefer persisting `workerClientCommand` in `config.json` or via `cw init --worker-client-command=<command> --allow-write`
-- Persist `workerClientCommand` in `config.json` when the local client executable differs from the relevant default (`sparkcode` for `client`, `opencode` for `opencode`, `claude` for `claudecode`)
+- Persist `workerClientCommand` in `config.json` when the local client executable differs from the relevant default (`sparkcode` for `client`, `opencode` for `opencode`, `claude` for `claudecode`, `codex` for `codex`)
 - Re-run `cw doctor`
 - Use `cw doctor --probe` when you also want a live connectivity probe
 - Read `local-client-command`, `local-client-compatibility`, `runtime-bootstrap`, and `worker-connectivity` together before changing paths blindly

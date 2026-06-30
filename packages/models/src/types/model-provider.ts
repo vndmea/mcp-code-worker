@@ -16,8 +16,10 @@ export interface ModelInvocationResult {
   text: string;
   raw?: unknown;
   usage?: {
+    cachedInputTokens?: number;
     inputTokens?: number;
     outputTokens?: number;
+    reasoningOutputTokens?: number;
   };
 }
 

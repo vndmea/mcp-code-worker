@@ -25,7 +25,7 @@ cw mcp serve
 Notes:
 
 - The published npm package installs the `cw` command.
-- Use `cw init` as the default onboarding path. Run it interactively by default, or use presets such as `--preset=mock`, `--preset=deepseek`, `--preset=client`, `--preset=opencode`, or `--preset=claudecode` with `--allow-write` when you need the lower-level scripted setup flow.
+- Use `cw init` as the default onboarding path. Run it interactively by default, or use presets such as `--preset=mock`, `--preset=deepseek`, `--preset=client`, `--preset=opencode`, `--preset=claudecode`, or `--preset=codex` with `--allow-write` when you need the lower-level scripted setup flow.
 - Persist worker, validation, safety, local client defaults, and optional provider API keys in `config.json`.
 - If Codex is your MCP host, paste `cw mcp config --host=codex` into `~/.codex/config.toml`.
 - `cw init --allow-write --write-codex-mcp-config` only updates that file when it already exists. If it is missing, cw leaves a manual reminder instead of creating a new host config silently.
@@ -92,4 +92,5 @@ pnpm exec cw mcp serve
 - For generic local client providers, `sparkcode` is the default command. Persist a different compatible local wrapper with `cw init --worker-client-command=<command> --allow-write`.
 - For the dedicated OpenCode adapter, use `provider=opencode` and let `opencode` remain the default command unless you need a custom path.
 - For the dedicated Claude Code adapter, use `provider=claudecode` and let `claude` remain the default command unless you need a custom path.
+- For the dedicated Codex adapter, use `provider=codex` and let `codex` remain the default command unless you need a custom path.
 - See `docs/distribution.md` for the current publish and development distribution shapes.

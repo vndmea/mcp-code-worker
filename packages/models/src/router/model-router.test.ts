@@ -46,6 +46,15 @@ describe("model router", () => {
     expect(router.route("worker").provider.name).toBe("claudecode");
   });
 
+  it("routes codex workers to the dedicated Codex provider", () => {
+    const router = new ModelRouter({
+      provider: "codex",
+      model: "gpt-5.4"
+    });
+
+    expect(router.route("worker").provider.name).toBe("codex");
+  });
+
   it("rejects removed provider aliases instead of silently routing them", () => {
     const router = new ModelRouter({
       provider: "anthropic",

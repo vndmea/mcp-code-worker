@@ -219,6 +219,39 @@ cw doctor --probe
 
 If this path fails, inspect the `local-client-command`, `local-client-compatibility`, `runtime-bootstrap`, and `worker-connectivity` checks first.
 
+### Quickstart: Codex adapter
+
+Use this when a local Codex CLI should proxy the worker call.
+
+1. Install and initialize:
+
+```bash
+npm i -g mcp-code-worker
+cw init --preset=codex --allow-write
+```
+
+2. Persist the provider and optional command override in `config.json`:
+
+```json
+{
+  "version": 1,
+  "workerModel": {
+    "provider": "codex",
+    "model": "gpt-5.4"
+  },
+  "workerClientCommand": "/path/to/codex"
+}
+```
+
+3. Verify locally:
+
+```bash
+cw doctor
+cw doctor --probe
+```
+
+If this path fails, inspect the `local-client-command`, `local-client-compatibility`, `runtime-bootstrap`, and `worker-connectivity` checks first.
+
 ## Supported Provider Shapes
 
 ### `mock`
@@ -371,6 +404,30 @@ Contract:
 
 - [docs/provider-contracts/claudecode.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/claudecode.md)
 
+### `codex`
+
+Use `codex` when worker traffic should go through the dedicated local Codex CLI adapter instead of the generic local client protocol or a hosted OpenAI-compatible API.
+
+- `codex` uses `codex exec --json` and parses the event stream directly.
+- Persist `workerClientCommand` in `config.json` whenever the executable name or path differs from `codex`.
+
+Example:
+
+```json
+{
+  "version": 1,
+  "workerModel": {
+    "provider": "codex",
+    "model": "gpt-5.4"
+  },
+  "workerClientCommand": "/path/to/codex"
+}
+```
+
+Contract:
+
+- [docs/provider-contracts/codex.md](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/codex.md)
+
 ## Minimal Validation Flow
 
 After changing provider configuration, run:
@@ -417,4 +474,5 @@ For provider-specific health checks and failure signatures, use the matching con
 - [LiteLLM](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/litellm.md)
 - [Local client](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/local-client.md)
 - [Claude Code adapter](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/claudecode.md)
+- [Codex adapter](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/codex.md)
 - [OpenCode adapter](https://github.com/vndmea/mcp-code-worker/blob/master/docs/provider-contracts/opencode.md)

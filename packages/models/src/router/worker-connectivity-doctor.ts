@@ -4,6 +4,9 @@ import {
   inspectConfiguredClaudeCodeCommand
 } from "../providers/claudecode-command.js";
 import {
+  inspectConfiguredCodexCommand
+} from "../providers/codex-command.js";
+import {
   inspectConfiguredLocalClientCommand
 } from "../providers/local-client-command.js";
 import {
@@ -14,6 +17,7 @@ import { resolveWorkerTarget } from "./worker-target-resolution.js";
 
 const LOCAL_CLIENT_PROVIDERS = new Set(["client"]);
 const CLAUDE_CODE_PROVIDERS = new Set(["claudecode"]);
+const CODEX_PROVIDERS = new Set(["codex"]);
 const OPENCODE_PROVIDERS = new Set(["opencode"]);
 
 const summarizeWorkerResponse = (value: string): string =>
@@ -54,6 +58,7 @@ export const createLocalClientDoctorChecks = async (
   if (
     !LOCAL_CLIENT_PROVIDERS.has(modelConfig.provider) &&
     !CLAUDE_CODE_PROVIDERS.has(modelConfig.provider) &&
+    !CODEX_PROVIDERS.has(modelConfig.provider) &&
     !OPENCODE_PROVIDERS.has(modelConfig.provider)
   ) {
     return [];
@@ -66,6 +71,10 @@ export const createLocalClientDoctorChecks = async (
         })
       : CLAUDE_CODE_PROVIDERS.has(modelConfig.provider)
         ? await inspectConfiguredClaudeCodeCommand(modelConfig, {
+            checkCompatibility: true
+          })
+      : CODEX_PROVIDERS.has(modelConfig.provider)
+        ? await inspectConfiguredCodexCommand(modelConfig, {
             checkCompatibility: true
           })
       : await inspectConfiguredOpencodeCommand(modelConfig, {
@@ -132,6 +141,7 @@ export const createWorkerConnectivityDoctorChecks = async (
   let localClientInspection:
     | Awaited<ReturnType<typeof inspectConfiguredLocalClientCommand>>
     | Awaited<ReturnType<typeof inspectConfiguredClaudeCodeCommand>>
+    | Awaited<ReturnType<typeof inspectConfiguredCodexCommand>>
     | Awaited<ReturnType<typeof inspectConfiguredOpencodeCommand>>
     | null = null;
 
@@ -151,7 +161,11 @@ export const createWorkerConnectivityDoctorChecks = async (
             checkCompatibility: false
           })
         : CLAUDE_CODE_PROVIDERS.has(probeConfig.provider)
-          ? await inspectConfiguredClaudeCodeCommand(probeConfig, {
+        ? await inspectConfiguredClaudeCodeCommand(probeConfig, {
+            checkCompatibility: false
+          })
+        : CODEX_PROVIDERS.has(probeConfig.provider)
+          ? await inspectConfiguredCodexCommand(probeConfig, {
               checkCompatibility: false
             })
         : OPENCODE_PROVIDERS.has(probeConfig.provider)

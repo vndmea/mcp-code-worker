@@ -14,6 +14,7 @@ cw init --preset=deepseek --allow-write
 cw init --preset=client --allow-write
 cw init --preset=opencode --allow-write
 cw init --preset=claudecode --allow-write
+cw init --preset=codex --allow-write
 cw review repo --worker=qwen-local --scope=packages/graph
 cw review diff --worker=qwen-local --base=main --head=HEAD
 cw review files --worker=qwen-local --file=packages/graph/src/index.ts
@@ -62,6 +63,8 @@ For generic local client providers, `sparkcode` is the default command. Start wi
 For the dedicated `opencode` adapter, use `cw init --preset=opencode --allow-write`. That preset keeps `provider=opencode` and defaults the command to `opencode`.
 
 For the dedicated `claudecode` adapter, use `cw init --preset=claudecode --allow-write`. That preset keeps `provider=claudecode` and defaults the command to `claude`.
+
+For the dedicated `codex` adapter, use `cw init --preset=codex --allow-write`. That preset keeps `provider=codex` and defaults the command to `codex`.
 
 `cw init` prints the resolved CW storage paths, including the user-scoped config file at `~/.cw/workspaces/<workspace-id>/config.json`, and can open that directory for you at the end of onboarding.
 

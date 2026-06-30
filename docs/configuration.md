@@ -42,13 +42,14 @@ The persisted config is intended for workspace-local runtime defaults such as:
 Provider families currently split into two broad groups:
 
 - hosted API providers such as `openai-compatible`, `claude-compatible`, and `litellm`
-- local CLI adapter providers such as `client`, `opencode`, and `claudecode`
+- local CLI adapter providers such as `client`, `opencode`, `claudecode`, and `codex`
 
 Default local command assumptions:
 
 - `client` -> `sparkcode`
 - `opencode` -> `opencode`
 - `claudecode` -> `claude`
+- `codex` -> `codex`
 
 Persisted config no longer chooses an implicit execution worker for task, patch, or host-worker flows. Those commands now require an explicit named `workerId` at runtime.
 

@@ -160,6 +160,19 @@ cw worker interview --worker=claudecode-local --save
 cw worker readiness --worker=claudecode-local --probe
 ```
 
+## Example: Codex Local Adapter
+
+```bash
+cw worker register \
+  --worker=codex-local \
+  --provider=codex \
+  --model=gpt-5.4 \
+  --allow-write
+
+cw worker interview --worker=codex-local --save
+cw worker readiness --worker=codex-local --probe
+```
+
 ## Failure And Retry Guidance
 
 Stop and fix the environment before retrying when:

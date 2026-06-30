@@ -5,6 +5,7 @@ import {
 } from "@mcp-code-worker/core";
 import {
   inspectConfiguredClaudeCodeCommand,
+  inspectConfiguredCodexCommand,
   inspectConfiguredOpencodeCommand,
   inspectConfiguredLocalClientCommand,
   requireConfiguredWorkerId,
@@ -29,7 +30,7 @@ export interface ResolvedWorkflowWorkerContext {
 const resolveLocalClientRuntime = async (
   modelConfig: ModelConfig
 ): Promise<LocalClientRuntimeSummary | undefined> => {
-  if (!["client", "opencode", "claudecode"].includes(modelConfig.provider)) {
+  if (!["client", "opencode", "claudecode", "codex"].includes(modelConfig.provider)) {
     return undefined;
   }
 
@@ -42,6 +43,10 @@ const resolveLocalClientRuntime = async (
         ? await inspectConfiguredClaudeCodeCommand(modelConfig, {
             checkCompatibility: false
           })
+        : modelConfig.provider === "codex"
+          ? await inspectConfiguredCodexCommand(modelConfig, {
+              checkCompatibility: false
+            })
       : await inspectConfiguredOpencodeCommand(modelConfig, {
           checkCompatibility: false
         });

@@ -76,6 +76,7 @@ The MCP runtime contract is stdio-based. A host must be able to:
 | `client` | supported | Generic local CLI bridge contract; `sparkcode` is the default command |
 | `opencode` | documented best-effort | Dedicated local OpenCode adapter with first-party docs, but not yet in the release-grade host/runtime matrix |
 | `claudecode` | documented best-effort | Dedicated local Claude Code adapter with first-party docs, but not yet in the release-grade host/runtime matrix |
+| `codex` | documented best-effort | Dedicated local Codex adapter with first-party docs, but not yet in the release-grade host/runtime matrix |
 
 ## Release Rule
 

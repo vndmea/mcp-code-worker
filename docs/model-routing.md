@@ -12,7 +12,7 @@ This means provider/model/base URL defaults still exist, but task execution no l
 - Mock providers are the runtime default so tests run without real credentials.
 - `openai-compatible` and `claude-compatible` are API-protocol provider families, not brand-specific adapters.
 - LiteLLM is supported through an OpenAI-compatible endpoint configuration.
-- `client`, `opencode`, and `claudecode` are local CLI adapter paths with separate runtime contracts.
+- `client`, `opencode`, `claudecode`, and `codex` are local CLI adapter paths with separate runtime contracts.
 - Worker model config lives in user-scoped `config.json` under `workerModel`.
 - Worker execution is gated by both named registration and `WorkerCapabilityProfile`, not only by provider/model availability.
 - Newly connected workers should pass onboarding evaluation before they receive production tasks.

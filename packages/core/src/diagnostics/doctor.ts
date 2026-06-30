@@ -67,7 +67,7 @@ export interface RunDoctorOptions {
   skipLocalClientCommandCheck?: boolean;
 }
 
-const LOCAL_CLIENT_PROVIDERS = new Set(["client", "opencode", "claudecode"]);
+const LOCAL_CLIENT_PROVIDERS = new Set(["client", "opencode", "claudecode", "codex"]);
 
 const WHY_THIS_MATTERS: Record<string, string> = {
   "root-dir":
@@ -307,6 +307,8 @@ export const runDoctor = async (
             ? "opencode"
             : context.workerModel.provider === "claudecode"
               ? "claude"
+              : context.workerModel.provider === "codex"
+                ? "codex"
               : "sparkcode"),
         source: context.workerModel.clientCommand?.trim() ? "configured" : "default"
       }

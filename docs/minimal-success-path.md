@@ -17,6 +17,7 @@ cw init --preset=deepseek --allow-write
 cw init --preset=client --allow-write
 cw init --preset=opencode --allow-write
 cw init --preset=claudecode --allow-write
+cw init --preset=codex --allow-write
 ```
 
 2. Verify model access and credentials.

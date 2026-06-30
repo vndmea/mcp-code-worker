@@ -339,6 +339,7 @@ const resolveApiProviderDefault = (
 ): string =>
   ["mock", "client", "opencode"].includes(provider)
     || provider === "claudecode"
+    || provider === "codex"
     ? "openai-compatible"
     : provider;
 
@@ -699,7 +700,7 @@ const collectInitSetupOptions = async (
       presetChoice === "custom" ? undefined : getInitPreset(presetChoice);
 
     let workerMode: "api" | "client" =
-      ["client", "opencode", "claudecode"].includes(selectedPreset?.workerProvider ?? "")
+      ["client", "opencode", "claudecode", "codex"].includes(selectedPreset?.workerProvider ?? "")
         ? "client"
         : "api";
     let workerProvider =
@@ -755,7 +756,7 @@ const collectInitSetupOptions = async (
       (options.advanced ||
         (!selectedPreset &&
           (Boolean(workerContext.workerModel.baseURL) ||
-            !["mock", "client", "opencode", "claudecode"].includes(workerProvider))))
+            !["mock", "client", "opencode", "claudecode", "codex"].includes(workerProvider))))
     ) {
       const promptedBaseUrl = await prompter.text(
         "Worker base URL? Leave blank to skip.",
@@ -769,7 +770,7 @@ const collectInitSetupOptions = async (
 
     if (
       workerMode === "api" &&
-      !["mock", "client", "opencode", "claudecode"].includes(workerProvider)
+      !["mock", "client", "opencode", "claudecode", "codex"].includes(workerProvider)
     ) {
       const promptedApiKey = await prompter.text(
         "Worker API key? Leave blank to skip.",
@@ -788,7 +789,7 @@ const collectInitSetupOptions = async (
         Boolean(selectedPreset?.workerClientCommand))
     ) {
       const promptedClientCommand = await prompter.text(
-        `Local client command? Leave blank to use ${workerProvider === "opencode" ? "opencode" : workerProvider === "claudecode" ? "claude" : "sparkcode"}.`,
+        `Local client command? Leave blank to use ${workerProvider === "opencode" ? "opencode" : workerProvider === "claudecode" ? "claude" : workerProvider === "codex" ? "codex" : "sparkcode"}.`,
         {
           allowEmpty: true,
           defaultValue:

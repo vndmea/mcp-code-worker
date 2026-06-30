@@ -23,6 +23,7 @@ If you already know you want a local adapter instead of the interactive flow, th
 cw init --preset=client --allow-write
 cw init --preset=opencode --allow-write
 cw init --preset=claudecode --allow-write
+cw init --preset=codex --allow-write
 ```
 
 If you are using a repository checkout, read the commands below as `pnpm exec cw ...` from the repository root.

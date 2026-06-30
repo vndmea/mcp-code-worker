@@ -351,7 +351,7 @@ const resolveSetupWorkerModel = (
 });
 
 const resolveWorkerMode = (provider: string): "api" | "client" =>
-  ["client", "opencode", "claudecode"].includes(provider) ? "client" : "api";
+  ["client", "opencode", "claudecode", "codex"].includes(provider) ? "client" : "api";
 
 const buildPrimaryWorkerPlan = (
   options: SetupOptions,
@@ -1097,7 +1097,7 @@ export const runSetup = async (options: SetupOptions): Promise<SetupResult> => {
     recommendedConfig: unique([
       configToWrite.workerModel &&
       !configToWrite.workerModel.apiKey &&
-      !["mock", "client", "opencode", "claudecode"].includes(
+      !["mock", "client", "opencode", "claudecode", "codex"].includes(
         configToWrite.workerModel.provider
       )
         ? "Persist workerModel.apiKey in config.json before running the worker."

@@ -1066,6 +1066,43 @@ describe("cli parsing", () => {
     });
   });
 
+  it("supports the scripted codex init preset for local Codex workers", async () => {
+    await withTempCwd(async (rootDir) => {
+      const { io, output } = createIo();
+      const cli = buildCli(io);
+
+      await cli.parseAsync([
+        "node",
+        "cw",
+        "init",
+        "--preset=codex",
+        "--allow-write"
+      ]);
+
+      const result = parseLastJson<{
+        mode: string;
+        steps: Array<{ id: string; status: string }>;
+      }>(output);
+      const savedConfig = JSON.parse(
+        await readFile(getCwConfigPath(rootDir), "utf8")
+      ) as {
+        workerModel?: {
+          model?: string;
+          provider?: string;
+        };
+      };
+
+      expect(result.mode).toBe("execute");
+      expect(
+        result.steps.some(
+          (step) => step.id === "configure-models" && step.status === "completed"
+        )
+      ).toBe(true);
+      expect(savedConfig.workerModel?.provider).toBe("codex");
+      expect(savedConfig.workerModel?.model).toBe("gpt-5.4");
+    });
+  });
+
   it("can apply init and register additional workers", async () => {
     await withTempCwd(async (rootDir) => {
       const { io, output } = createIo();

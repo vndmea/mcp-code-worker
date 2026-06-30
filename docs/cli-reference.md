@@ -8,7 +8,7 @@ Use that document for:
 - task session flows
 - worker interview and benchmark commands
 - hosted API provider notes such as DeepSeek / OpenAI-compatible
-- local CLI adapter notes such as `client`, `opencode`, and `claudecode`
+- local CLI adapter notes such as `client`, `opencode`, `claudecode`, and `codex`
 - summary-oriented output flags
 
 This file exists as the stable release-facing entry for users looking for a dedicated command reference page.

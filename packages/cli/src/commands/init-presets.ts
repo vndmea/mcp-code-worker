@@ -1,6 +1,6 @@
 import type { ModelConfig } from "@mcp-code-worker/core";
 
-export type InitPresetId = "mock" | "deepseek" | "client" | "opencode" | "claudecode";
+export type InitPresetId = "mock" | "deepseek" | "client" | "opencode" | "claudecode" | "codex";
 
 export interface InitPresetDefinition {
   id: InitPresetId;
@@ -42,6 +42,12 @@ export const INIT_PRESETS: InitPresetDefinition[] = [
     label: "Claude Code Adapter",
     workerModel: "sonnet",
     workerProvider: "claudecode"
+  },
+  {
+    id: "codex",
+    label: "Codex Adapter",
+    workerModel: "gpt-5.4",
+    workerProvider: "codex"
   }
 ];
 
@@ -95,6 +101,15 @@ export const detectInitPreset = (
       workerModel.clientCommand === "claude")
   ) {
     return "claudecode";
+  }
+
+  if (
+    workerModel.provider === "codex" &&
+    workerModel.model === "gpt-5.4" &&
+    (!workerModel.clientCommand ||
+      workerModel.clientCommand === "codex")
+  ) {
+    return "codex";
   }
 
   return undefined;
