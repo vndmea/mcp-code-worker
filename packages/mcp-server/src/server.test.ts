@@ -32,6 +32,7 @@ import {
   cwGetTaskReportTool,
   cwGetTaskStatusTool,
   cwReadTaskArtifactTool,
+  cwInterviewWorkerTool,
   cwGetWorkerRegistrationTool,
   cwInspectPatchTool,
   cwListTasksTool,
@@ -400,6 +401,7 @@ describe("mcp tool registration", () => {
     expect(names).toContain("cw_list_audit_events");
     expect(names).toContain("cw_register_worker");
     expect(names).toContain("cw_run_worker_interview");
+    expect(names).toContain("cw_interview_worker");
     expect(names).toContain("cw_benchmark_worker");
     expect(names).toContain("cw_run_host_worker");
     expect(names).toContain("cw_propose_patch");
@@ -565,6 +567,27 @@ describe("mcp tool registration", () => {
         throw new Error("Expected persisted worker interview profile.");
       }
       expect(result.persistence.path).toContain("data.db#worker_profiles");
+    });
+  });
+
+  it("keeps the worker interview alias wired to the same MCP behavior", async () => {
+    await withTempCwd(async (rootDir) => {
+      await writeRegistry(rootDir, [
+        createRegistration({
+          workerId: "alias-interview-worker",
+          model: "alias-interview-worker"
+        })
+      ]);
+      const result = await cwInterviewWorkerTool.execute({
+        workerId: "alias-interview-worker",
+        provider: "mock",
+        model: "alias-interview-worker",
+        persistProfile: true
+      });
+
+      expect(result.profile.workerId).toBe("alias-interview-worker");
+      expect(result.status).toBe("qualified");
+      expect(result.persistence?.mode).toBe("execute");
     });
   });
 

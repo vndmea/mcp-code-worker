@@ -36,13 +36,26 @@ const executeWorkerInterview = async (
   });
 };
 
+const workerInterviewDescription =
+  "Run a fresh worker interview, generate a capability profile, and optionally persist it.";
+
 export const cwRunWorkerInterviewTool: CwToolDefinition<
   typeof inputSchema.shape,
   WorkerInterviewToolResult
 > = {
   name: "cw_run_worker_interview",
+  description: workerInterviewDescription,
+  inputSchema,
+  execute: executeWorkerInterview
+};
+
+export const cwInterviewWorkerTool: CwToolDefinition<
+  typeof inputSchema.shape,
+  WorkerInterviewToolResult
+> = {
+  name: "cw_interview_worker",
   description:
-    "Run a fresh worker interview, generate a capability profile, and optionally persist it.",
+    "Alias for cw_run_worker_interview. Evaluate a worker model, generate a capability profile, and optionally persist it.",
   inputSchema,
   execute: executeWorkerInterview
 };

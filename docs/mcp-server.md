@@ -111,6 +111,7 @@ By default, the MCP server stores CW-managed state under:
 - `cw_list_worker_registry`
 - `cw_get_worker_registration`
 - `cw_run_worker_interview`
+- `cw_interview_worker`
 - `cw_benchmark_worker`
 - `cw_list_workers`
 - `cw_get_worker_profile`

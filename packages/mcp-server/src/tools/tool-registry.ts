@@ -10,7 +10,10 @@ import { cwReadTaskArtifactTool } from "./cw-read-task-artifact.tool.js";
 import { cwGetWorkerRegistrationTool } from "./cw-get-worker-registration.tool.js";
 import { cwGetWorkerProfileTool } from "./cw-get-worker-profile.tool.js";
 import { cwInspectPatchTool } from "./cw-inspect-patch.tool.js";
-import { cwRunWorkerInterviewTool } from "./cw-interview-worker.tool.js";
+import {
+  cwInterviewWorkerTool,
+  cwRunWorkerInterviewTool
+} from "./cw-interview-worker.tool.js";
 import { cwListAuditEventsTool } from "./cw-list-audit-events.tool.js";
 import { cwListModelsTool } from "./cw-list-models.tool.js";
 import { cwListTasksTool } from "./cw-list-tasks.tool.js";
@@ -152,6 +155,10 @@ export const cwToolRegistry: CwToolRegistryEntry[] = [
   },
   {
     tool: asRegisteredTool(cwRunWorkerInterviewTool),
+    category: "management"
+  },
+  {
+    tool: asRegisteredTool(cwInterviewWorkerTool),
     category: "management"
   },
   {
