@@ -192,6 +192,7 @@ describe("patch proposal workflow", () => {
         rawText: "",
         raw: undefined,
         attempts: 1,
+        structuredOutputMode: "native-json-schema",
         errors: ["schema validation failed"],
         failureKind: "schema-validation"
       });
@@ -263,6 +264,7 @@ describe("patch proposal workflow", () => {
         rawText: "",
         raw: undefined,
         attempts: 1,
+        structuredOutputMode: "native-json-schema",
         errors: []
       });
 
@@ -317,6 +319,7 @@ describe("patch proposal workflow", () => {
           rawText: JSON.stringify(request.mockResponse),
           raw: request.mockResponse,
           attempts: 1,
+          structuredOutputMode: "native-json-schema",
           errors: []
         });
       });
@@ -350,6 +353,7 @@ describe("patch proposal workflow", () => {
           rawText: JSON.stringify(request.mockResponse),
           raw: request.mockResponse,
           attempts: 1,
+          structuredOutputMode: "native-json-schema",
           errors: []
         });
       });
@@ -470,6 +474,7 @@ describe("patch proposal workflow", () => {
           rawText: "",
           raw: undefined,
           attempts: 1,
+          structuredOutputMode: "native-json-schema",
           errors: []
         });
       });
@@ -522,6 +527,7 @@ describe("patch proposal workflow", () => {
           rawText: JSON.stringify(request.mockResponse),
           raw: request.mockResponse,
           attempts: 1,
+          structuredOutputMode: "native-json-schema",
           errors: []
         });
       });

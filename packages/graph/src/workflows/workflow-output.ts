@@ -421,6 +421,10 @@ export const formatPatchProposalWorkflowOutput = (
       warningCount: output.inspection.warnings.length,
       stats: output.inspection.stats
     },
+    semanticValidation: {
+      resultStatus: output.semanticValidation.resultStatus,
+      issues: output.semanticValidation.issues
+    },
     risks: output.proposal.risks,
     validationPlan: output.proposal.validationPlan,
     warnings: output.warnings,

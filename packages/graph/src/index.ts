@@ -1,3 +1,7 @@
+export * from "./contracts/worker-task-contract.js";
+export * from "./contracts/patch-generation-contract.js";
+export * from "./host/codex-host-adapter.js";
+export * from "./validators/host-semantic-validator.js";
 export * from "./workers/codegen-worker.js";
 export * from "./workers/patch-generation-worker.js";
 export * from "./workers/review-worker.js";

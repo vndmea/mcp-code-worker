@@ -1,88 +1,22 @@
-import { z } from "zod";
-
-import type { ExecutionContext, WorkerCapability } from "@mcp-code-worker/core";
+import type { ExecutionContext } from "@mcp-code-worker/core";
 
 import {
-  buildRepositoryContextPromptLines,
-  getErrorLogFromTask,
-  getRepositoryContextFromTask,
-  WorkerAgent,
-  type WorkerExecutionInput
-} from "./worker-agent.js";
+  buildWorkerTaskContractResultOptions,
+  getWorkerTaskContract
+} from "../contracts/worker-task-contract.js";
+import { WorkerAgent, type WorkerExecutionInput } from "./worker-agent.js";
 
-const inputSchema = z.object({
-  errorLog: z.string().optional(),
-  goal: z.string(),
-  scope: z.string().optional()
-});
-
-const outputSchema = z.object({
-  patchPlan: z.array(z.string()),
-  notes: z.array(z.string())
-});
-
-const capability: WorkerCapability = {
-  name: "codegen-worker",
-  description: "Produces candidate implementation notes or patch plans.",
-  inputSchema,
-  outputSchema,
-  supportedTaskTypes: ["codegen", "validation-fix"],
-  preferredModel: "worker",
-  costTier: "medium"
-};
+const contract = getWorkerTaskContract("codegen");
 
 export class CodegenWorker extends WorkerAgent {
   public constructor(context: ExecutionContext) {
-    super(context, capability);
+    super(context, contract.capability);
   }
 
   public async execute(input: WorkerExecutionInput) {
-    const repositoryContext = getRepositoryContextFromTask(input.task);
-    const errorLog = getErrorLogFromTask(input.task);
-    const selectedPaths = repositoryContext?.selectedFiles
-      .map((file) => file.path) ?? [];
-    const fallbackOutput = {
-      patchPlan: [
-        ...(selectedPaths.length > 0
-          ? [`Start from ${selectedPaths[0]}.`]
-          : []),
-        "Add strict typed contracts before implementation.",
-        "Keep writes gated behind policy checks.",
-        "Return structured artifacts for review."
-      ],
-      notes: [
-        ...(selectedPaths.length > 0
-          ? [`Ground the plan in ${selectedPaths.join(", ")}.`]
-          : []),
-        input.scope ? `Limit implementation to ${input.scope}.` : "No scope provided.",
-        "Candidate patches still require host review."
-      ]
-    };
-
     return this.createResult({
-      debugLabel: "Structured patch-plan notes grounded in selected repository files",
-      agentId: "worker.codegen",
+      ...buildWorkerTaskContractResultOptions(contract, input),
       task: input.task,
-      prompt: [
-        "Return JSON with keys patchPlan and notes.",
-        "Patch plans must stay dry-run and must not apply changes.",
-        "Reference concrete repository file paths from the provided context.",
-        `Goal: ${input.task.goal}`,
-        input.scope ? `Scope: ${input.scope}` : "Scope: not provided",
-        errorLog ? `Error log:\n${errorLog}` : "Error log: not provided",
-        ...buildRepositoryContextPromptLines(input.task)
-      ].join("\n"),
-      outputSchema,
-      fallbackOutput,
-      risks: ["Generated code suggestions should not be accepted without deterministic validation."],
-      confidence: 0.72,
-      artifacts: [
-        {
-          name: "candidate-patch-plan.md",
-          type: "text/markdown",
-          content: "- Add contracts\n- Wire workflows\n- Validate before acceptance\n"
-        }
-      ],
       allowUnqualifiedExecution: input.allowUnqualifiedExecution,
       workerProfile: input.workerProfile
     });

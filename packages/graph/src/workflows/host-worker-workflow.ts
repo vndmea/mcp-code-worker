@@ -1,16 +1,14 @@
-import { randomUUID } from "node:crypto";
-
 import type {
   AgentResult,
-  AgentTask,
   ExecutionContext,
-  PlannedWorkerTask,
   RepositoryContextPack,
   WorkerCapabilityProfile,
+  WorkerResultStatus,
   WorkerTaskType
 } from "@mcp-code-worker/core";
 import {
   resolveExecutionContext,
+  ValidationReportSchema,
   writeAuditEvent
 } from "@mcp-code-worker/core";
 import {
@@ -18,6 +16,11 @@ import {
 } from "@mcp-code-worker/models";
 import { buildRepositoryContextPack } from "@mcp-code-worker/tools";
 
+import { CodexHostAdapter } from "../host/codex-host-adapter.js";
+import {
+  runHostSemanticValidation,
+  type HostSemanticFailureStage
+} from "../validators/host-semantic-validator.js";
 import { CodegenWorker } from "../workers/codegen-worker.js";
 import { ReviewWorker } from "../workers/review-worker.js";
 import { SummarizeWorker } from "../workers/summarize-worker.js";
@@ -43,16 +46,7 @@ export interface HostWorkerWorkflowInput {
 export type HostWorkerFailureStage =
   | "worker-blocked-by-policy"
   | "worker-not-run"
-  | "missing-requested-files"
-  | "coverage-gap"
-  | "missing-file-citations"
-  | "template-fallback"
-  | "generic-fallback"
-  | "review-answer-missing"
-  | "review-findings-insufficient"
-  | "review-findings-missing-file-citations"
-  | "review-file-reference-missing"
-  | "review-file-reference-out-of-scope"
+  | HostSemanticFailureStage
   | "worker-provider-failure"
   | "worker-json-parse-failure"
   | "worker-schema-validation-failure"
@@ -87,6 +81,7 @@ export interface HostWorkerWorkflowQualityGate {
   mentionedFiles: string[];
   missingRequestedFiles: string[];
   requiresHostReview: boolean;
+  resultStatus: WorkerResultStatus;
   skippedFiles: string[];
   reasons: string[];
   structuredFailureKind:
@@ -109,6 +104,7 @@ export interface HostWorkerWorkflowOutput {
       execution: HostWorkerExecutionInfo;
       failureStages: HostWorkerFailureStage[];
       reasons: string[];
+      resultStatus: WorkerResultStatus;
       structuredFailureKind:
         | "provider-invocation"
         | "json-parse"
@@ -151,74 +147,6 @@ export interface HostWorkerWorkflowOutput {
   workerResult: AgentResult | null;
 }
 
-const createPlannedTask = (
-  input: HostWorkerWorkflowInput,
-  repositoryContext: RepositoryContextPack
-): PlannedWorkerTask => ({
-  id: `host-${input.taskType}`,
-  taskType: input.taskType,
-  goal: input.goal,
-  scope: repositoryContext.scope,
-  riskLevel: input.taskType === "codegen" ? "medium" : "low",
-  expectedArtifactType:
-    input.taskType === "codegen" || input.taskType === "validation-fix"
-      ? "patch-plan"
-      : input.taskType === "test-generation"
-        ? "test-plan"
-        : input.taskType === "review-lite" ||
-            input.taskType === "risk-analysis" ||
-            input.taskType === "code-understanding"
-          ? "review"
-          : "summary"
-});
-
-const buildTask = (
-  input: HostWorkerWorkflowInput,
-  repositoryContext: RepositoryContextPack
-): AgentTask => ({
-  id: randomUUID(),
-  goal: input.goal,
-  input: {
-    ...(input.additionalTaskInput ?? {}),
-    files: input.files ?? [],
-    repositoryContext,
-    scope: repositoryContext.scope,
-    taskType: input.taskType
-  },
-  constraints: [
-    "Answer the user request directly.",
-    "Use only the provided repository context.",
-    "Reference concrete repository paths from the selected files."
-  ],
-  expectedOutput: "Direct worker answer grounded in the selected repository files.",
-  assignedRole: "worker",
-  priority:
-    input.taskType === "codegen" || input.taskType === "validation-fix"
-      ? "high"
-      : "medium",
-  metadata: {
-    workflow: "host-worker-workflow"
-  }
-});
-
-const detectTemplateFallback = (text: string): boolean =>
-  /summarize-context|draft-implementation|plan-tests|scope not provided/iu.test(
-    text
-  );
-
-const detectGenericFallback = (text: string): boolean =>
-  /review the files|inspect the code|depends on context|needs more context|check the implementation|candidate patch/iu.test(
-    text
-  );
-
-const asOutputRecord = (value: unknown): Record<string, unknown> | null =>
-  value && typeof value === "object" ? (value as Record<string, unknown>) : null;
-
-const asStringArray = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
-
 const asFailureKind = (
   value: unknown
 ):
@@ -235,21 +163,41 @@ const asFailureKind = (
 const asNumber = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
 
+const getValidationReportFromInput = (input: HostWorkerWorkflowInput) => {
+  const parsed = ValidationReportSchema.safeParse(
+    input.additionalTaskInput?.validationReport
+  );
+
+  return parsed.success ? parsed.data : undefined;
+};
+
+const resolveWorkerResultStatus = (input: {
+  execution: HostWorkerExecutionInfo;
+  semanticStatus: WorkerResultStatus;
+  structuredOutputOk: boolean;
+  workerResult: AgentResult | null;
+}): WorkerResultStatus => {
+  if (input.execution.state === "blocked_by_policy") {
+    return "blocked";
+  }
+
+  if (input.execution.state !== "executed") {
+    return "host_takeover";
+  }
+
+  if (!input.structuredOutputOk || input.workerResult?.status === "failure") {
+    return "invalid_output";
+  }
+
+  return input.semanticStatus;
+};
+
 const buildQualityGate = (
   input: HostWorkerWorkflowInput,
   repositoryContext: RepositoryContextPack,
   execution: HostWorkerExecutionInfo,
   workerResult: AgentResult | null
 ): HostWorkerWorkflowQualityGate => {
-  const selectedPaths = repositoryContext.selectedFiles.map((file) => file.path);
-  const requestedPaths = input.files ?? [];
-  const skippedFiles = repositoryContext.skippedFiles ?? [];
-  const outputText = workerResult ? JSON.stringify(workerResult.output) : "";
-  const outputRecord = asOutputRecord(workerResult?.output);
-  const mentionedFiles = selectedPaths.filter((path) => outputText.includes(path));
-  const missingRequestedFiles = requestedPaths.filter(
-    (path) => !selectedPaths.includes(path)
-  );
   const structuredOutputOk =
     workerResult?.metadata.structuredOutputOk === true;
   const structuredFailureKind = asFailureKind(workerResult?.metadata.failureKind);
@@ -263,15 +211,20 @@ const buildQualityGate = (
       : structuredOutputOk
         ? "valid"
         : "invalid";
-  const templateFallbackDetected = detectTemplateFallback(outputText);
-  const genericFallbackDetected =
-    (
-      input.taskType === "review-lite" ||
-      input.taskType === "risk-analysis" ||
-      input.taskType === "code-understanding"
-    ) && detectGenericFallback(outputText);
-  const coverageGapDetected =
-    repositoryContext.coverageGapDetected === true || skippedFiles.length > 0;
+  const semanticValidation = runHostSemanticValidation({
+    executionState: execution.state,
+    repositoryContext,
+    requestedFiles: input.files ?? [],
+    taskType: input.taskType,
+    validationReport: getValidationReportFromInput(input),
+    workerResult
+  });
+  const resultStatus = resolveWorkerResultStatus({
+    execution,
+    semanticStatus: semanticValidation.resultStatus,
+    structuredOutputOk,
+    workerResult
+  });
   const reasons: string[] = [];
   const failureStages = new Set<HostWorkerFailureStage>();
 
@@ -296,86 +249,9 @@ const buildQualityGate = (
     }
   }
 
-  if (missingRequestedFiles.length > 0) {
-    reasons.push(
-      `Requested files were not all included in repository context: ${missingRequestedFiles.join(", ")}.`
-    );
-    failureStages.add("missing-requested-files");
-  }
-
-  if (coverageGapDetected) {
-    reasons.push(
-      `Repository context skipped candidate files and may be incomplete: ${skippedFiles.join(", ") || "unknown skipped files"}.`
-    );
-    failureStages.add("coverage-gap");
-  }
-
-  if (
-    execution.state === "executed" &&
-    selectedPaths.length > 0 &&
-    mentionedFiles.length === 0
-  ) {
-    reasons.push("Worker answer did not reference any selected repository file.");
-    failureStages.add("missing-file-citations");
-  }
-
-  if (execution.state === "executed" && templateFallbackDetected) {
-    reasons.push("Worker answer matched a known template fallback pattern.");
-    failureStages.add("template-fallback");
-  }
-
-  if (execution.state === "executed" && genericFallbackDetected) {
-    reasons.push("Worker answer fell back to generic wording instead of a concrete repository answer.");
-    failureStages.add("generic-fallback");
-  }
-
-  if (
-    execution.state === "executed" &&
-    (
-      input.taskType === "review-lite" ||
-      input.taskType === "risk-analysis" ||
-      input.taskType === "code-understanding"
-    )
-  ) {
-    const answer =
-      outputRecord && typeof outputRecord.answer === "string"
-        ? outputRecord.answer
-        : "";
-    const findings = asStringArray(outputRecord?.findings);
-    const referencedFiles = asStringArray(outputRecord?.referencedFiles);
-    const findingsMissingFileCitations =
-      selectedPaths.length > 0 &&
-      findings.some(
-        (finding) => !selectedPaths.some((path) => finding.includes(path))
-      );
-    const outOfScopeReferences = referencedFiles.filter(
-      (file) => !selectedPaths.includes(file)
-    );
-
-    if (!answer) {
-      reasons.push("Review worker did not provide a direct answer field.");
-      failureStages.add("review-answer-missing");
-    }
-
-    if (
-      selectedPaths.length > 0 &&
-      !referencedFiles.some((file) => selectedPaths.includes(file))
-    ) {
-      reasons.push("Review worker did not reference the selected files explicitly.");
-      failureStages.add("review-file-reference-missing");
-    }
-
-    if (findingsMissingFileCitations) {
-      reasons.push("Review worker findings did not cite selected repository files in every finding.");
-      failureStages.add("review-findings-missing-file-citations");
-    }
-
-    if (selectedPaths.length > 0 && outOfScopeReferences.length > 0) {
-      reasons.push(
-        `Review worker referenced files outside the selected repository context: ${outOfScopeReferences.join(", ")}.`
-      );
-      failureStages.add("review-file-reference-out-of-scope");
-    }
+  for (const issue of semanticValidation.issues) {
+    reasons.push(issue.reason);
+    failureStages.add(issue.stage);
   }
 
   if (
@@ -396,20 +272,21 @@ const buildQualityGate = (
   return {
     answered,
     answerStatus: answered ? "complete" : "incomplete",
-    coverageGapDetected,
+    coverageGapDetected: semanticValidation.coverageGapDetected,
     execution,
     failureStages: Array.from(failureStages),
-    genericFallbackDetected,
-    mentionedFiles,
-    missingRequestedFiles,
+    genericFallbackDetected: semanticValidation.genericFallbackDetected,
+    mentionedFiles: semanticValidation.mentionedFiles,
+    missingRequestedFiles: semanticValidation.missingRequestedFiles,
     requiresHostReview,
-    skippedFiles,
+    resultStatus,
+    skippedFiles: semanticValidation.skippedFiles,
     reasons,
     structuredFailureKind,
     structuredOutputAttempts,
     structuredOutputOk,
     structuredOutputStatus,
-    templateFallbackDetected,
+    templateFallbackDetected: semanticValidation.templateFallbackDetected,
     workflowStatus: execution.state === "executed" ? "completed" : "needs_review"
   };
 };
@@ -469,7 +346,15 @@ export const runHostWorkerWorkflow = async (
       files: input.files,
       strictFiles: input.strictFiles
     });
-  const task = buildTask(input, repositoryContext);
+  const hostAdapter = new CodexHostAdapter();
+  const hostTask = hostAdapter.buildWorkerTask({
+    additionalTaskInput: input.additionalTaskInput,
+    context: workerContext,
+    goal: input.goal,
+    repositoryContext,
+    taskType: input.taskType
+  });
+  const task = hostTask.task;
   const hostPrompt = input.goal;
 
   await writeAuditEvent(context, {
@@ -495,7 +380,7 @@ export const runHostWorkerWorkflow = async (
     resolvedWorkerId
   );
   const eligibility = assessWorkerTaskEligibility(profile, input.taskType);
-  const plannedTask = createPlannedTask(input, repositoryContext);
+  const plannedTask = hostTask.plannedTask;
   const forceExecution = input.forceExecution === true;
   const overrideApplied = forceExecution && !eligibility.allowed;
   const execution: HostWorkerExecutionInfo = {
@@ -616,6 +501,7 @@ export const runHostWorkerWorkflow = async (
         execution: qualityGate.execution,
         failureStages: qualityGate.failureStages,
         reasons: qualityGate.reasons,
+        resultStatus: qualityGate.resultStatus,
         structuredFailureKind: qualityGate.structuredFailureKind,
         structuredOutputAttempts: qualityGate.structuredOutputAttempts,
         structuredOutputOk: qualityGate.structuredOutputOk,
@@ -624,7 +510,7 @@ export const runHostWorkerWorkflow = async (
       },
       promptTransparency: {
         hostPrompt,
-        promptTransformation: "augmented",
+        promptTransformation: hostTask.promptTransformation,
         workerPrompt:
           typeof workerResult?.metadata.prompt === "string"
             ? workerResult.metadata.prompt

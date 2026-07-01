@@ -1,83 +1,22 @@
-import { z } from "zod";
-
-import type { ExecutionContext, WorkerCapability } from "@mcp-code-worker/core";
+import type { ExecutionContext } from "@mcp-code-worker/core";
 
 import {
-  buildRepositoryContextPromptLines,
-  getErrorLogFromTask,
-  getRepositoryContextFromTask,
-  WorkerAgent,
-  type WorkerExecutionInput
-} from "./worker-agent.js";
+  buildWorkerTaskContractResultOptions,
+  getWorkerTaskContract
+} from "../contracts/worker-task-contract.js";
+import { WorkerAgent, type WorkerExecutionInput } from "./worker-agent.js";
 
-const inputSchema = z.object({
-  errorLog: z.string().optional(),
-  goal: z.string(),
-  scope: z.string().optional()
-});
-
-const outputSchema = z.object({
-  brief: z.string(),
-  focusAreas: z.array(z.string())
-});
-
-const capability: WorkerCapability = {
-  name: "summarize-worker",
-  description: "Summarizes goals and scoped context into a compact execution brief.",
-  inputSchema,
-  outputSchema,
-  supportedTaskTypes: [
-    "summarization",
-    "log-analysis",
-    "json-extraction",
-    "doc-generation"
-  ],
-  preferredModel: "worker",
-  costTier: "low"
-};
+const contract = getWorkerTaskContract("summarization");
 
 export class SummarizeWorker extends WorkerAgent {
   public constructor(context: ExecutionContext) {
-    super(context, capability);
+    super(context, contract.capability);
   }
 
   public async execute(input: WorkerExecutionInput) {
-    const repositoryContext = getRepositoryContextFromTask(input.task);
-    const errorLog = getErrorLogFromTask(input.task);
-    const selectedPaths = repositoryContext?.selectedFiles
-      .map((file) => file.path) ?? [];
-    const fallbackOutput = {
-      brief:
-        selectedPaths.length > 0
-          ? `Summarized ${input.task.goal} using ${selectedPaths.join(", ")}.`
-          : `Summarized goal: ${input.task.goal}`,
-      focusAreas: [
-        ...(selectedPaths.length > 0
-          ? [`Stay grounded in ${selectedPaths.join(", ")}.`]
-          : []),
-        input.scope ? `Scope work to ${input.scope}` : "Scope not provided; keep changes minimal.",
-        "Preserve package boundaries.",
-        "Prefer deterministic validation."
-      ]
-    };
-
     return this.createResult({
-      debugLabel: "Compact repository-grounded summary",
-      agentId: "worker.summarize",
+      ...buildWorkerTaskContractResultOptions(contract, input),
       task: input.task,
-      prompt: [
-        "Return JSON with keys brief and focusAreas.",
-        "Reference concrete repository file paths from the provided context.",
-        `Goal: ${input.task.goal}`,
-        input.scope ? `Scope: ${input.scope}` : "Scope: not provided",
-        errorLog ? `Error log:\n${errorLog}` : "Error log: not provided",
-        ...buildRepositoryContextPromptLines(input.task)
-      ].join("\n"),
-      outputSchema,
-      fallbackOutput,
-      risks: [],
-      confidence: 0.86,
-      artifacts: [],
       allowUnqualifiedExecution: input.allowUnqualifiedExecution,
       workerProfile: input.workerProfile
     });

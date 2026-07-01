@@ -19,9 +19,13 @@ import {
 } from "@mcp-code-worker/tools";
 
 import {
-  buildFallbackPatchProposal,
   PatchGenerationWorker
 } from "../workers/patch-generation-worker.js";
+import { buildFallbackPatchProposal } from "../contracts/patch-generation-contract.js";
+import {
+  runHostSemanticValidation,
+  type HostSemanticValidationResult
+} from "../validators/host-semantic-validator.js";
 import { resolveWorkflowWorkerContext } from "./worker-context-resolution.js";
 
 export interface PatchProposalWorkflowInput {
@@ -40,6 +44,7 @@ export interface PatchProposalWorkflowInput {
 export interface PatchProposalWorkflowOutput {
   inspection: PatchInspection;
   proposal: PatchProposal;
+  semanticValidation: HostSemanticValidationResult;
   warnings: string[];
 }
 
@@ -47,6 +52,24 @@ export const PATCH_PLACEHOLDER_REASON =
   "Patch proposal is a fallback placeholder and must not be applied.";
 
 const CORRUPT_PATCH_REASON_FRAGMENT = "corrupt patch";
+
+const createPatchSemanticValidation = (input: {
+  executionState: "blocked_by_policy" | "not_executed" | "executed";
+  inspection: PatchInspection;
+  proposal: PatchProposal;
+  repositoryContext: RepositoryContextPack;
+  validationReport?: ValidationReport;
+}): HostSemanticValidationResult =>
+  runHostSemanticValidation({
+    executionState: input.executionState,
+    patchInspection: input.inspection,
+    patchProposal: input.proposal,
+    repositoryContext: input.repositoryContext,
+    requestedFiles: input.repositoryContext.requestedFiles,
+    taskType: "patch-generation",
+    validationReport: input.validationReport,
+    workerResult: null
+  });
 
 export const isPlaceholderPatchProposal = (input: {
   inspection?: Pick<PatchInspection, "blockedReasons">;
@@ -67,8 +90,10 @@ export const isPlaceholderPatchProposal = (input: {
 const buildDeniedPatchProposalOutput = async (input: {
   context: ExecutionContext;
   fallbackProposal: PatchProposal;
+  repositoryContext: RepositoryContextPack;
   reason: string;
   scope?: string;
+  validationReport?: ValidationReport;
 }): Promise<PatchProposalWorkflowOutput> => {
   const inspection = PatchInspectionSchema.parse({
     ...(await inspectPatch(input.context, input.fallbackProposal, {
@@ -84,6 +109,13 @@ const buildDeniedPatchProposalOutput = async (input: {
   return {
     proposal: input.fallbackProposal,
     inspection,
+    semanticValidation: createPatchSemanticValidation({
+      executionState: "blocked_by_policy",
+      inspection,
+      proposal: input.fallbackProposal,
+      repositoryContext: input.repositoryContext,
+      validationReport: input.validationReport
+    }),
     warnings: [input.reason]
   };
 };
@@ -141,9 +173,11 @@ export const runPatchProposalWorkflow = async (
       return buildDeniedPatchProposalOutput({
         context,
         fallbackProposal,
+        repositoryContext,
         reason:
           `${patchGenerationConsistencyIssue} Re-run 'cw worker benchmark --worker ${workerProfile.workerId} --suite coding-v1 --save --update-profile-capabilities'.`,
-        scope: effectiveScope
+        scope: effectiveScope,
+        validationReport: input.validationReport
       });
     }
 
@@ -151,8 +185,10 @@ export const runPatchProposalWorkflow = async (
       return buildDeniedPatchProposalOutput({
         context,
         fallbackProposal,
+        repositoryContext,
         reason: patchEligibility.reason,
-        scope: effectiveScope
+        scope: effectiveScope,
+        validationReport: input.validationReport
       });
     }
   }
@@ -191,8 +227,10 @@ export const runPatchProposalWorkflow = async (
     const denied = await buildDeniedPatchProposalOutput({
       context,
       fallbackProposal,
+      repositoryContext,
       reason: "Structured patch output produced a corrupt unified diff.",
-      scope: effectiveScope
+      scope: effectiveScope,
+      validationReport: input.validationReport
     });
 
     proposal = denied.proposal;
@@ -204,6 +242,27 @@ export const runPatchProposalWorkflow = async (
       ]
     });
     warnings.push("Structured patch output produced a corrupt unified diff.");
+  }
+
+  const semanticValidation = createPatchSemanticValidation({
+    executionState: generation.structuredOutputOk ? "executed" : "not_executed",
+    inspection,
+    proposal,
+    repositoryContext,
+    validationReport: input.validationReport
+  });
+
+  if (semanticValidation.issues.length > 0) {
+    const semanticReasons = semanticValidation.issues.map((issue) => issue.reason);
+    inspection = PatchInspectionSchema.parse({
+      ...inspection,
+      ok: false,
+      blockedReasons: [
+        ...inspection.blockedReasons,
+        ...semanticReasons
+      ]
+    });
+    warnings.push(...semanticReasons);
   }
 
   await writeAuditEvent(context, {
@@ -219,6 +278,7 @@ export const runPatchProposalWorkflow = async (
     errors: inspection.blockedReasons,
     metadata: {
       patchId: proposal.id,
+      semanticResultStatus: semanticValidation.resultStatus,
       scope: effectiveScope,
       workerId
     }
@@ -227,6 +287,7 @@ export const runPatchProposalWorkflow = async (
   return {
     proposal,
     inspection,
+    semanticValidation,
     warnings
   };
 };

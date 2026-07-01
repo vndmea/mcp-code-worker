@@ -97,6 +97,23 @@ describe("formatTaskSessionWorkflowOutput", () => {
           deletions: 0
         }
       },
+      semanticValidation: {
+        coverageGapDetected: false,
+        genericFallbackDetected: false,
+        issues: [
+          {
+            reason:
+              "Patch proposal is a non-actionable placeholder and requires host takeover or more context.",
+            stage: "patch-placeholder",
+            status: "blocked"
+          }
+        ],
+        mentionedFiles: [],
+        missingRequestedFiles: [],
+        resultStatus: "blocked",
+        skippedFiles: [],
+        templateFallbackDetected: false
+      },
       warnings: [
         "Worker mock:worker is not allowed to generate patch proposals."
       ]
