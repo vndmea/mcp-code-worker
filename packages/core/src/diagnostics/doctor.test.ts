@@ -1,5 +1,5 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -9,6 +9,7 @@ import {
   createExecutionContextFromEnv,
   createTaskSession,
   getCwConfigPath,
+  getCwHomeDir,
   getCwWorkspaceDir,
   runDoctor
 } from "@mcp-code-worker/core";
@@ -191,7 +192,7 @@ describe("doctor", () => {
       const runtimeBootstrapMetadata = findCheck(report, "runtime-bootstrap")?.metadata;
 
       expect(rootMetadata?.["rootSource"]).toBe("cwd");
-      expect(runtimeBootstrapMetadata?.["cwHomeDir"]).toBe(join(homedir(), ".code-worker"));
+      expect(runtimeBootstrapMetadata?.["cwHomeDir"]).toBe(getCwHomeDir());
       expect(typeof runtimeBootstrapMetadata?.["workspaceId"]).toBe("string");
     } finally {
       process.chdir(originalCwd);
