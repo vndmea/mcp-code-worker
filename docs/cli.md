@@ -128,6 +128,7 @@ cw task resume <taskId> --apply-patch --allow-write --confirm-apply
 - Run `cw worker readiness --worker=<workerId> --probe` when you want the readiness answer to include a live connectivity check instead of only persisted evidence.
 - Benchmark results alone do not bypass patch inspection, dry-run apply, `allowWrite`, or `confirmApply`.
 - If interview output contains provider invocation failures, `--save` is skipped on purpose and the command returns re-interview guidance instead of persisting a misleading non-qualification result.
+- Benchmark retention keeps only the latest persisted row per `workerId` and `suiteName`.
 
 Benchmark artifacts are persisted in SQLite under:
 
@@ -135,7 +136,7 @@ Benchmark artifacts are persisted in SQLite under:
 ~/.code-worker/<workspace-id>/data.db#worker_benchmarks
 ```
 
-Use `cw worker benchmark`, `cw worker profile`, or the returned persistence refs to inspect benchmark results.
+Use `cw worker benchmark`, `cw worker profile`, or the returned persistence refs to inspect the latest persisted benchmark result for that worker and suite.
 
 ## DeepSeek / OpenAI-Compatible Notes
 

@@ -19,6 +19,7 @@ This means a CLI override wins over persisted user-scoped CW config, and persist
 - `MCP_SERVER_NAME`
 - `MCP_SERVER_VERSION`
 - `LOG_LEVEL`
+- `CW_STORAGE_DIR`
 
 ## Persisted User-scoped Config
 
@@ -36,7 +37,13 @@ The persisted config is intended for workspace-local runtime defaults such as:
 - validation script preferences
 - default ignored paths
 - SQLite retention settings under `storage.runs` and `storage.audit`
+  By default CW keeps the latest `1` run per retention group and the latest
+  `3` audit events per event type.
 - worker and MCP-adjacent runtime defaults that should stay consistent across CLI and MCP entrypoints
+
+`CW_STORAGE_DIR` overrides the default `~/.code-worker` base directory for
+user-scoped CW state. The workspace-specific `config.json` and `data.db` still
+resolve under `<workspace-id>` inside that override directory.
 
 Provider families currently split into two broad groups:
 

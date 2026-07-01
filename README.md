@@ -119,8 +119,8 @@ Legacy repository-local `.cw/` directories are unsupported and ignored by curren
 - `data.db`
 
 `config.json` keeps editable worker definitions and runtime defaults. `data.db`
-is the SQLite store for worker secrets, worker profiles, benchmark history,
-task sessions, task artifacts, and audit events.
+is the SQLite store for worker secrets, worker profiles, latest benchmark
+records per worker and suite, task sessions, task artifacts, and audit events.
 
 ## CLI usage
 

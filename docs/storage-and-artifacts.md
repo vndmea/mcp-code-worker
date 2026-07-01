@@ -8,7 +8,9 @@ The default base path is:
 ~/.code-worker/<workspace-id>/
 ```
 
-The default `~/.code-worker` root is always used for user-scoped CW state. `--root` on supported CLI commands changes which repository path maps to `<workspace-id>`.
+By default CW uses `~/.code-worker` for user-scoped state. Set
+`CW_STORAGE_DIR` to override that base directory. `--root` on supported CLI
+commands changes which repository path maps to `<workspace-id>`.
 
 ## Common Files And Directories
 
@@ -19,7 +21,8 @@ Typical CW-managed workspace files include:
 
 `config.json` remains human-editable and stores worker definitions plus runtime
 defaults. `data.db` is the SQLite store for worker secrets, worker profiles,
-benchmark records, task sessions, task artifacts, and audit events.
+latest benchmark records per worker and suite, task sessions, task artifacts,
+and audit events.
 
 ## Task Session Artifacts
 
@@ -31,11 +34,18 @@ Task sessions are stored in SQLite under:
 
 Common artifacts include:
 
+- `repository-context.summary.json`
+- `review-result.summary.json`
 - `report.md`
 - `validation-report.json`
 - `patch-proposal.json`
 - `patch-inspection.json`
 - `patch-apply-result.json`
+
+`repository-context.summary.json` and `review-result.summary.json` are
+lightweight summary artifacts. They keep file paths, counts, selection reasons,
+validation summaries, and review findings without storing repository file
+contents.
 
 These logical artifacts are review artifacts, not repository source files. Use
 `cw task report`, `cw read-task-artifact`, or the returned artifact refs to read
@@ -49,7 +59,8 @@ Worker qualification state is stored in user-scoped CW storage:
 - profiles: `data.db#worker_profiles`
 - benchmarks: `data.db#worker_benchmarks`
 
-`<sanitized-worker-id>` is a filesystem-safe form of the worker id.
+Benchmark retention keeps only the latest persisted row per
+`(worker_id, suite_name)`.
 
 ## Audit Artifacts
 
@@ -65,6 +76,11 @@ Dry-run does not create persisted audit rows by default for ordinary evaluation 
 
 - `cw cleanup runs` prunes persisted task-session rows from SQLite
 - `cw cleanup audit` prunes persisted audit rows from SQLite
+
+Default retention is:
+
+- runs: latest `1` task session per retention group
+- audit: latest `3` events per event type
 
 Neither cleanup command modifies repository source files.
 

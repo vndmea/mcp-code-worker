@@ -102,11 +102,11 @@ By default, onboarding-related state is stored under:
 Typical files include:
 
 - `config.json`
-- `config.json`
 - `data.db#worker_profiles`
 - `data.db#worker_benchmarks`
 
-`<sanitized-worker-id>` is the filesystem-safe form of the worker id.
+Persisted benchmark retention keeps only the latest row per
+`(worker_id, suite_name)`.
 
 ## `--require-profile`
 

@@ -99,6 +99,7 @@ The following commands completed successfully on the commit above:
 - Task id: `task-2026-06-26T15-10-13-113Z-2881390f`
 - Session persisted: `yes`
 - Artifact registry complete: `yes`
+- Historical note: this trial predates the SQLite summary-artifact migration. Current builds persist `repository-context.summary.json` and `review-result.summary.json` in SQLite-backed task artifacts instead of the older full JSON files listed below.
 - Session path: `%USERPROFILE%\.code-worker-rc-20260626\workspaces\mcp-code-worker-645b92a8a0\runs\task-2026-06-26T15-10-13-113Z-2881390f\session.json`
 - Report path: `%USERPROFILE%\.code-worker-rc-20260626\workspaces\mcp-code-worker-645b92a8a0\runs\task-2026-06-26T15-10-13-113Z-2881390f\report.md`
 - Validation artifact path: `%USERPROFILE%\.code-worker-rc-20260626\workspaces\mcp-code-worker-645b92a8a0\runs\task-2026-06-26T15-10-13-113Z-2881390f\validation-report.json`
@@ -140,4 +141,3 @@ The following commands completed successfully on the commit above:
 - Rollback or cleanup actions taken: none
 - Follow-up owner: local operator
 - Follow-up due date: before shared team trial, remove insecure TLS override from the shell environment
-

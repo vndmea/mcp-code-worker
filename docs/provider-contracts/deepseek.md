@@ -155,4 +155,6 @@ Expected persistence surfaces:
 - `data.db#worker_profiles`
 - `data.db#worker_benchmarks`
 
-The workspace SQLite store also holds task-session and audit artifacts when those flows are exercised.
+The workspace SQLite store also holds task-session and audit artifacts when
+those flows are exercised. Benchmark retention keeps only the latest saved row
+per `(worker_id, suite_name)`.

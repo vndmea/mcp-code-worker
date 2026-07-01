@@ -118,8 +118,8 @@ cw mcp config
 - `data.db`
 
 其中 `config.json` 保存可编辑的 worker 定义和运行时默认值，`data.db`
-则作为 SQLite 存储，承载 worker secret、worker profile、benchmark 历史、
-task session、task artifact 和 audit event。
+则作为 SQLite 存储，承载 worker secret、worker profile、每个 worker / suite
+最新一条 benchmark 结果、task session、task artifact 和 audit event。
 
 ## CLI 用法
 
