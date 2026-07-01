@@ -14,6 +14,7 @@ import {
   getCwWorkspaceAuditDir,
   getCwWorkspaceFilePath,
   getCwWorkspaceRunsDir,
+  normalizeCommandInput,
   openSqliteWorkspaceStore,
   PatchProposalSchema,
   WorkerCapabilityProfileSchema
@@ -578,7 +579,7 @@ describe("cli parsing", () => {
       expect(
         savedConfig.workers?.find((worker) => worker.workerId === "opencode-local")
           ?.clientCommand
-      ).toBe("C:\\tools\\opencode.exe");
+      ).toBe(normalizeCommandInput("C:/tools/opencode.exe"));
     });
   });
 

@@ -77,4 +77,29 @@ describe("resolveCommandOnPath", () => {
     expect(resolved).toBe("C:\\tools\\claude");
     expect(getAccessCandidates()).toEqual(["C:\\tools\\claude"]);
   });
+
+  it("uses POSIX PATH splitting for bare commands on macOS-like platforms", async () => {
+    vi.resetModules();
+    vi.stubGlobal("process", {
+      ...process,
+      platform: "darwin"
+    });
+
+    accessMock.mockImplementation((candidate: string) =>
+      candidate === "/opt/homebrew/bin/opencode"
+        ? Promise.resolve(undefined)
+        : Promise.reject(new Error(`missing: ${candidate}`))
+    );
+
+    const { resolveCommandOnPath } = await import("./local-client-command.js");
+    const resolved = await resolveCommandOnPath("opencode", {
+      PATH: "/usr/local/bin:/opt/homebrew/bin"
+    });
+
+    expect(resolved).toBe("/opt/homebrew/bin/opencode");
+    expect(getAccessCandidates()).toEqual([
+      "/usr/local/bin/opencode",
+      "/opt/homebrew/bin/opencode"
+    ]);
+  });
 });

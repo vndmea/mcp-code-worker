@@ -1,7 +1,7 @@
 import { access } from "node:fs/promises";
 import { constants } from "node:fs";
 import { spawn } from "node:child_process";
-import { delimiter, extname, join } from "node:path";
+import { extname, posix, win32 } from "node:path";
 
 import {
   looksLikeFileSystemPath,
@@ -65,6 +65,8 @@ const buildCommandCandidates = (
   env: NodeJS.ProcessEnv
 ): string[] => {
   const isWindows = process.platform === "win32";
+  const pathDelimiter = isWindows ? ";" : ":";
+  const joinPath = isWindows ? win32.join : posix.join;
   const isPathLike =
     hasPathSeparator(command) || hasWindowsDrivePrefix(command);
   const pathExt = isWindows
@@ -84,10 +86,10 @@ const buildCommandCandidates = (
     isPathLike
       ? [command]
       : (env.PATH ?? "")
-          .split(delimiter)
+          .split(pathDelimiter)
           .map((entry) => entry.trim())
           .filter((entry) => entry.length > 0)
-          .map((entry) => join(entry, command));
+          .map((entry) => joinPath(entry, command));
 
   const candidates: string[] = [];
 

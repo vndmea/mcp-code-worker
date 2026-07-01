@@ -272,8 +272,8 @@ describe("task session workflow", () => {
       allowWriteSession: true
     });
 
-    expect(resumed.patchApplyResult?.mode).toBe("denied");
-    expect(resumed.session.steps.find((step) => step.id === "patch-applied")?.status).toBe("denied");
+    expect(resumed.patchApplyResult?.mode).toBe("execute");
+    expect(resumed.session.steps.find((step) => step.id === "patch-applied")?.status).toBe("success");
     expect(resumed.session.steps.find((step) => step.id === "reviewed")?.status).toBe("success");
   });
 

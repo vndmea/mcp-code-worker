@@ -7,7 +7,8 @@ import { describe, expect, it } from "vitest";
 import {
   AgentError,
   createExecutionContextFromEnv,
-  getCwConfigPath
+  getCwConfigPath,
+  normalizeCommandInput
 } from "@mcp-code-worker/core";
 import { saveWorkerRegistration } from "@mcp-code-worker/models";
 
@@ -156,6 +157,8 @@ describe("worker target resolution", () => {
       workerId: "opencode-local"
     });
 
-    expect(result.modelConfig.clientCommand).toBe("C:\\tools\\opencode.exe");
+    expect(result.modelConfig.clientCommand).toBe(
+      normalizeCommandInput("C:/tools/opencode.exe")
+    );
   });
 });

@@ -11,6 +11,7 @@ const execFile = promisify(execFileCallback);
 const repoRoot = process.cwd();
 const cliPackageDir = join(repoRoot, "packages", "cli");
 const publishDir = join(cliPackageDir, ".publish");
+const builtCliEntry = join(cliPackageDir, "dist", "main.js");
 const cwStorageRoot = (homeDir: string): string => join(homeDir, ".code-worker");
 const installedCwPath = (prefixDir: string): string =>
   join(prefixDir, "node_modules", ".bin", process.platform === "win32" ? "cw.cmd" : "cw");
@@ -70,6 +71,15 @@ const removeTrackedPath = async (path: string): Promise<void> => {
   });
 };
 
+const preparePackedCli = async (): Promise<void> => {
+  try {
+    await access(builtCliEntry);
+    await runCommand("pnpm", ["run", "prepare:publish"], cliPackageDir);
+  } catch {
+    await runCommand("pnpm", ["run", "prepack"], cliPackageDir);
+  }
+};
+
 describe("cli packed tarball smoke", () => {
   afterEach(async () => {
     for (const path of tempPaths.splice(0, tempPaths.length)) {
@@ -83,7 +93,7 @@ describe("cli packed tarball smoke", () => {
     const workspaceRoot = await trackTempDir("cw-pack-workspace-");
     const cwHomeDir = cwStorageRoot(homeDir);
 
-    await runCommand("pnpm", ["run", "prepack"], cliPackageDir);
+    await preparePackedCli();
 
     const pack = await runCommand("npm", ["pack", "--json"], publishDir);
     const packEntries = parsePackEntries(pack.stdout);

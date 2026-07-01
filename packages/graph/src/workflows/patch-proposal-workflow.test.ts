@@ -570,7 +570,6 @@ describe("patch proposal workflow", () => {
       skippedFiles: [],
       coverageGapDetected: false,
       strictFiles: false,
-      packageMetadata: [],
       warnings: [],
       generatedAt: new Date().toISOString()
     };

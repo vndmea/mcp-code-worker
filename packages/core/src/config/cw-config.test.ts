@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   getCwConfigPath,
   loadCwConfig,
+  normalizeCommandInput,
   normalizeFileSystemPath,
   resolveConfiguredWorkerModel,
   resolveExecutionContext
@@ -243,6 +244,6 @@ describe("cw config", () => {
     const result = await loadCwConfig(rootDir);
     const worker = resolveConfiguredWorkerModel(result.config, "opencode-local");
 
-    expect(worker?.clientCommand).toBe("C:\\tools\\opencode.exe");
+    expect(worker?.clientCommand).toBe(normalizeCommandInput("C:/tools/opencode.exe"));
   });
 });

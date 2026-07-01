@@ -50,6 +50,14 @@ describe("path input normalization", () => {
     ).toBe("/repo/bin/opencode");
   });
 
+  it("keeps Windows drive-style command paths slash-normalized on macOS", () => {
+    expect(
+      normalizeCommandInput("C:\\tools\\opencode.exe", {
+        platform: "darwin"
+      })
+    ).toBe("C:/tools/opencode.exe");
+  });
+
   it("recognizes common file-system-like values", () => {
     expect(looksLikeFileSystemPath("./bin/opencode")).toBe(true);
     expect(looksLikeFileSystemPath("C:\\tools\\opencode.exe")).toBe(true);
