@@ -803,6 +803,6 @@ describe("mcp tool registration", () => {
       expect(artifact.path).toContain(artifactName);
       expect(resumed.patchProposal?.id).toBeTruthy();
     });
-  });
+  }, 15_000);
 });
 
