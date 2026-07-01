@@ -11,13 +11,20 @@ import {
 import type {
   ModelInvocationRequest,
   ModelInvocationResult,
+  ModelStructuredOutputMode,
   ModelProvider
 } from "@mcp-code-worker/models";
 
 class SequenceProvider implements ModelProvider {
   public readonly name = "sequence";
 
-  public constructor(private readonly responses: ModelInvocationResult[]) {}
+  public constructor(
+    private readonly responses: Array<
+      Omit<ModelInvocationResult, "structuredOutputMode"> & {
+        structuredOutputMode?: ModelStructuredOutputMode;
+      }
+    >
+  ) {}
 
   public invoke(
     config: ModelConfig,
@@ -27,10 +34,15 @@ class SequenceProvider implements ModelProvider {
     void request;
 
     return Promise.resolve(
-      this.responses.shift() ?? {
-        provider: "sequence",
-        model: "test-model",
-        text: "{}"
+      {
+        structuredOutputMode: "native-json-schema",
+        ...(
+          this.responses.shift() ?? {
+            provider: "sequence",
+            model: "test-model",
+            text: "{}"
+          }
+        )
       }
     );
   }
@@ -89,6 +101,7 @@ describe("WorkerAgent structured outputs", () => {
     });
     expect(result.metadata["prompt"]).toBeTypeOf("string");
     expect(result.metadata["rawText"]).toBeTypeOf("string");
+    expect(result.metadata["structuredOutputMode"]).toBe("native-json-schema");
     expect(
       result.artifacts.some((artifact) => artifact.name === "worker-debug.json")
     ).toBe(true);

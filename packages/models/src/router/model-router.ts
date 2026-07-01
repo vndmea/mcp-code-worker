@@ -14,10 +14,15 @@ import { LiteLlmProvider } from "../providers/litellm-provider.js";
 import { LocalClientProvider } from "../providers/local-client-provider.js";
 import { MockModelProvider } from "../providers/mock-provider.js";
 import { OpencodeProvider } from "../providers/opencode-provider.js";
+import {
+  resolveModelBehaviorProfile,
+  type ModelBehaviorProfile
+} from "../profiles/model-behavior-profile.js";
 import type { ModelProvider } from "../types/model-provider.js";
 import { assessWorkerTaskEligibility } from "./worker-routing.js";
 
 export interface RoutedModel {
+  behaviorProfile: ModelBehaviorProfile;
   config: ModelConfig;
   provider: ModelProvider;
   role: AgentRole;
@@ -66,6 +71,7 @@ export class ModelRouter {
     }
 
     return {
+      behaviorProfile: resolveModelBehaviorProfile(config),
       config,
       provider,
       role

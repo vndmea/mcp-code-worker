@@ -26,6 +26,7 @@ export interface WorkerResultOptions<T> {
   prompt: string;
   outputSchema: ZodType<T>;
   fallbackOutput: T;
+  mockResponse?: unknown;
   risks: string[];
   confidence: number;
   artifacts?: AgentResult["artifacts"];
@@ -105,6 +106,7 @@ export abstract class WorkerAgent {
     prompt,
     outputSchema,
     fallbackOutput,
+    mockResponse,
     risks,
     confidence,
     artifacts = [],
@@ -123,12 +125,14 @@ export abstract class WorkerAgent {
       config: routed.config,
       schema: outputSchema,
       prompt,
-      mockResponse: fallbackOutput,
+      mockResponse: mockResponse ?? fallbackOutput,
       metadata: {
         taskId: task.id,
         capability: this.capability.name
       },
-      maxAttempts: maxStructuredAttempts ?? 1
+      maxAttempts:
+        maxStructuredAttempts ??
+        routed.behaviorProfile.structuredOutput.repairAttempts
     });
 
     const finalRisks = invocation.ok
@@ -139,6 +143,7 @@ export abstract class WorkerAgent {
       capability: this.capability.name,
       expectedOutputDescription: debugLabel ?? this.capability.description,
       failureKind: invocation.ok ? null : invocation.failureKind,
+      modelBehaviorProfile: routed.behaviorProfile.id,
       prompt,
       rawOutput: invocation.ok ? invocation.data : (invocation.raw ?? invocation.rawText),
       rawText: invocation.rawText,
@@ -151,7 +156,9 @@ export abstract class WorkerAgent {
             warnings: repositoryContext.warnings
           }
         : null,
-      structuredOutputErrors: invocation.errors
+      structuredOutputFallbackReason: invocation.structuredOutputFallbackReason,
+      structuredOutputErrors: invocation.errors,
+      structuredOutputMode: invocation.structuredOutputMode
     };
 
     return {
@@ -174,11 +181,16 @@ export abstract class WorkerAgent {
         capability: this.capability.name,
         expectedOutputDescription: debugLabel ?? this.capability.description,
         failureKind: invocation.ok ? undefined : invocation.failureKind,
+        modelBehaviorProfile: routed.behaviorProfile.id,
+        modelBehaviorStructuredOutputPreferredMode:
+          routed.behaviorProfile.structuredOutput.preferredMode,
         prompt,
         rawOutput: invocation.ok ? invocation.data : (invocation.raw ?? invocation.rawText),
         rawText: invocation.rawText,
+        structuredOutputFallbackReason: invocation.structuredOutputFallbackReason,
         structuredOutputAttempts: invocation.attempts,
         structuredOutputErrors: invocation.errors,
+        structuredOutputMode: invocation.structuredOutputMode,
         structuredOutputOk: invocation.ok,
         workerProfileStatus: workerProfile?.status
       }

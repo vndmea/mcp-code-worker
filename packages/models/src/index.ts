@@ -12,6 +12,7 @@ export * from "./providers/mock-provider.js";
 export * from "./providers/opencode-command.js";
 export * from "./providers/opencode-event-stream.js";
 export * from "./providers/opencode-provider.js";
+export * from "./profiles/model-behavior-profile.js";
 export * from "./router/model-router.js";
 export * from "./router/doctor-report.js";
 export * from "./router/worker-availability.js";
