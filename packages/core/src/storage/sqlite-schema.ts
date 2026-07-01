@@ -1,4 +1,4 @@
-export const CW_SQLITE_SCHEMA_VERSION = 1;
+export const CW_SQLITE_SCHEMA_VERSION = 2;
 
 export const CW_SQLITE_PRAGMAS: string[] = [
   "PRAGMA foreign_keys = ON",
@@ -79,6 +79,51 @@ export const CW_SQLITE_SCHEMA_STATEMENTS: string[] = [
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_task_artifacts_task_name
     ON task_artifacts(task_id, artifact_name)`,
+  `CREATE TABLE IF NOT EXISTS worker_task_executions (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    task_type TEXT NOT NULL,
+    host TEXT NOT NULL,
+    contract_id TEXT NOT NULL,
+    contract_version TEXT NOT NULL,
+    worker_id TEXT,
+    worker_trust_json TEXT NOT NULL,
+    task_envelope_json TEXT NOT NULL,
+    result_envelope_json TEXT,
+    status TEXT NOT NULL,
+    diagnostics_json TEXT NOT NULL,
+    artifact_refs_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    completed_at TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_worker_task_executions_task_created
+    ON worker_task_executions(task_id, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_worker_task_executions_worker_created
+    ON worker_task_executions(worker_id, created_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS artifact_records (
+    id TEXT PRIMARY KEY,
+    task_id TEXT,
+    execution_id TEXT,
+    artifact_name TEXT NOT NULL,
+    artifact_kind TEXT NOT NULL,
+    storage TEXT NOT NULL,
+    path TEXT NOT NULL,
+    retention_class TEXT NOT NULL,
+    metadata_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(execution_id) REFERENCES worker_task_executions(id) ON DELETE SET NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_artifact_records_task_created
+    ON artifact_records(task_id, created_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS cleanup_runs (
+    id TEXT PRIMARY KEY,
+    policy_name TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    deleted_artifacts INTEGER NOT NULL,
+    warnings_json TEXT NOT NULL,
+    errors_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     event_type TEXT NOT NULL,

@@ -38,4 +38,19 @@ describe("StorageWritePolicy", () => {
     expect(result.allowed).toBe(true);
     expect(result.mode).toBe("execute");
   });
+
+  it("treats execution records like audit writes in dry-run mode", () => {
+    const policy = new StorageWritePolicy({
+      allowWrite: true,
+      dryRun: true
+    });
+
+    const preview = policy.evaluate("execution-record-write");
+    const explicit = policy.evaluate("execution-record-write", true);
+
+    expect(preview.allowed).toBe(true);
+    expect(preview.mode).toBe("dry-run");
+    expect(explicit.allowed).toBe(true);
+    expect(explicit.mode).toBe("execute");
+  });
 });

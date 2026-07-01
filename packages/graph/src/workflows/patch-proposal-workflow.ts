@@ -4,6 +4,10 @@ import {
   type PatchInspection,
   type PatchProposal,
   type RepositoryContextPack,
+  type WorkerResultEnvelope,
+  type WorkerTaskEnvelope,
+  type WorkerTrustProfile,
+  recordWorkerTaskExecution,
   type ValidationReport,
   resolveExecutionContext,
   writeAuditEvent
@@ -26,6 +30,11 @@ import {
   runHostSemanticValidation,
   type HostSemanticValidationResult
 } from "../validators/host-semantic-validator.js";
+import { CodexHostAdapter } from "../host/codex-host-adapter.js";
+import {
+  buildMissingWorkerTrustProfile,
+  buildWorkerTrustProfile
+} from "./worker-trust-profile.js";
 import { resolveWorkflowWorkerContext } from "./worker-context-resolution.js";
 
 export interface PatchProposalWorkflowInput {
@@ -125,6 +134,98 @@ const hasCorruptPatchReason = (inspection: PatchInspection): boolean =>
     reason.toLowerCase().includes(CORRUPT_PATCH_REASON_FRAGMENT)
   );
 
+const buildPatchResultEnvelope = (input: {
+  hostTaskId: string;
+  inspection: PatchInspection;
+  modelBehaviorProfile?: string;
+  proposal: PatchProposal;
+  semanticValidation: HostSemanticValidationResult;
+  structuredOutputAttempts: number;
+  structuredOutputFallbackReason?: string;
+  structuredOutputMode: WorkerResultEnvelope["diagnostics"]["structuredOutputMode"];
+}): WorkerResultEnvelope => ({
+  taskEnvelopeId: input.hostTaskId,
+  taskType: "patch-generation",
+  status: input.semanticValidation.resultStatus,
+  output: input.proposal,
+  failure: input.semanticValidation.issues.length > 0 || !input.inspection.ok
+    ? {
+        kind: input.inspection.ok ? "semantic-validation" : "policy-blocked",
+        reasons: [
+          ...input.inspection.blockedReasons,
+          ...input.semanticValidation.issues.map((issue) => issue.reason)
+        ]
+      }
+    : undefined,
+  diagnostics: {
+    modelBehaviorProfile: input.modelBehaviorProfile,
+    structuredOutputAttempts: input.structuredOutputAttempts,
+    structuredOutputFallbackReason: input.structuredOutputFallbackReason,
+    structuredOutputMode: input.structuredOutputMode
+  }
+});
+
+const recordAndAuditPatchProposalExecution = async (input: {
+  context: ExecutionContext;
+  effectiveScope?: string;
+  inspection: PatchInspection;
+  modelBehaviorProfile?: string;
+  outputSummary: string;
+  proposal: PatchProposal;
+  semanticValidation: HostSemanticValidationResult;
+  structuredOutputAttempts: number;
+  structuredOutputFallbackReason?: string;
+  structuredOutputMode: WorkerResultEnvelope["diagnostics"]["structuredOutputMode"];
+  taskEnvelope: WorkerTaskEnvelope;
+  workflowInput: PatchProposalWorkflowInput;
+  warnings: string[];
+  workerId: string;
+  workerTrustProfile: WorkerTrustProfile;
+}): Promise<void> => {
+  const resultEnvelope = buildPatchResultEnvelope({
+    hostTaskId: input.taskEnvelope.id,
+    inspection: input.inspection,
+    modelBehaviorProfile: input.modelBehaviorProfile,
+    proposal: input.proposal,
+    semanticValidation: input.semanticValidation,
+    structuredOutputAttempts: input.structuredOutputAttempts,
+    structuredOutputFallbackReason: input.structuredOutputFallbackReason,
+    structuredOutputMode: input.structuredOutputMode
+  });
+  const executionRecord = await recordWorkerTaskExecution(input.context, {
+    artifactRefs: [input.proposal.id],
+    diagnostics: {
+      inspection: input.inspection,
+      semanticValidation: input.semanticValidation,
+      workflow: "patch-proposal-workflow"
+    },
+    resultEnvelope,
+    taskEnvelope: input.taskEnvelope,
+    workerId: input.workerId,
+    workerTrustProfile: input.workerTrustProfile
+  });
+
+  await writeAuditEvent(input.context, {
+    actor: "workflow",
+    action: "propose-patch",
+    mode: input.context.dryRun ? "dry-run" : "execute",
+    workflow: "patch-proposal-workflow",
+    inputSummary:
+      input.workflowInput.goal ?? input.workflowInput.scope ?? "patch proposal",
+    outputSummary: input.outputSummary,
+    warnings: input.warnings,
+    errors: input.inspection.blockedReasons,
+    metadata: {
+      executionRecordId: executionRecord.record.id,
+      executionRecordWritten: executionRecord.written,
+      patchId: input.proposal.id,
+      semanticResultStatus: input.semanticValidation.resultStatus,
+      scope: input.effectiveScope,
+      workerId: input.workerId
+    }
+  });
+};
+
 export const runPatchProposalWorkflow = async (
   input: PatchProposalWorkflowInput
 ): Promise<PatchProposalWorkflowOutput> => {
@@ -164,13 +265,36 @@ export const runPatchProposalWorkflow = async (
     ? assessWorkerTaskEligibility(workerProfile, "patch-generation")
     : null;
   const routedWorkerProfile = patchEligibility?.allowed ? workerProfile : null;
+  const workerTrustProfile = workerProfile
+    ? buildWorkerTrustProfile({
+        eligibilityAllowed: patchEligibility?.allowed ?? false,
+        forceExecution: false,
+        profile: workerProfile,
+        profileWarnings: workerProfile.warnings,
+        taskType: "patch-generation"
+      })
+    : buildMissingWorkerTrustProfile(workerId);
+  const hostAdapter = new CodexHostAdapter();
+  const hostTask = hostAdapter.buildWorkerTask({
+    additionalTaskInput: {
+      errorLog: input.errorLog,
+      fixResult: input.fixResult,
+      reviewResult: input.reviewResult,
+      validationReport: input.validationReport,
+      workerId
+    },
+    context: workerContext,
+    goal: input.goal ?? "Propose a safe patch.",
+    repositoryContext,
+    taskType: "patch-generation"
+  });
 
   if (workerProfile) {
     const patchGenerationConsistencyIssue =
       getPatchGenerationConsistencyIssue(workerProfile);
 
     if (patchGenerationConsistencyIssue) {
-      return buildDeniedPatchProposalOutput({
+      const denied = await buildDeniedPatchProposalOutput({
         context,
         fallbackProposal,
         repositoryContext,
@@ -179,10 +303,27 @@ export const runPatchProposalWorkflow = async (
         scope: effectiveScope,
         validationReport: input.validationReport
       });
+      await recordAndAuditPatchProposalExecution({
+        context,
+        effectiveScope,
+        inspection: denied.inspection,
+        outputSummary: "Patch proposal blocked before worker execution.",
+        proposal: denied.proposal,
+        semanticValidation: denied.semanticValidation,
+        structuredOutputAttempts: 0,
+        structuredOutputMode: "none",
+        taskEnvelope: hostTask.envelope,
+        workflowInput: input,
+        warnings: denied.warnings,
+        workerId,
+        workerTrustProfile
+      });
+
+      return denied;
     }
 
     if (patchEligibility && !patchEligibility.allowed) {
-      return buildDeniedPatchProposalOutput({
+      const denied = await buildDeniedPatchProposalOutput({
         context,
         fallbackProposal,
         repositoryContext,
@@ -190,6 +331,23 @@ export const runPatchProposalWorkflow = async (
         scope: effectiveScope,
         validationReport: input.validationReport
       });
+      await recordAndAuditPatchProposalExecution({
+        context,
+        effectiveScope,
+        inspection: denied.inspection,
+        outputSummary: "Patch proposal blocked before worker execution.",
+        proposal: denied.proposal,
+        semanticValidation: denied.semanticValidation,
+        structuredOutputAttempts: 0,
+        structuredOutputMode: "none",
+        taskEnvelope: hostTask.envelope,
+        workflowInput: input,
+        warnings: denied.warnings,
+        workerId,
+        workerTrustProfile
+      });
+
+      return denied;
     }
   }
 
@@ -264,24 +422,24 @@ export const runPatchProposalWorkflow = async (
     });
     warnings.push(...semanticReasons);
   }
-
-  await writeAuditEvent(context, {
-    actor: "workflow",
-    action: "propose-patch",
-    mode: context.dryRun ? "dry-run" : "execute",
-    workflow: "patch-proposal-workflow",
-    inputSummary: input.goal ?? input.scope ?? "patch proposal",
+  await recordAndAuditPatchProposalExecution({
+    context,
+    effectiveScope,
+    inspection,
+    modelBehaviorProfile: generation.modelBehaviorProfile,
     outputSummary: inspection.ok
       ? "Patch proposal generated."
       : "Patch proposal generated but inspection blocked it.",
+    proposal,
+    semanticValidation,
+    structuredOutputAttempts: generation.structuredOutputAttempts,
+    structuredOutputFallbackReason: generation.structuredOutputFallbackReason,
+    structuredOutputMode: generation.structuredOutputMode,
+    taskEnvelope: hostTask.envelope,
+    workflowInput: input,
     warnings,
-    errors: inspection.blockedReasons,
-    metadata: {
-      patchId: proposal.id,
-      semanticResultStatus: semanticValidation.resultStatus,
-      scope: effectiveScope,
-      workerId
-    }
+    workerId,
+    workerTrustProfile
   });
 
   return {

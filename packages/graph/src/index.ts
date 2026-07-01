@@ -19,3 +19,4 @@ export * from "./workflows/workflow-output.js";
 export * from "./workflows/worker-benchmark-workflow.js";
 export * from "./workflows/worker-interview-workflow.js";
 export * from "./workflows/worker-onboarding-workflow.js";
+export * from "./workflows/worker-trust-profile.js";

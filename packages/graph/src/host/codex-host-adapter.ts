@@ -17,7 +17,7 @@ export interface CodexHostAdapterInput {
   goal: string;
   repositoryContext: RepositoryContextPack;
   taskId?: string;
-  taskType: Exclude<WorkerTaskType, "patch-generation">;
+  taskType: WorkerTaskType;
 }
 
 export interface CodexHostAdapterOutput {
@@ -27,15 +27,19 @@ export interface CodexHostAdapterOutput {
   task: AgentTask;
 }
 
-const priorityForTask = (
-  taskType: Exclude<WorkerTaskType, "patch-generation">
-): AgentTask["priority"] =>
-  taskType === "codegen" || taskType === "validation-fix" ? "high" : "medium";
+const priorityForTask = (taskType: WorkerTaskType): AgentTask["priority"] =>
+  taskType === "codegen" ||
+  taskType === "validation-fix" ||
+  taskType === "patch-generation"
+    ? "high"
+    : "medium";
 
 const expectedArtifactTypeForTask = (
-  taskType: Exclude<WorkerTaskType, "patch-generation">
+  taskType: WorkerTaskType
 ): PlannedWorkerTask["expectedArtifactType"] =>
-  taskType === "codegen" || taskType === "validation-fix"
+  taskType === "codegen" ||
+  taskType === "validation-fix" ||
+  taskType === "patch-generation"
     ? "patch-plan"
     : taskType === "test-generation"
       ? "test-plan"
@@ -45,10 +49,12 @@ const expectedArtifactTypeForTask = (
         ? "review"
         : "summary";
 
-const riskLevelForTask = (
-  taskType: Exclude<WorkerTaskType, "patch-generation">
-): PlannedWorkerTask["riskLevel"] =>
-  taskType === "codegen" || taskType === "validation-fix" ? "medium" : "low";
+const riskLevelForTask = (taskType: WorkerTaskType): PlannedWorkerTask["riskLevel"] =>
+  taskType === "codegen" ||
+  taskType === "validation-fix" ||
+  taskType === "patch-generation"
+    ? "medium"
+    : "low";
 
 export class CodexHostAdapter {
   public buildWorkerTask(input: CodexHostAdapterInput): CodexHostAdapterOutput {

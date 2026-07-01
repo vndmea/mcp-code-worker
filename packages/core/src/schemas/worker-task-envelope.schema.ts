@@ -2,7 +2,10 @@ import { z } from "zod";
 
 import { ModelConfigSchema } from "./model-config.schema.js";
 import { RepositoryContextPackSchema } from "./repository-context.schema.js";
-import { WorkerTaskTypeSchema } from "./worker-capability.schema.js";
+import {
+  WorkerTaskTypeSchema,
+  WorkerTrustProfileSchema
+} from "./worker-capability.schema.js";
 
 export const WorkerHostSchema = z.enum(["codex"]);
 
@@ -78,6 +81,24 @@ export const WorkerResultEnvelopeSchema = z
   })
   .strict();
 
+export const WorkerTaskExecutionRecordSchema = z
+  .object({
+    id: z.string().min(1),
+    taskEnvelope: WorkerTaskEnvelopeSchema,
+    resultEnvelope: WorkerResultEnvelopeSchema.optional(),
+    workerId: z.string().min(1).optional(),
+    workerTrustProfile: WorkerTrustProfileSchema,
+    status: WorkerResultStatusSchema,
+    diagnostics: z.record(z.string(), z.unknown()).default({}),
+    artifactRefs: z.array(z.string()).default([]),
+    createdAt: z.string().datetime(),
+    completedAt: z.string().datetime().optional()
+  })
+  .strict();
+
 export type WorkerTaskEnvelope = z.infer<typeof WorkerTaskEnvelopeSchema>;
 export type WorkerResultEnvelope = z.infer<typeof WorkerResultEnvelopeSchema>;
 export type WorkerResultStatus = z.infer<typeof WorkerResultStatusSchema>;
+export type WorkerTaskExecutionRecord = z.infer<
+  typeof WorkerTaskExecutionRecordSchema
+>;

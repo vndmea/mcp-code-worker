@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createExecutionContextFromEnv,
+  listWorkerTaskExecutionRecords,
   type RepositoryContextPack,
   type ValidationReport,
   WorkerCapabilityProfileSchema
@@ -181,6 +182,33 @@ describe("patch proposal workflow", () => {
       expect(result.proposal.unifiedDiff).not.toContain("manual review");
     }
   }, 15_000);
+
+  it("persists patch-generation execution records when writes are allowed", async () => {
+    const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
+    const context = createWriteContext(rootDir);
+
+    const result = await runPatchProposalWorkflow({
+      context,
+      goal: "Fix the failing typecheck",
+      scope: "packages/core",
+      errorLog: "TS2304: Cannot find name 'missingValue'.",
+      workerId
+    });
+    const records = await listWorkerTaskExecutionRecords(
+      rootDir,
+      10,
+      context.cwStorageDir
+    );
+
+    expect(records).toHaveLength(1);
+    expect(records[0]?.taskEnvelope.taskType).toBe("patch-generation");
+    expect(records[0]?.artifactRefs).toEqual([result.proposal.id]);
+    expect(records[0]?.resultEnvelope?.diagnostics.structuredOutputAttempts).toBe(
+      1
+    );
+    expect(records[0]?.workerTrustProfile.trustLevel).toBe("benchmarked");
+  });
 
   it("marks fallback proposals as denied when model output is invalid", async () => {
     const rootDir = await createWorkspace();

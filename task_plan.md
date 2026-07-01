@@ -92,6 +92,24 @@ Verification:
 - `pnpm test`
 - Focused workflow tests for host-worker and patch proposal flows.
 
+### Phase 7: Observability Persistence and Final Verification
+
+Status: complete
+
+Deliverables:
+- Add `WorkerTrustProfile` as the lightweight optional certification signal for worker runs.
+- Add `WorkerTaskExecutionRecord` persistence for contract execution records.
+- Persist worker execution metadata and artifact references through SQLite when writes are allowed.
+- Keep execution records dry-run by default unless the storage policy permits writes.
+- Record trust, structured mode, repair attempts, failure kind, semantic result, and artifact refs for host-worker and patch-generation workflows.
+- Add workflow-level tests proving dry-run does not persist execution records and execute mode does.
+
+Verification:
+- `pnpm typecheck`
+- `pnpm lint`
+- `pnpm vitest run packages/core/src/storage/worker-execution-store.test.ts packages/core/src/storage/sqlite.test.ts packages/core/src/schemas/worker-task-envelope.schema.test.ts packages/core/src/policies/storage-write-policy.test.ts packages/graph/src/workflows/workflow.test.ts packages/graph/src/workflows/patch-proposal-workflow.test.ts`
+- `pnpm test`
+
 ## Errors Encountered
 
 | Error | Attempt | Resolution |
@@ -100,3 +118,4 @@ Verification:
 | Required `structuredOutputMode` broke old test fixtures | Phase 1 typecheck | Kept production field required and upgraded test fixtures/helpers instead of weakening the contract. |
 | `reviewTaskTypes.includes(...)` was too narrow for `WorkerTaskType` | Phase 5 typecheck | Switched to `some(...)` narrowing and kept the registry type broad enough for patch-generation validators. |
 | `PatchProposalWorkflowOutput` required semantic validation in older output tests | Phase 5 typecheck | Updated the fixture to include `semanticValidation` instead of making the field optional. |
+| Workflow-level execution persistence needed end-to-end proof | Phase 7 review | Added host-worker and patch-generation workflow tests for dry-run and execute-mode execution records. |

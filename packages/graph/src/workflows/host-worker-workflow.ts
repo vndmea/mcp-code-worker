@@ -3,10 +3,12 @@ import type {
   ExecutionContext,
   RepositoryContextPack,
   WorkerCapabilityProfile,
+  WorkerResultEnvelope,
   WorkerResultStatus,
   WorkerTaskType
 } from "@mcp-code-worker/core";
 import {
+  recordWorkerTaskExecution,
   resolveExecutionContext,
   ValidationReportSchema,
   writeAuditEvent
@@ -27,6 +29,7 @@ import { SummarizeWorker } from "../workers/summarize-worker.js";
 import { TestWorker } from "../workers/test-worker.js";
 import { resolveWorkflowWorkerContext } from "./worker-context-resolution.js";
 import { resolveWorkerCapabilityProfileForExecution } from "./worker-onboarding-workflow.js";
+import { buildWorkerTrustProfile } from "./worker-trust-profile.js";
 
 export interface HostWorkerWorkflowInput {
   additionalTaskInput?: Record<string, unknown>;
@@ -326,6 +329,64 @@ const resolveProfile = async (
   });
 };
 
+const asStructuredOutputMode = (
+  value: unknown
+): WorkerResultEnvelope["diagnostics"]["structuredOutputMode"] =>
+  value === "native-json-schema" ||
+  value === "prompt-only-json" ||
+  value === "none"
+    ? value
+    : "none";
+
+const buildWorkerResultEnvelope = (input: {
+  execution: HostWorkerExecutionInfo;
+  qualityGate: HostWorkerWorkflowQualityGate;
+  taskType: Exclude<WorkerTaskType, "patch-generation">;
+  taskEnvelopeId: string;
+  workerResult: AgentResult | null;
+}): WorkerResultEnvelope => {
+  const failure: WorkerResultEnvelope["failure"] | undefined =
+    input.qualityGate.reasons.length === 0
+      ? undefined
+      : input.execution.state === "blocked_by_policy"
+        ? {
+            kind: "policy-blocked",
+            reasons: input.qualityGate.reasons
+          }
+        : input.qualityGate.structuredFailureKind
+          ? {
+              kind: input.qualityGate.structuredFailureKind,
+              reasons: input.qualityGate.reasons
+            }
+          : {
+              kind: "semantic-validation",
+              reasons: input.qualityGate.reasons
+            };
+
+  return {
+    taskEnvelopeId: input.taskEnvelopeId,
+    taskType: input.taskType,
+    status: input.qualityGate.resultStatus,
+    output: input.workerResult?.output,
+    failure,
+    diagnostics: {
+      modelBehaviorProfile:
+        typeof input.workerResult?.metadata.modelBehaviorProfile === "string"
+          ? input.workerResult.metadata.modelBehaviorProfile
+          : undefined,
+      structuredOutputAttempts: input.qualityGate.structuredOutputAttempts,
+      structuredOutputFallbackReason:
+        typeof input.workerResult?.metadata.structuredOutputFallbackReason === "string"
+          ? input.workerResult.metadata.structuredOutputFallbackReason
+          : undefined,
+      structuredOutputMode:
+        input.qualityGate.structuredOutputStatus === "not-attempted"
+          ? "none"
+          : asStructuredOutputMode(input.workerResult?.metadata.structuredOutputMode)
+    }
+  };
+};
+
 export const runHostWorkerWorkflow = async (
   input: HostWorkerWorkflowInput
 ): Promise<HostWorkerWorkflowOutput> => {
@@ -394,6 +455,13 @@ export const runHostWorkerWorkflow = async (
       ? "executed"
       : "blocked_by_policy"
   };
+  const workerTrustProfile = buildWorkerTrustProfile({
+    eligibilityAllowed: eligibility.allowed,
+    forceExecution,
+    profile,
+    profileWarnings,
+    taskType: input.taskType
+  });
 
   let workerResult: AgentResult | null = null;
   const warnings = [
@@ -431,6 +499,25 @@ export const runHostWorkerWorkflow = async (
     execution,
     workerResult
   );
+  const resultEnvelope = buildWorkerResultEnvelope({
+    execution,
+    qualityGate,
+    taskEnvelopeId: hostTask.envelope.id,
+    taskType: input.taskType,
+    workerResult
+  });
+  const executionRecord = await recordWorkerTaskExecution(context, {
+    artifactRefs: workerResult?.artifacts.map((artifact) => artifact.name) ?? [],
+    diagnostics: {
+      execution,
+      qualityGate,
+      workflow: "host-worker-workflow"
+    },
+    resultEnvelope,
+    taskEnvelope: hostTask.envelope,
+    workerId: profile.workerId,
+    workerTrustProfile
+  });
   if (!qualityGate.answered) {
     warnings.push(...qualityGate.reasons);
   }
@@ -472,7 +559,9 @@ export const runHostWorkerWorkflow = async (
       forceExecution: execution.forceExecution,
       overrideApplied: execution.overrideApplied,
       taskType: input.taskType,
-      workerId: profile.workerId
+      workerExecutionRecordId: executionRecord.record.id,
+      workerId: profile.workerId,
+      workerTrustProfile
     }
   };
 
@@ -489,6 +578,8 @@ export const runHostWorkerWorkflow = async (
       answered: qualityGate.answered,
       scope: repositoryContext.scope,
       taskType: input.taskType,
+      workerExecutionRecordId: executionRecord.record.id,
+      workerExecutionRecordWritten: executionRecord.written,
       workerId: profile.workerId
     }
   });

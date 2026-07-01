@@ -32,7 +32,9 @@ export interface PatchGenerationInput {
 
 export interface PatchGenerationResult {
   errors: string[];
+  modelBehaviorProfile?: string;
   proposal: PatchProposal;
+  structuredOutputAttempts: number;
   structuredOutputFallbackReason?: string;
   structuredOutputMode: ModelStructuredOutputMode;
   structuredOutputOk: boolean;
@@ -107,6 +109,14 @@ export class PatchGenerationWorker extends WorkerAgent {
 
     return {
       proposal: PatchProposalSchema.parse(result.output),
+      modelBehaviorProfile:
+        typeof result.metadata.modelBehaviorProfile === "string"
+          ? result.metadata.modelBehaviorProfile
+          : undefined,
+      structuredOutputAttempts:
+        typeof result.metadata.structuredOutputAttempts === "number"
+          ? result.metadata.structuredOutputAttempts
+          : 0,
       structuredOutputFallbackReason:
         typeof result.metadata.structuredOutputFallbackReason === "string"
           ? result.metadata.structuredOutputFallbackReason

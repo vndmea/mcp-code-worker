@@ -14,7 +14,7 @@ interface DatabaseSyncLike {
   prepare: (
     sql: string
   ) => {
-    get: (key: string) => { value_json: string } | undefined;
+    get: (...args: unknown[]) => Record<string, unknown> | undefined;
   };
 }
 
@@ -34,11 +34,24 @@ describe("bootstrapSqliteWorkspaceStore", () => {
     try {
       const row = db
         .prepare("SELECT value_json FROM schema_meta WHERE key = ?")
-        .get("schema_version");
+        .get("schema_version") as { value_json: string } | undefined;
+      const executionTable = db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+        .get("worker_task_executions");
+      const artifactTable = db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+        .get("artifact_records");
+      const cleanupTable = db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+        .get("cleanup_runs");
+
       expect(row).toBeTruthy();
       expect(JSON.parse(row?.value_json ?? "{}")).toEqual({
         version: result.schemaVersion
       });
+      expect(executionTable).toBeTruthy();
+      expect(artifactTable).toBeTruthy();
+      expect(cleanupTable).toBeTruthy();
     } finally {
       db.close();
     }

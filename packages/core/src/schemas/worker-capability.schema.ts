@@ -36,6 +36,40 @@ export const WorkerInterviewFailureKindSchema = z.enum([
 
 export const WorkerStatusSchema = QualificationStatusSchema;
 
+export const WorkerTrustLevelSchema = z.enum([
+  "unknown",
+  "interviewed",
+  "benchmarked",
+  "verified"
+]);
+
+export const WorkerCertificationStatusSchema = z.enum([
+  "missing",
+  "not-run",
+  "failed",
+  "passed",
+  "stale"
+]);
+
+export const WorkerRecommendedModeSchema = z.enum([
+  "blocked",
+  "dry-run",
+  "host-review",
+  "execute"
+]);
+
+export const WorkerTrustProfileSchema = z
+  .object({
+    workerId: z.string().min(1),
+    trustLevel: WorkerTrustLevelSchema,
+    onboardingStatus: WorkerCertificationStatusSchema,
+    interviewStatus: WorkerCertificationStatusSchema,
+    benchmarkStatus: WorkerCertificationStatusSchema,
+    recommendedMode: WorkerRecommendedModeSchema,
+    warnings: z.array(z.string())
+  })
+  .strict();
+
 export const WorkerEvaluationScoreSchema = z.object({
   instructionFollowing: z.number().min(0).max(1),
   structuredOutput: z.number().min(0).max(1),

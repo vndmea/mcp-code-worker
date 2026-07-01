@@ -80,3 +80,22 @@ Start with structured mode transparency because it is the smallest shared founda
 - Patch schema, prompt, fallback, mock response, and patch-context prompt construction now live in the contract layer.
 - `patch-proposal-workflow` still owns policy gating, patch inspection, and host semantic aggregation, but no longer owns the patch prompt/schema path.
 - Full repository tests pass after the migration, confirming the change did not create a side execution path.
+
+## Phase 7 Result
+
+- Added `WorkerTrustProfile` with the `unknown`, `interviewed`, `benchmarked`, and `verified` trust levels described by the roadmap.
+- Added `WorkerTaskExecutionRecord` and a SQLite-backed `worker_task_executions` store for host-owned contract execution metadata.
+- Added `artifact_records` and `cleanup_runs` tables as the persistence boundary for execution artifacts and future retention cleanup.
+- `host-worker-workflow` and `patch-proposal-workflow` now record task envelope, result envelope, trust profile, structured output diagnostics, semantic status, and artifact references.
+- Execution records reuse the existing storage write policy: dry-run remains preview-only, execute mode persists records and artifact references.
+- Patch generation continues to flow through `CodexHostAdapter` and the shared contract registry instead of creating a second patch-specific contract path.
+- OpenCode source was used only as a conceptual reference. No bulk OpenCode source was copied into this implementation.
+
+## Final Refactor Assessment
+
+- `TaskContractRegistry` remains the task protocol source of truth for migrated worker tasks, including patch generation.
+- `ModelBehaviorProfileRegistry` remains the model behavior source of truth for structured output strategy and repair policy.
+- Host rules and prompt transformation remain adapter-owned through `CodexHostAdapter`.
+- Semantic rejection remains validator-owned rather than scattered as task-local parsing logic.
+- Persistence is centralized in core storage instead of writing ad hoc workflow files.
+- Remaining workflow branches are policy, context selection, patch inspection, audit, and orchestration boundaries rather than duplicated parser/repair/prompt implementations.

@@ -28,6 +28,32 @@ export type WorkerInterviewFailureKind =
   | "json-parse"
   | "schema-validation";
 export type WorkerStatus = "qualified" | "not-qualified";
+export type WorkerTrustLevel =
+  | "unknown"
+  | "interviewed"
+  | "benchmarked"
+  | "verified";
+export type WorkerCertificationStatus =
+  | "missing"
+  | "not-run"
+  | "failed"
+  | "passed"
+  | "stale";
+export type WorkerRecommendedMode =
+  | "blocked"
+  | "dry-run"
+  | "host-review"
+  | "execute";
+
+export interface WorkerTrustProfile {
+  workerId: string;
+  trustLevel: WorkerTrustLevel;
+  onboardingStatus: WorkerCertificationStatus;
+  interviewStatus: WorkerCertificationStatus;
+  benchmarkStatus: WorkerCertificationStatus;
+  recommendedMode: WorkerRecommendedMode;
+  warnings: string[];
+}
 
 export type RuntimeDecisionType =
   | "approve"

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createExecutionContextFromEnv,
+  listWorkerTaskExecutionRecords,
   type WorkerCapabilityProfile
 } from "@mcp-code-worker/core";
 import {
@@ -152,12 +153,13 @@ describe("host worker workflow", () => {
   it("runs one explicit worker task without creating an internal plan", async () => {
     const rootDir = await createWorkspace();
     await registerWorker(rootDir);
+    const context = createExecutionContextFromEnv(undefined, {
+      dryRun: true,
+      allowWrite: false,
+      rootDir
+    });
     const result = await runHostWorkerWorkflow({
-      context: createExecutionContextFromEnv(undefined, {
-        dryRun: true,
-        allowWrite: false,
-        rootDir
-      }),
+      context,
       goal: "Review the selected files for id-generation regressions",
       taskType: "review-lite",
       workerId,
@@ -177,6 +179,51 @@ describe("host worker workflow", () => {
     expect(result.qualityGate.workflowStatus).toBe("completed");
     expect(result.qualityGate.answerStatus).toBe("complete");
     expect(result.finalResult.status).toBe("success");
+    expect(result.finalResult.metadata.workerExecutionRecordId).toBeTruthy();
+    expect(
+      (result.finalResult.metadata.workerTrustProfile as { trustLevel?: string })
+        .trustLevel
+    ).toBe("benchmarked");
+    await expect(
+      listWorkerTaskExecutionRecords(rootDir, 10, context.cwStorageDir)
+    ).resolves.toEqual([]);
+  });
+
+  it("persists host worker execution records when writes are allowed", async () => {
+    const rootDir = await createWorkspace();
+    await registerWorker(rootDir);
+    const context = createExecutionContextFromEnv(undefined, {
+      dryRun: false,
+      allowWrite: true,
+      rootDir
+    });
+
+    const result = await runHostWorkerWorkflow({
+      context,
+      goal: "Review the selected files for id-generation regressions",
+      taskType: "review-lite",
+      workerId,
+      files: [
+        "packages/core/src/generateId.ts",
+        "packages/core/src/schemaMinimum.ts"
+      ]
+    });
+    const records = await listWorkerTaskExecutionRecords(
+      rootDir,
+      10,
+      context.cwStorageDir
+    );
+
+    expect(result.finalResult.metadata.workerExecutionRecordId).toBeTruthy();
+    expect(records).toHaveLength(1);
+    expect(records[0]?.id).toBe(
+      result.finalResult.metadata.workerExecutionRecordId
+    );
+    expect(records[0]?.taskEnvelope.taskType).toBe("review-lite");
+    expect(records[0]?.resultEnvelope?.diagnostics.structuredOutputAttempts).toBe(
+      1
+    );
+    expect(records[0]?.workerTrustProfile.trustLevel).toBe("benchmarked");
   });
 
   it("blocks task execution when no persisted worker profile is available", async () => {

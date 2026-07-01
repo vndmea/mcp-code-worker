@@ -2,6 +2,7 @@ export type StorageWriteDomain =
   | "audit-write"
   | "benchmark-write"
   | "config-write"
+  | "execution-record-write"
   | "profile-write"
   | "secret-write"
   | "session-write";
@@ -74,7 +75,7 @@ export class StorageWritePolicy {
       };
     }
 
-    if (domain === "audit-write") {
+    if (domain === "audit-write" || domain === "execution-record-write") {
       if (this.dryRun && !explicitAllowWrite) {
         return {
           allowed: true,

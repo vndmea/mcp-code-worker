@@ -15,6 +15,7 @@ export * from "./runtime/workflow-runtime.js";
 export * from "./storage/cw-paths.js";
 export * from "./storage/sqlite.js";
 export * from "./storage/sqlite-schema.js";
+export * from "./storage/worker-execution-store.js";
 export * from "./session/task-report.js";
 export * from "./session/task-session-store.js";
 export * from "./schemas/agent-result.schema.js";
